@@ -11,11 +11,30 @@ const fund = ref(null)
 const loading = ref(true)
 const submitting = ref(false)
 const success = ref(false)
+const showErrorModal = ref(false)
 const transactionRef = ref('')
 const phoneNumber = ref('')
 
 const parts = ref(1)
+const inputMode = ref('amount')
+const inputAmount = ref(0)
 const paymentMethod = ref('orange_money')
+
+const onAmountInput = (e) => {
+  const val = parseFloat(e.target.value) || 0
+  inputAmount.value = val
+  if (fund.value && fund.value.vl > 0) {
+    parts.value = parseFloat((val / fund.value.vl).toFixed(4))
+  }
+}
+
+const onPartsInput = (e) => {
+  const val = parseFloat(e.target.value) || 0
+  parts.value = val
+  if (fund.value) {
+    inputAmount.value = parseFloat((val * fund.value.vl).toFixed(2))
+  }
+}
 
 // Stripe State
 const stripe = ref(null)
@@ -87,7 +106,11 @@ const fetchData = async () => {
     ])
     fund.value = productsRes.data.find(p => p.id == route.params.id)
     pekDetails.value = bankRes.data
-    if (!fund.value) router.push('/catalog')
+    if (fund.value) {
+      inputAmount.value = fund.value.vl
+    } else {
+      router.push('/catalog')
+    }
   } catch (error) {
     console.error('Error fetching data:', error)
   } finally {
@@ -140,7 +163,7 @@ const canSubmit = computed(() => {
 const pekDetails = ref(null)
 
 const handleSubscribe = async () => {
-
+  stripeError.value = null
   submitting.value = true
   try {
     const response = await api.post('/subscriptions', {
@@ -169,7 +192,18 @@ const handleSubscribe = async () => {
     transactionRef.value = subscription.reference_transaction
     success.value = true
   } catch (error) {
-    stripeError.value = error.message || 'Une erreur est survenue.'
+    if (error.response && error.response.data) {
+      stripeError.value = error.response.data.error || error.response.data.message || error.message
+    } else {
+      if (error.message === 'Network Error') {
+        stripeError.value = "Impossible de contacter le serveur. Veuillez vérifier votre connexion internet."
+      } else if (error.message && error.message.includes('timeout')) {
+        stripeError.value = "Le serveur a mis trop de temps à répondre. Veuillez réessayer dans quelques instants."
+      } else {
+        stripeError.value = "Une erreur de connexion est survenue. Veuillez réessayer."
+      }
+    }
+    showErrorModal.value = true
   } finally {
     submitting.value = false
   }
@@ -189,14 +223,33 @@ const handleSubscribe = async () => {
       </div>
       
       <div class="space-y-2">
-        <h2 class="text-2xl font-black text-slate-900">{{ pekDetails ? 'Instructions de virement' : 'Souscription Réussie !' }}</h2>
-        <p class="text-slate-500 text-sm leading-relaxed max-w-[280px] mx-auto">
-          {{ pekDetails ? 'Veuillez effectuer le virement vers le compte bancaire de PEK.' : 'Votre souscription a été enregistrée avec succès.' }}
-        </p>
+        <!-- Virement (Stripe inside code) -->
+        <template v-if="paymentMethod === 'stripe'">
+          <h2 class="text-2xl font-black text-slate-900">Instructions de virement</h2>
+          <p class="text-slate-500 text-sm leading-relaxed max-w-[280px] mx-auto">
+            Veuillez effectuer le virement vers le compte bancaire de PEK.
+          </p>
+        </template>
+        
+        <!-- Mobile Money -->
+        <template v-else-if="['orange_money', 'mtn_momo'].includes(paymentMethod)">
+          <h2 class="text-2xl font-black text-slate-900">Paiement Mobile Initié !</h2>
+          <p class="text-slate-500 text-sm leading-relaxed max-w-[280px] mx-auto">
+            Une demande de débit a été envoyée sur votre téléphone.
+          </p>
+        </template>
+        
+        <!-- Carte Bancaire -->
+        <template v-else>
+          <h2 class="text-2xl font-black text-slate-900">Paiement Réussi !</h2>
+          <p class="text-slate-500 text-sm leading-relaxed max-w-[280px] mx-auto">
+            Votre paiement par carte a été traité et validé avec succès.
+          </p>
+        </template>
       </div>
 
-      <!-- PEK Bank Details Card -->
-      <div v-if="pekDetails" class="w-full bg-slate-50 rounded-3xl p-6 space-y-4 border border-slate-100 text-left">
+      <!-- Case 1: Virement Bank Details Card -->
+      <div v-if="paymentMethod === 'stripe' && pekDetails" class="w-full bg-slate-50 rounded-3xl p-6 space-y-4 border border-slate-100 text-left">
         <div class="space-y-4">
           <div class="flex flex-col">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Banque</span>
@@ -217,6 +270,39 @@ const handleSubscribe = async () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Case 2: Mobile Money Instructions Card -->
+      <div v-else-if="['orange_money', 'mtn_momo'].includes(paymentMethod)" class="w-full bg-slate-50 rounded-3xl p-6 space-y-4 border border-slate-100 text-left">
+        <div class="flex items-center gap-3 pb-3 border-b border-slate-200/60">
+          <div :class="paymentMethod === 'orange_money' ? 'bg-orange-50 text-orange-500' : 'bg-yellow-50 text-yellow-600'" class="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs uppercase">
+            {{ paymentMethod === 'orange_money' ? 'OM' : 'MoMo' }}
+          </div>
+          <div>
+            <h4 class="text-xs font-black text-slate-900 uppercase">
+              {{ paymentMethod === 'orange_money' ? 'Orange Money Cameroun' : 'MTN Mobile Money' }}
+            </h4>
+            <p class="text-[10px] text-slate-400 font-bold">Numéro de débit : {{ phoneNumber }}</p>
+          </div>
+        </div>
+        <div class="space-y-2 text-xs text-slate-600 font-medium leading-relaxed">
+          <p>1. Tapez votre **code secret** sur l'écran d'autorisation qui apparaît sur votre téléphone.</p>
+          <p v-if="paymentMethod === 'orange_money'">2. Si l'écran d'autorisation ne s'ouvre pas automatiquement, composez le <span class="font-black text-primary">#150#</span> pour valider.</p>
+          <p v-else>2. Si l'écran d'autorisation ne s'ouvre pas automatiquement, composez le <span class="font-black text-primary">*126#</span> pour valider.</p>
+        </div>
+      </div>
+
+      <!-- Case 3: Credit Card Confirmation Card -->
+      <div v-else class="w-full bg-slate-50 rounded-3xl p-6 space-y-4 border border-slate-100 text-left">
+        <div class="flex items-center gap-3">
+          <div>
+            <h4 class="text-xs font-black text-slate-900 uppercase">Paiement Sécurisé</h4>
+            <p class="text-[10px] text-slate-400 font-bold">Transaction traitée avec Stripe</p>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 font-medium leading-relaxed">
+          Votre paiement a été approuvé. Votre reçu vous a été envoyé par email. Le traitement de votre souscription est en cours.
+        </p>
       </div>
 
       <div class="bg-slate-50 w-full rounded-3xl p-6 space-y-4 border border-slate-100">
@@ -241,7 +327,7 @@ const handleSubscribe = async () => {
         <ArrowRight class="w-4 h-4" />
       </button>
     </div>
-  </div>
+  </div> 
 
   <div v-else class="min-h-full flex flex-col bg-slate-50">
     <!-- Header -->
@@ -259,9 +345,6 @@ const handleSubscribe = async () => {
           <div class="space-y-1">
             <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Sélection</span>
             <h3 class="text-xl font-black text-slate-900">{{ fund.name }}</h3>
-          </div>
-          <div class="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary">
-            <ShieldCheck class="w-6 h-6" />
           </div>
         </div>
         
@@ -281,15 +364,66 @@ const handleSubscribe = async () => {
 
       <!-- Calculator Section -->
       <section class="space-y-4">
-        <label class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Nombre de parts</label>
-        <div class="relative group">
-          <input 
-            v-model.number="parts"
-            type="number" 
-            step="0.1"
-            class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 px-8 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
+        <!-- Premium Tab Switcher -->
+        <div class="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
+          <button 
+            @click="inputMode = 'amount'" 
+            type="button"
+            :class="[
+              'flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
+              inputMode === 'amount' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            ]"
           >
-          <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest">Parts</div>
+            Montant (FCFA)
+          </button>
+          <button 
+            @click="inputMode = 'parts'" 
+            type="button"
+            :class="[
+              'flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
+              inputMode === 'parts' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            ]"
+          >
+            Nombre de parts
+          </button>
+        </div>
+
+        <!-- Dynamic Inputs -->
+        <!-- Mode Montant -->
+        <div v-if="inputMode === 'amount'" class="space-y-2 text-left animate-in fade-in duration-300">
+          <label class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Montant de l'investissement</label>
+          <div class="relative group">
+            <input 
+              :value="inputAmount"
+              @input="onAmountInput"
+              type="number" 
+              placeholder="Ex: 50 000"
+              class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 px-8 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
+            >
+            <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest">FCFA</div>
+          </div>
+          <span class="text-[10px] text-slate-400 font-bold block px-2">
+            Soit environ <strong class="text-primary">{{ parts }} parts</strong> à acquérir.
+          </span>
+        </div>
+
+        <!-- Mode Parts -->
+        <div v-else class="space-y-2 text-left animate-in fade-in duration-300">
+          <label class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Nombre de parts souhaité</label>
+          <div class="relative group">
+            <input 
+              :value="parts"
+              @input="onPartsInput"
+              type="number" 
+              step="0.0001"
+              placeholder="Ex: 5"
+              class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 px-8 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
+            >
+            <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest">Parts</div>
+          </div>
+          <span class="text-[10px] text-slate-400 font-bold block px-2">
+            Soit un investissement de <strong class="text-primary">{{ parseFloat(totalAmount).toLocaleString() }} FCFA</strong>.
+          </span>
         </div>
       </section>
 
@@ -390,13 +524,8 @@ const handleSubscribe = async () => {
                 </div>
               </div>
 
-              <!-- Error Message -->
-              <div v-if="stripeError" class="flex items-center gap-2 text-rose-500 text-[10px] font-bold bg-rose-50 p-3 rounded-xl border border-rose-100">
-                <AlertCircle class="w-4 h-4" />
-                {{ stripeError }}
-              </div>
-           </div>
-        </div>
+            </div>
+         </div>
       </section>
 
       <!-- Summary -->
@@ -406,7 +535,7 @@ const handleSubscribe = async () => {
           <span>{{ parseFloat(totalAmount).toLocaleString() }} FCFA</span>
         </div>
         <div class="flex justify-between items-center text-xs opacity-60">
-          <span>Frais de gestion (1%)</span>
+          <span>Frais de souscription (1%)</span>
           <span>{{ parseFloat(fees).toLocaleString() }} FCFA</span>
         </div>
         <div class="pt-4 border-t border-white/10 flex justify-between items-end">
@@ -428,13 +557,42 @@ const handleSubscribe = async () => {
       >
         <Loader2 v-if="submitting" class="w-6 h-6 animate-spin" />
         <template v-else>
-          <ShieldCheck class="w-6 h-6 text-accent" />
           {{ paymentMethod === 'bank_card' ? 'Payer maintenant' : 'Confirmer le paiement' }}
         </template>
       </button>
       <p v-if="!isMinimumMet" class="text-center text-rose-500 text-[10px] font-bold mt-3 animate-pulse">
         Montant minimum ({{ fund?.min.toLocaleString() }} FCFA) non atteint.
       </p>
+    </div>
+
+    <!-- Premium Error Modal Window -->
+    <div v-if="showErrorModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+      <!-- Backdrop with glassmorphism blur -->
+      <div @click="showErrorModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+      
+      <!-- Modal card -->
+      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+        <!-- Floating Red Alert Icon -->
+        <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-500">
+          <AlertCircle class="w-8 h-8" />
+        </div>
+        
+        <!-- Text details -->
+        <div class="space-y-2">
+          <h3 class="text-lg font-black text-slate-900">Échec du paiement</h3>
+          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+            {{ stripeError }}
+          </p>
+        </div>
+        
+        <!-- Primary Action Button -->
+        <button 
+          @click="showErrorModal = false" 
+          class="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider"
+        >
+          Réessayer
+        </button>
+      </div>
     </div>
   </div>
 </template>

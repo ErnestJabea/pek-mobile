@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { TrendingUp, ArrowUpRight, ShieldCheck, Zap, Loader2 } from 'lucide-vue-next'
 import api from '../api/api'
 
@@ -21,6 +21,38 @@ const fetchData = async () => {
     loading.value = false
   }
 }
+
+const chartData = computed(() => {
+  if (featuredFunds.value.length === 0) return []
+  return featuredFunds.value[0].history || []
+})
+
+const chartBars = computed(() => {
+  const data = chartData.value
+  if (data.length === 0) {
+    // Fallback dynamique si aucun historique n'existe encore
+    return Array.from({ length: 8 }, (_, i) => ({
+      height: 35 + i * 8,
+      label: 'Sem ' + (i + 1),
+      displayValue: 'En attente'
+    }))
+  }
+
+  const vls = data.map(d => d.vl)
+  const minVl = Math.min(...vls)
+  const maxVl = Math.max(...vls)
+  const range = maxVl - minVl || 1
+
+  return data.map(item => {
+    // Échelle progressive de hauteur (25% à 95%)
+    const percentage = ((item.vl - minVl) / range) * 70 + 25
+    return {
+      height: percentage,
+      label: item.date,
+      displayValue: `${item.vl.toLocaleString()} FCFA`
+    }
+  })
+})
 
 onMounted(() => {
   fetchData()
@@ -91,23 +123,32 @@ onMounted(() => {
       </div>
     </section>
 
-    <!-- Market Simulation Chart (SVG) -->
-    <section class="bg-slate-50 rounded-3xl p-6">
-      <h3 class="text-lg font-bold text-slate-900 mb-6">Performance Marché</h3>
-      <div class="h-32 w-full flex items-end gap-2">
-        <div v-for="i in 12" :key="i" 
-          :style="{ height: (30 + Math.random() * 70) + '%' }" 
-          class="flex-1 bg-primary/10 rounded-t-lg relative group transition-all hover:bg-primary/30"
+    <!-- Market Performance Chart (Dynamic from ProductVl) -->
+    <section class="bg-slate-50 rounded-3xl p-6 text-left">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-bold text-slate-900">Performance Marché</h3>
+        <span v-if="featuredFunds[0]" class="text-[10px] font-black text-primary bg-primary/5 px-3 py-1 rounded-full uppercase tracking-wider">
+          {{ featuredFunds[0].name }}
+        </span>
+      </div>
+      
+      <div class="h-32 w-full flex items-end gap-2 pt-6">
+        <div v-for="(bar, index) in chartBars" :key="index" 
+          :style="{ height: bar.height + '%' }" 
+          class="flex-1 bg-primary/10 hover:bg-primary rounded-t-lg relative group transition-all duration-300"
         >
-          <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-            {{ Math.floor(Math.random() * 100) }}%
+          <!-- Hover Tooltip -->
+          <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1.5 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg z-20 font-black">
+            {{ bar.displayValue }}
           </div>
         </div>
       </div>
-      <div class="flex justify-between mt-4 text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-        <span>Jan</span>
-        <span>Jun</span>
-        <span>Dec</span>
+      
+      <!-- Dynamic Labels -->
+      <div class="flex justify-between mt-4 text-[9px] text-slate-400 font-bold uppercase tracking-wider px-1">
+        <span v-if="chartBars.length > 0">{{ chartBars[0].label }}</span>
+        <span v-if="chartBars.length > 2">{{ chartBars[Math.floor(chartBars.length / 2)].label }}</span>
+        <span v-if="chartBars.length > 1">{{ chartBars[chartBars.length - 1].label }}</span>
       </div>
     </section>
   </div>

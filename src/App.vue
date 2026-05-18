@@ -8,6 +8,7 @@ import api from './api/api'
 const isDesktop = ref(false)
 const isOffline = ref(!window.navigator.onLine)
 const authStore = useAuthStore()
+const showApplePrompt = ref(false)
 
 const checkScreenSize = () => {
   isDesktop.value = window.innerWidth > 1024
@@ -15,6 +16,26 @@ const checkScreenSize = () => {
 
 const updateOnlineStatus = () => {
   isOffline.value = !window.navigator.onLine
+}
+
+const detectiOS = () => {
+  const userAgent = window.navigator.userAgent.toLowerCase()
+  const isIOS = /iphone|ipad|ipod/.test(userAgent)
+  
+  // Standalone vérifie si l'app est lancée comme PWA installée ou dans le navigateur
+  const isStandalone = window.navigator.standalone === true
+  
+  // Vérifie si l'utilisateur a fermé l'invitation pour cette session
+  const isClosed = sessionStorage.getItem('pek_ios_prompt_closed') === 'true'
+
+  if (isIOS && !isStandalone && !isClosed) {
+    showApplePrompt.value = true
+  }
+}
+
+const closeApplePrompt = () => {
+  showApplePrompt.value = false
+  sessionStorage.setItem('pek_ios_prompt_closed', 'true')
 }
 
 const initUser = async () => {
@@ -30,6 +51,7 @@ const initUser = async () => {
 
 onMounted(() => {
   checkScreenSize()
+  detectiOS()
   initUser()
   window.addEventListener('resize', checkScreenSize)
   window.addEventListener('online', updateOnlineStatus)
@@ -44,6 +66,37 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- iOS PWA Install Prompt Banner -->
+  <div v-if="showApplePrompt" class="fixed bottom-6 left-6 right-6 bg-slate-900 text-white rounded-[32px] p-6 shadow-2xl z-[9999] border border-white/10 animate-in slide-in-from-bottom duration-500 max-w-md mx-auto text-left">
+    <div class="flex justify-between items-start mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-accent">
+          <Smartphone class="w-6 h-6 text-yellow-400" />
+        </div>
+        <div>
+          <h4 class="text-sm font-black uppercase tracking-wider">Installer PEK Mobile</h4>
+          <p class="text-[10px] text-white/50 font-bold">Ajoutez l'application sur votre iPhone</p>
+        </div>
+      </div>
+      <button @click="closeApplePrompt" class="text-white/60 hover:text-white font-black text-sm p-1">✕</button>
+    </div>
+    
+    <div class="space-y-2 text-xs font-semibold text-white/80 leading-relaxed pl-1">
+      <p class="flex items-center gap-2">
+        <span>1. Appuyez sur le bouton de <strong>Partage</strong></span>
+        <svg class="w-5 h-5 text-yellow-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+        </svg>
+      </p>
+      <p class="flex items-center gap-2">
+        <span>2. Faites défiler et sélectionnez <strong>Sur l'écran d'accueil</strong></span>
+        <svg class="w-5 h-5 text-yellow-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+      </p>
+    </div>
+  </div>
+
   <!-- Écran de déconnexion Internet -->
   <div v-if="isOffline" class="fixed inset-0 bg-white z-[10000] flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
     <div class="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mb-6 animate-bounce">
