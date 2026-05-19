@@ -24,16 +24,31 @@ const fetchSubscriptions = async () => {
 const totalPages = computed(() => Math.ceil(subscriptions.value.length / itemsPerPage))
 
 const checkingId = ref(null)
+const showStatusModal = ref(false)
+const statusModalTitle = ref('')
+const statusModalMessage = ref('')
+const statusModalType = ref('success')
+
+const openStatusModal = (title, message, type = 'success') => {
+  statusModalTitle.value = title
+  statusModalMessage.value = message
+  statusModalType.value = type
+  showStatusModal.value = true
+}
 
 const verifyPayment = async (subId) => {
   checkingId.value = subId
   try {
     const response = await api.post(`/subscriptions/${subId}/check-status`)
-    alert(response.data.message)
+    openStatusModal('Vérification Réussie ✅', response.data.message, 'success')
     await fetchSubscriptions()
   } catch (error) {
     console.error('Error checking payment status:', error)
-    alert(error.response?.data?.message || 'Erreur lors de la vérification du paiement.')
+    openStatusModal(
+      'Échec de la vérification ⚠️',
+      error.response?.data?.message || 'Erreur lors de la vérification du paiement.',
+      'error'
+    )
   } finally {
     checkingId.value = null
   }
@@ -192,5 +207,40 @@ onMounted(() => {
         </div>
       </div>
     </main>
+
+    <!-- Premium Verification Status Modal Window -->
+    <div v-if="showStatusModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+      <!-- Backdrop with glassmorphism blur -->
+      <div @click="showStatusModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+      
+      <!-- Modal card -->
+      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+        <!-- Icon wrapper based on status -->
+        <div 
+          :class="statusModalType === 'success' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'" 
+          class="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+        >
+          <CheckCircle2 v-if="statusModalType === 'success'" class="w-8 h-8" />
+          <AlertCircle v-else class="w-8 h-8" />
+        </div>
+        
+        <!-- Text details -->
+        <div class="space-y-2">
+          <h3 class="text-lg font-black text-slate-900">{{ statusModalTitle }}</h3>
+          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+            {{ statusModalMessage }}
+          </p>
+        </div>
+        
+        <!-- Primary Action Button -->
+        <button 
+          @click="showStatusModal = false"
+          :class="statusModalType === 'success' ? 'bg-primary shadow-primary/20' : 'bg-slate-900 shadow-slate-900/20'"
+          class="w-full text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all text-xs uppercase tracking-wider"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
   </div>
 </template>

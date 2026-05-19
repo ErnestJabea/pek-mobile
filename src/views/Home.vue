@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { TrendingUp, TrendingDown, ArrowUpRight, ShieldCheck, Zap, Loader2 } from 'lucide-vue-next'
+import { TrendingUp, TrendingDown, ArrowUpRight, ShieldCheck, Zap, Loader2, AlertCircle } from 'lucide-vue-next'
 import api from '../api/api'
 
 const stats = ref(null)
 const featuredFunds = ref([])
 const loading = ref(true)
 const activeBarIndex = ref(null)
+const showRedeemModal = ref(false)
 
 const selectBar = (index) => {
   activeBarIndex.value = index
@@ -110,7 +111,7 @@ onMounted(() => {
             Investir
           </router-link>
           <button 
-            @click="alert('Le retrait sera disponible prochainement.')" 
+            @click="showRedeemModal = true" 
             :disabled="!stats || stats.total_balance <= 0"
             class="flex-1 bg-white/10 backdrop-blur-md text-white font-bold py-3 rounded-xl hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/10"
           >
@@ -188,5 +189,35 @@ onMounted(() => {
         <span v-if="chartBars.length > 1">{{ chartBars[chartBars.length - 1].label }}</span>
       </div>
     </section>
+
+    <!-- Premium Redeem Modal Window -->
+    <div v-if="showRedeemModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+      <!-- Backdrop with glassmorphism blur -->
+      <div @click="showRedeemModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+      
+      <!-- Modal card -->
+      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+        <!-- Floating Info Icon -->
+        <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto text-primary">
+          <AlertCircle class="w-8 h-8" />
+        </div>
+        
+        <!-- Text details -->
+        <div class="space-y-2">
+          <h3 class="text-lg font-black text-slate-900">Rachat indisponible</h3>
+          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+            L'opération de retrait/rachat sera disponible prochainement dans une future mise à jour de l'application.
+          </p>
+        </div>
+        
+        <!-- Primary Action Button -->
+        <button 
+          @click="showRedeemModal = false"
+          class="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all text-xs uppercase tracking-wider"
+        >
+          D'accord
+        </button>
+      </div>
+    </div>
   </div>
 </template>
