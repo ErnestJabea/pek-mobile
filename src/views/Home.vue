@@ -1,11 +1,16 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { TrendingUp, ArrowUpRight, ShieldCheck, Zap, Loader2 } from 'lucide-vue-next'
+import { TrendingUp, TrendingDown, ArrowUpRight, ShieldCheck, Zap, Loader2 } from 'lucide-vue-next'
 import api from '../api/api'
 
 const stats = ref(null)
 const featuredFunds = ref([])
 const loading = ref(true)
+const activeBarIndex = ref(null)
+
+const selectBar = (index) => {
+  activeBarIndex.value = index
+}
 
 const fetchData = async () => {
   try {
@@ -15,12 +20,23 @@ const fetchData = async () => {
     ])
     stats.value = statsRes.data
     featuredFunds.value = productsRes.data.slice(0, 3)
+    if (chartBars.value.length > 0) {
+      activeBarIndex.value = chartBars.value.length - 1
+    }
   } catch (error) {
     console.error('Error fetching home data:', error)
   } finally {
     loading.value = false
   }
 }
+
+// Rendement positif ou négatif
+const isPositive = computed(() => (stats.value?.plus_value ?? 0) >= 0)
+
+const rendementLabel = computed(() => {
+  const r = stats.value?.rendement_global ?? 0
+  return (r >= 0 ? '+' : '') + r.toFixed(2) + '%'
+})
 
 const chartData = computed(() => {
   if (featuredFunds.value.length === 0) return []
@@ -70,18 +86,27 @@ onMounted(() => {
       <div class="relative z-10 space-y-4">
         <div class="flex justify-between items-start">
           <span class="text-white/70 text-sm font-medium">Solde Total</span>
-          <ShieldCheck class="w-5 h-5 text-accent" />
         </div>
         <div class="space-y-1">
           <h2 class="text-3xl font-bold">{{ (stats?.total_balance || 0).toLocaleString() }} FCFA</h2>
-          <div class="flex items-center gap-1 text-emerald-400 text-sm">
-            <TrendingUp class="w-4 h-4" />
-            <span>+{{ (stats?.performance_month || 0).toLocaleString() }} FCFA (Ce mois)</span>
+          <!-- Plus-value réelle et rendement depuis PortfolioService -->
+          <div class="flex items-center gap-1 text-sm" :class="isPositive ? 'text-emerald-400' : 'text-red-400'">
+            <TrendingUp v-if="isPositive" class="w-4 h-4" />
+            <TrendingDown v-else class="w-4 h-4" />
+            <span>
+              {{ isPositive ? '+' : '' }}{{ (stats?.plus_value || 0).toLocaleString() }} FCFA
+              &nbsp;({{ rendementLabel }})
+            </span>
           </div>
+          <!-- Coût de revient (masqué temporairement)
+          <div class="text-white/50 text-xs mt-1">
+            Coût de revient : {{ (stats?.cout_revient || 0).toLocaleString() }} FCFA
+          </div>
+          -->
         </div>
         <div class="pt-4 flex gap-3">
           <router-link to="/catalog" class="flex-1 bg-white text-primary font-bold py-3 rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center gap-2">
-            <Zap class="w-4 h-4" />
+            
             Investir
           </router-link>
           <button 
@@ -125,23 +150,35 @@ onMounted(() => {
 
     <!-- Market Performance Chart (Dynamic from ProductVl) -->
     <section class="bg-slate-50 rounded-3xl p-6 text-left">
-      <div class="flex justify-between items-center mb-6">
+      <div class="flex justify-between items-center mb-4">
         <h3 class="text-lg font-bold text-slate-900">Performance Marché</h3>
         <span v-if="featuredFunds[0]" class="text-[10px] font-black text-primary bg-primary/5 px-3 py-1 rounded-full uppercase tracking-wider">
           {{ featuredFunds[0].name }}
         </span>
       </div>
-      
-      <div class="h-32 w-full flex items-end gap-2 pt-6">
-        <div v-for="(bar, index) in chartBars" :key="index" 
-          :style="{ height: bar.height + '%' }" 
-          class="flex-1 bg-primary/10 hover:bg-primary rounded-t-lg relative group transition-all duration-300"
-        >
-          <!-- Hover Tooltip -->
-          <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1.5 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg z-20 font-black">
-            {{ bar.displayValue }}
+
+      <!-- Live Interactive Details (Stunning Premium Display Card) -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-100 mb-6 flex justify-between items-center shadow-sm">
+        <div class="space-y-1">
+          <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider block">
+            {{ activeBarIndex !== null && chartBars[activeBarIndex] ? 'Vl au ' + chartBars[activeBarIndex].label : 'Sélectionnez une période' }}
+          </span>
+          <div class="text-xl font-black text-primary leading-none transition-all duration-300">
+            {{ activeBarIndex !== null && chartBars[activeBarIndex] ? chartBars[activeBarIndex].displayValue : '--- FCFA' }}
           </div>
         </div>
+      </div>
+      
+      <div class="h-32 w-full flex items-end gap-2 pt-6">
+        <button v-for="(bar, index) in chartBars" :key="index" 
+          @click="selectBar(index)"
+          :style="{ height: bar.height + '%' }" 
+          :class="activeBarIndex === index ? 'bg-primary shadow-lg shadow-primary/20 scale-y-[1.03]' : 'bg-primary/20 hover:bg-primary/30'"
+          class="flex-1 rounded-t-lg relative group transition-all duration-300 focus:outline-none"
+        >
+          <!-- Active Indicator dot on Top of Selected Bar -->
+          <div v-if="activeBarIndex === index" class="absolute -top-3 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></div>
+        </button>
       </div>
       
       <!-- Dynamic Labels -->

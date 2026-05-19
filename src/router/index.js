@@ -4,6 +4,7 @@ import Home from '../views/Home.vue'
 import Catalog from '../views/Catalog.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
+import ForgotPassword from '../views/ForgotPassword.vue'
 import Subscription from '../views/Subscription.vue'
 
 import SplashScreen from '../views/SplashScreen.vue'
@@ -55,6 +56,11 @@ const routes = [
     path: '/register',
     name: 'register',
     component: Register
+  },
+  {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: ForgotPassword
   },
   {
     path: '/subscribe/:id',

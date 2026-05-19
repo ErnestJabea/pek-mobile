@@ -23,6 +23,22 @@ const fetchSubscriptions = async () => {
 
 const totalPages = computed(() => Math.ceil(subscriptions.value.length / itemsPerPage))
 
+const checkingId = ref(null)
+
+const verifyPayment = async (subId) => {
+  checkingId.value = subId
+  try {
+    const response = await api.post(`/subscriptions/${subId}/check-status`)
+    alert(response.data.message)
+    await fetchSubscriptions()
+  } catch (error) {
+    console.error('Error checking payment status:', error)
+    alert(error.response?.data?.message || 'Erreur lors de la vérification du paiement.')
+  } finally {
+    checkingId.value = null
+  }
+}
+
 const paginatedSubscriptions = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   const end = start + itemsPerPage
@@ -123,9 +139,27 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold italic">
-              <span>Réf: {{ sub.reference_transaction }}</span>
-              <span>{{ new Date(sub.created_at).toLocaleDateString() }}</span>
+            <div class="flex flex-col gap-1 text-[10px] text-slate-400 font-bold border-t border-slate-50 pt-3">
+              <div class="flex justify-between items-center">
+                <span>Réf PEK : <span class="text-slate-600 font-black">{{ sub.reference_transaction }}</span></span>
+                <span class="italic font-normal">{{ new Date(sub.created_at).toLocaleDateString() }}</span>
+              </div>
+              <div v-if="sub.coolpay_transaction_ref" class="flex justify-between items-center">
+                <span>Réf CoolPay : <span class="text-slate-600 font-black truncate max-w-[200px]">{{ sub.coolpay_transaction_ref }}</span></span>
+              </div>
+            </div>
+
+            <!-- Bouton premium pour forcer la vérification de paiement -->
+            <div v-if="sub.statut === 'En attente' && ['orange_money', 'mtn_momo'].includes(sub.moyen_paiement)" class="pt-2">
+              <button 
+                @click="verifyPayment(sub.id)"
+                :disabled="checkingId === sub.id"
+                class="w-full bg-primary/5 hover:bg-primary hover:text-white text-primary text-xs font-bold py-3 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 border border-primary/10 hover:border-transparent active:scale-[0.98]"
+              >
+                <Loader2 v-if="checkingId === sub.id" class="w-4 h-4 animate-spin" />
+                <Clock v-else class="w-4 h-4" />
+                {{ checkingId === sub.id ? 'Vérification en cours...' : 'Vérifier le statut du paiement' }}
+              </button>
             </div>
           </div>
         </div>

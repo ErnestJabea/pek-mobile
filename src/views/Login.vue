@@ -78,7 +78,7 @@ const handleLogin = async () => {
             >
           </div>
           <div class="text-right">
-            <a href="#" class="text-xs font-semibold text-primary hover:underline">Mot de passe oublié ?</a>
+            <router-link to="/forgot-password" class="text-xs font-semibold text-primary hover:underline">Mot de passe oublié ?</router-link>
           </div>
         </div>
       </div>

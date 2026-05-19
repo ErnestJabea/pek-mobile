@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { User, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2 } from 'lucide-vue-next'
+import { User, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock } from 'lucide-vue-next'
 import api from '../api/api'
 import { locations } from '../data/locations'
 
@@ -11,6 +11,33 @@ const authStore = useAuthStore()
 const isEditing = ref(false)
 const loading = ref(false)
 const message = ref({ type: '', text: '' })
+
+const showPasswordForm = ref(false)
+const passwordForm = ref({
+  current_password: '',
+  new_password: ''
+})
+const passwordLoading = ref(false)
+const passwordMessage = ref({ type: '', text: '' })
+
+const handleUpdatePassword = async () => {
+  passwordLoading.value = true
+  passwordMessage.value = { type: '', text: '' }
+  try {
+    const response = await api.post('/update-password', passwordForm.value)
+    passwordMessage.value = { type: 'success', text: response.data.message || 'Mot de passe mis à jour !' }
+    passwordForm.value.current_password = ''
+    passwordForm.value.new_password = ''
+    setTimeout(() => {
+      showPasswordForm.value = false
+      passwordMessage.value = { type: '', text: '' }
+    }, 2500)
+  } catch (err) {
+    passwordMessage.value = { type: 'error', text: err.response?.data?.message || 'Erreur lors de la mise à jour' }
+  } finally {
+    passwordLoading.value = false
+  }
+}
 
 const editForm = ref({
   first_name: '',
@@ -196,6 +223,56 @@ const handleUpdate = async () => {
               <Building2 class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
               <input v-model="editForm.employer" :disabled="!isEditing" type="text" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 pl-11 pr-4 font-bold text-sm transition-all" placeholder="Non renseigné">
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sécurité & Mot de passe -->
+      <div v-if="!isEditing" class="space-y-4">
+        <div class="flex items-center justify-between ml-1">
+          <h3 class="text-slate-400 text-xs font-black uppercase tracking-widest">Sécurité</h3>
+        </div>
+
+        <div class="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm space-y-4">
+          <button 
+            @click="showPasswordForm = !showPasswordForm"
+            class="w-full flex items-center justify-between py-2 text-left"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500">
+                <Lock class="w-5 h-5" />
+              </div>
+              <div>
+                <h4 class="font-bold text-slate-700 text-sm">Modifier mon mot de passe</h4>
+                <p class="text-slate-400 text-[10px]">Sécurisez votre compte PEK</p>
+              </div>
+            </div>
+            <ChevronRight :class="showPasswordForm ? 'rotate-90' : ''" class="w-5 h-5 text-slate-400 transition-transform" />
+          </button>
+
+          <div v-if="showPasswordForm" class="pt-4 border-t border-slate-50 space-y-4 animate-in fade-in slide-in-from-top-2">
+            <div v-if="passwordMessage.text" :class="passwordMessage.type === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'" class="p-3 rounded-2xl border text-xs font-bold text-center">
+              {{ passwordMessage.text }}
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Mot de passe actuel</label>
+              <input v-model="passwordForm.current_password" type="password" placeholder="••••••••" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 px-4 font-bold text-sm focus:bg-white focus:border-primary transition-all">
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Nouveau mot de passe</label>
+              <input v-model="passwordForm.new_password" type="password" placeholder="Min. 8 caractères" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 px-4 font-bold text-sm focus:bg-white focus:border-primary transition-all">
+            </div>
+
+            <button 
+              @click="handleUpdatePassword"
+              :disabled="passwordLoading || !passwordForm.current_password || passwordForm.new_password.length < 8"
+              class="w-full bg-slate-950 text-white font-black py-4 rounded-2xl text-xs flex items-center justify-center gap-2 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:active:scale-100 transition-all"
+            >
+              <Loader2 v-if="passwordLoading" class="w-4 h-4 animate-spin" />
+              Changer le mot de passe
+            </button>
           </div>
         </div>
       </div>

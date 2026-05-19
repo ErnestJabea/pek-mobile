@@ -13,6 +13,7 @@ const submitting = ref(false)
 const success = ref(false)
 const showErrorModal = ref(false)
 const transactionRef = ref('')
+const coolpayTransactionRef = ref('')
 const phoneNumber = ref('')
 
 const parts = ref(1)
@@ -24,7 +25,7 @@ const onAmountInput = (e) => {
   const val = parseFloat(e.target.value) || 0
   inputAmount.value = val
   if (fund.value && fund.value.vl > 0) {
-    parts.value = parseFloat((val / fund.value.vl).toFixed(4))
+    parts.value = parseFloat((val / fund.value.vl).toFixed(8))
   }
 }
 
@@ -125,6 +126,9 @@ onMounted(() => {
 
 const totalAmount = computed(() => {
   if (!fund.value) return 0
+  if (inputMode.value === 'amount') {
+    return inputAmount.value.toFixed(2)
+  }
   return (parts.value * fund.value.vl).toFixed(2)
 })
 
@@ -170,7 +174,8 @@ const handleSubscribe = async () => {
       product_id: fund.value.id,
       nb_parts: parts.value,
       moyen_paiement: paymentMethod.value,
-      phone_number: phoneNumber.value
+      phone_number: phoneNumber.value,
+      montant_total: inputMode.value === 'amount' ? inputAmount.value : null
     })
     
     const { client_secret, subscription, pek_bank_details } = response.data
@@ -190,6 +195,9 @@ const handleSubscribe = async () => {
     }
 
     transactionRef.value = subscription.reference_transaction
+    if (subscription.coolpay_transaction_ref) {
+      coolpayTransactionRef.value = subscription.coolpay_transaction_ref
+    }
     success.value = true
   } catch (error) {
     if (error.response && error.response.data) {
@@ -307,8 +315,12 @@ const handleSubscribe = async () => {
 
       <div class="bg-slate-50 w-full rounded-3xl p-6 space-y-4 border border-slate-100">
         <div class="flex justify-between items-center text-sm">
-          <span class="text-slate-400 font-bold uppercase tracking-tighter">Référence</span>
+          <span class="text-slate-400 font-bold uppercase tracking-tighter">Réf PEK</span>
           <span class="text-slate-900 font-black">{{ transactionRef }}</span>
+        </div>
+        <div v-if="coolpayTransactionRef" class="flex justify-between items-center text-sm">
+          <span class="text-slate-400 font-bold uppercase tracking-tighter">Réf CoolPay</span>
+          <span class="text-slate-900 font-black truncate max-w-[200px]">{{ coolpayTransactionRef }}</span>
         </div>
         <div class="flex justify-between items-center text-sm">
           <span class="text-slate-400 font-bold uppercase tracking-tighter">Statut</span>
