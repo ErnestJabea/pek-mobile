@@ -11,6 +11,8 @@ import SplashScreen from '../views/SplashScreen.vue'
 import Profile from '../views/Profile.vue'
 import Notifications from '../views/Notifications.vue'
 import MySubscriptions from '../views/MySubscriptions.vue'
+import Onboarding from '../views/Onboarding.vue'
+
 
 const routes = [
   {
@@ -67,6 +69,12 @@ const routes = [
     name: 'subscribe',
     component: Subscription,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: Onboarding,
+    meta: { requiresAuth: true }
   }
 ]
 
@@ -79,11 +87,30 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // Redirect to register if trying to subscribe without account
-    next({ path: '/register', query: { redirect: to.fullPath } })
-  } else {
-    next()
+    // Redirect to register if trying to access auth routes without account
+    return next({ path: '/register', query: { redirect: to.fullPath } })
   }
+
+  const user = authStore.user
+  const isOnboardingCompleted = user?.onboarding_completed || false
+  const isOnboardingValidated = user?.onboarding_status === 'validated'
+
+  // Block catalog if onboarding not completed
+  if (to.name === 'catalog' || to.path.includes('catalog')) {
+    if (!isOnboardingCompleted) {
+      return next({ path: '/home' })
+    }
+  }
+
+  // Block subscribe & my-subscriptions if onboarding not validated
+  const investmentRoutes = ['subscribe', 'my-subscriptions']
+  if (investmentRoutes.includes(to.name) || investmentRoutes.some(r => to.path.includes(r))) {
+    if (!isOnboardingValidated) {
+      return next({ path: '/home' })
+    }
+  }
+
+  next()
 })
 
 export default router

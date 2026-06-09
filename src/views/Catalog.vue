@@ -1,11 +1,16 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { Info, Plus, Search, Filter, Loader2 } from 'lucide-vue-next'
+import { Info, Plus, Search, Filter, Loader2, AlertCircle } from 'lucide-vue-next'
 import api from '../api/api'
+import { useAuthStore } from '../stores/auth'
 
+const authStore = useAuthStore()
 const products = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
+const showWarningModal = ref(false)
+
+const isOnboardingValidated = computed(() => authStore.user?.onboarding_status === 'validated')
 
 const fetchData = async () => {
   try {
@@ -101,12 +106,52 @@ const filteredProducts = computed(() => {
             <button class="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
               <Info class="w-5 h-5" />
             </button>
-            <router-link :to="'/subscribe/' + product.id" class="flex-1 h-12 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-primary/20">
-              <Plus class="w-4 h-4" />
-              Souscrire
+            <router-link 
+              v-slot="{ href, navigate }" 
+              v-if="isOnboardingValidated" 
+              :to="'/subscribe/' + product.id"
+              custom
+            >
+              <a 
+                :href="href" 
+                @click="navigate" 
+                class="flex-1 h-12 bg-primary text-white font-black rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-primary/20"
+              >
+                <Plus class="w-4 h-4" />
+                Souscrire
+              </a>
             </router-link>
+            <button 
+              v-else
+              @click="showWarningModal = true"
+              class="flex-1 h-12 bg-slate-100 text-slate-400 font-black rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 border border-slate-200/50"
+            >
+              <Plus class="w-4 h-4 text-slate-400" />
+              Souscrire
+            </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Onboarding Validation Warning Modal -->
+    <div v-if="showWarningModal" class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div class="bg-white rounded-[32px] p-6 w-full max-w-sm border border-slate-100 shadow-2xl animate-in zoom-in-95 duration-200 text-center space-y-6">
+        <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+          <AlertCircle class="w-8 h-8 text-amber-500" />
+        </div>
+        <div class="space-y-2">
+          <h3 class="text-lg font-black text-slate-900">Compte en attente</h3>
+          <p class="text-xs text-slate-500 font-medium leading-relaxed">
+            Votre dossier d'onboarding est actuellement en cours de validation par notre service conformité. Vous pourrez effectuer vos souscriptions dès que votre compte sera activé.
+          </p>
+        </div>
+        <button 
+          @click="showWarningModal = false" 
+          class="w-full bg-primary text-white font-black py-3 rounded-2xl shadow-lg hover:bg-slate-800 transition-all text-xs uppercase tracking-wider"
+        >
+          D'accord
+        </button>
       </div>
     </div>
   </div>
