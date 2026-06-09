@@ -8,6 +8,9 @@ export default defineConfig({
     vue(),
     tailwindcss(),
   ],
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   build: {
     emptyOutDir: false,
   }
