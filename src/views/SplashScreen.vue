@@ -14,7 +14,11 @@ onMounted(async () => {
   const timer = new Promise(resolve => setTimeout(resolve, MIN_DELAY))
   
   try {
-    if (authStore.token) {
+    const welcomeSeen = localStorage.getItem('pek_welcome_seen') === 'true'
+    if (!welcomeSeen) {
+      await timer
+      router.push('/welcome')
+    } else if (authStore.token) {
       // On lance la récupération utilisateur et le timer en parallèle
       await Promise.all([
         api.get('/user').then(response => authStore.setUser(response.data)),
@@ -28,7 +32,12 @@ onMounted(async () => {
   } catch (error) {
     authStore.logout()
     await timer
-    router.push('/login')
+    const welcomeSeen = localStorage.getItem('pek_welcome_seen') === 'true'
+    if (!welcomeSeen) {
+      router.push('/welcome')
+    } else {
+      router.push('/login')
+    }
   }
 })
 </script>

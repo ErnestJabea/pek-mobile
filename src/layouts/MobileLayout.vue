@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Home, List, User, Bell, Plus, Wallet } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
@@ -13,14 +13,78 @@ const isNotificationsRoute = computed(() => route.path === '/notifications')
 const isMySubscriptionsRoute = computed(() => route.path === '/my-subscriptions')
 const isSplashRoute = computed(() => route.path === '/')
 const isAuthRoute = computed(() => route.path === '/login' || route.path === '/register')
+const isOnboardingRoute = computed(() => route.path === '/onboarding')
+const isWelcomeRoute = computed(() => route.path === '/welcome')
 
 const shouldShowNav = computed(() => {
-  return authStore.isAuthenticated && !isSplashRoute.value && !isAuthRoute.value
+  return authStore.isAuthenticated && !isSplashRoute.value && !isAuthRoute.value && !isOnboardingRoute.value && !isWelcomeRoute.value
 })
 
 const shouldShowHeader = computed(() => {
   return shouldShowNav.value && !isSubscriptionRoute.value && !isNotificationsRoute.value && !isMySubscriptionsRoute.value
 })
+
+let pollingInterval = null
+const seenNotificationIds = ref(JSON.parse(localStorage.getItem('seen_notification_ids') || '[]'))
+
+const requestNotificationPermission = async () => {
+  if (!('Notification' in window)) return
+  if (Notification.permission === 'default') {
+    await Notification.requestPermission()
+  }
+}
+
+const checkNotifications = async () => {
+  if (!authStore.isAuthenticated) return
+  try {
+    const response = await api.get('/notifications')
+    const notifications = response.data
+    
+    // Calculate unread count
+    const unreadCount = notifications.filter(n => !n.read_at).length
+    authStore.setUnreadNotificationsCount(unreadCount)
+    
+    // Check for new notifications that haven't been shown in a push notification yet
+    const newNotifications = notifications.filter(n => !n.read_at && !seenNotificationIds.value.includes(n.id))
+    
+    if (newNotifications.length > 0) {
+      newNotifications.forEach(n => {
+        if (Notification.permission === 'granted') {
+          new Notification(n.title, {
+            body: n.body,
+            icon: '/logo.png'
+          })
+        }
+        seenNotificationIds.value.push(n.id)
+      })
+      localStorage.setItem('seen_notification_ids', JSON.stringify(seenNotificationIds.value))
+    }
+  } catch (error) {
+    console.error('Failed to poll notifications:', error)
+  }
+}
+
+const startNotificationPolling = () => {
+  stopNotificationPolling()
+  checkNotifications()
+  requestNotificationPermission()
+  pollingInterval = setInterval(checkNotifications, 15000)
+}
+
+const stopNotificationPolling = () => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
+}
+
+watch(() => authStore.isAuthenticated, (newVal) => {
+  if (newVal) {
+    startNotificationPolling()
+  } else {
+    stopNotificationPolling()
+  }
+}, { immediate: true })
 
 onMounted(async () => {
   if (authStore.token && !authStore.user) {
@@ -33,6 +97,10 @@ onMounted(async () => {
     }
   }
 })
+
+onUnmounted(() => {
+  stopNotificationPolling()
+})
 </script>
 
 <template>
@@ -42,8 +110,14 @@ onMounted(async () => {
       <router-link to="/home" class="flex items-center gap-3">
         <img src="/logo.png" alt="PEK Logo" class="h-10 w-auto object-contain">
       </router-link>
-      <router-link to="/notifications" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors">
+      <router-link to="/notifications" class="relative w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors">
         <Bell class="w-5 h-5" />
+        <span 
+          v-if="authStore.unreadNotificationsCount > 0" 
+          class="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in duration-200"
+        >
+          {{ authStore.unreadNotificationsCount }}
+        </span>
       </router-link>
     </header>
 
@@ -53,27 +127,10 @@ onMounted(async () => {
     </main>
 
     <!-- Bottom Navigation -->
-    <nav v-if="shouldShowNav && !isSubscriptionRoute" class="fixed bottom-0 left-0 right-0 max-width-container mx-auto bg-white/90 backdrop-blur-lg border-t border-slate-100 px-6 py-2 pb-6 flex justify-between items-center z-50">
+    <nav v-if="shouldShowNav && !isSubscriptionRoute" class="fixed bottom-0 left-0 right-0 max-width-container mx-auto bg-white/90 backdrop-blur-lg border-t border-slate-100 px-6 py-2 pb-6 flex justify-around items-center z-50">
       <router-link to="/home" class="flex-1 flex flex-col items-center gap-1 group" v-slot="{ isActive }">
         <Home :class="['w-5 h-5 transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
         <span :class="['text-[10px] font-bold transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">Accueil</span>
-      </router-link>
-      
-      <router-link to="/catalog" class="flex-1 flex flex-col items-center gap-1 group" v-slot="{ isActive }">
-        <List :class="['w-5 h-5 transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
-        <span :class="['text-[10px] font-bold transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">Fonds</span>
-      </router-link>
-
-      <div class="flex-1 flex flex-col items-center -mt-8 relative z-10">
-        <router-link to="/catalog" class="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-xl shadow-primary/40 border-4 border-white rotate-45 transition-transform hover:scale-110 active:scale-95">
-          <Plus class="w-7 h-7 text-white -rotate-45" />
-        </router-link>
-        <span class="text-[10px] font-bold text-primary mt-2 uppercase tracking-tighter">Investir</span>
-      </div>
-
-      <router-link to="/my-subscriptions" class="flex-1 flex flex-col items-center gap-1 group" v-slot="{ isActive }">
-        <Wallet :class="['w-5 h-5 transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
-        <span :class="['text-[10px] font-bold transition-colors text-center', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">Souscriptions</span>
       </router-link>
 
       <router-link to="/profile" class="flex-1 flex flex-col items-center gap-1 group" v-slot="{ isActive }">

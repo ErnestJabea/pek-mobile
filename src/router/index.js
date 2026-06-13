@@ -12,6 +12,7 @@ import Profile from '../views/Profile.vue'
 import Notifications from '../views/Notifications.vue'
 import MySubscriptions from '../views/MySubscriptions.vue'
 import Onboarding from '../views/Onboarding.vue'
+import Welcome from '../views/Welcome.vue'
 
 
 const routes = [
@@ -75,6 +76,11 @@ const routes = [
     name: 'onboarding',
     component: Onboarding,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/welcome',
+    name: 'welcome',
+    component: Welcome
   }
 ]
 
@@ -94,21 +100,7 @@ router.beforeEach((to, from, next) => {
   const user = authStore.user
   const isOnboardingCompleted = user?.onboarding_completed || false
   const isOnboardingValidated = user?.onboarding_status === 'validated'
-
-  // Block catalog if onboarding not completed
-  if (to.name === 'catalog' || to.path.includes('catalog')) {
-    if (!isOnboardingCompleted) {
-      return next({ path: '/home' })
-    }
-  }
-
-  // Block subscribe & my-subscriptions if onboarding not validated
-  const investmentRoutes = ['subscribe', 'my-subscriptions']
-  if (investmentRoutes.includes(to.name) || investmentRoutes.some(r => to.path.includes(r))) {
-    if (!isOnboardingValidated) {
-      return next({ path: '/home' })
-    }
-  }
+  const isOnboardingStatus = user?.onboarding_status || null
 
   next()
 })

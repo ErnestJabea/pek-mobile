@@ -4,13 +4,14 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { User, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock } from 'lucide-vue-next'
 import api from '../api/api'
-import { locations } from '../data/locations'
+import { countries } from '../data/countries'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const isEditing = ref(false)
 const loading = ref(false)
 const message = ref({ type: '', text: '' })
+const validationErrors = ref({})
 
 const showPasswordForm = ref(false)
 const passwordForm = ref({
@@ -19,10 +20,12 @@ const passwordForm = ref({
 })
 const passwordLoading = ref(false)
 const passwordMessage = ref({ type: '', text: '' })
+const passwordValidationErrors = ref({})
 
 const handleUpdatePassword = async () => {
   passwordLoading.value = true
   passwordMessage.value = { type: '', text: '' }
+  passwordValidationErrors.value = {}
   try {
     const response = await api.post('/update-password', passwordForm.value)
     passwordMessage.value = { type: 'success', text: response.data.message || 'Mot de passe mis à jour !' }
@@ -33,7 +36,11 @@ const handleUpdatePassword = async () => {
       passwordMessage.value = { type: '', text: '' }
     }, 2500)
   } catch (err) {
-    passwordMessage.value = { type: 'error', text: err.response?.data?.message || 'Erreur lors de la mise à jour' }
+    if (err.response?.status === 422) {
+      passwordValidationErrors.value = err.response.data.errors || {}
+    } else {
+      passwordMessage.value = { type: 'error', text: err.response?.data?.message || 'Erreur lors de la mise à jour' }
+    }
   } finally {
     passwordLoading.value = false
   }
@@ -48,6 +55,46 @@ const editForm = ref({
   country: '',
   employer: ''
 })
+
+const cities = ref([])
+const loadingCities = ref(false)
+
+const fetchCitiesOfCountry = async (countryName) => {
+  if (!countryName) {
+    cities.value = []
+    return
+  }
+  const countryObj = countries.find(c => c.name === countryName)
+  const englishName = countryObj ? countryObj.english : countryName
+  
+  loadingCities.value = true
+  try {
+    const response = await fetch('https://countriesnow.space/api/v0.1/countries/cities', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ country: englishName })
+    })
+    const data = await response.json()
+    if (data && !data.error && Array.isArray(data.data)) {
+      cities.value = data.data.sort((a, b) => a.localeCompare(b))
+    } else {
+      cities.value = []
+    }
+  } catch (error) {
+    console.error('Error fetching cities:', error)
+    cities.value = []
+  } finally {
+    loadingCities.value = false
+  }
+}
+
+const handleCountryChange = async () => {
+  editForm.value.city = ''
+  cities.value = []
+  await fetchCitiesOfCountry(editForm.value.country)
+}
 
 const syncForm = () => {
   editForm.value = {
@@ -64,12 +111,14 @@ const syncForm = () => {
 watch(() => authStore.user, (newUser) => {
   if (newUser) {
     syncForm()
+    fetchCitiesOfCountry(newUser.country)
   }
 }, { immediate: true })
 
 onMounted(() => {
   if (authStore.user) {
     syncForm()
+    fetchCitiesOfCountry(authStore.user.country)
   }
 })
 
@@ -89,13 +138,18 @@ const toggleEdit = () => {
 const handleUpdate = async () => {
   loading.value = true
   message.value = { type: '', text: '' }
+  validationErrors.value = {}
   try {
     const response = await api.post('/update-profile', editForm.value)
     authStore.setUser(response.data.user)
     isEditing.value = false
     message.value = { type: 'success', text: 'Profil mis à jour !' }
   } catch (err) {
-    message.value = { type: 'error', text: err.response?.data?.message || 'Erreur de mise à jour' }
+    if (err.response?.status === 422) {
+      validationErrors.value = err.response.data.errors || {}
+    } else {
+      message.value = { type: 'error', text: err.response?.data?.message || 'Erreur de mise à jour' }
+    }
   } finally {
     loading.value = false
   }
@@ -183,11 +237,17 @@ const handleUpdate = async () => {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Prénom</label>
-              <input v-model="editForm.first_name" :disabled="!isEditing" type="text" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all">
+              <input v-model="editForm.first_name" :disabled="!isEditing" type="text" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all" :aria-invalid="validationErrors.first_name ? 'true' : 'false'" :aria-describedby="validationErrors.first_name ? 'first_name-error' : null">
+              <p v-if="validationErrors.first_name" id="first_name-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
+                {{ validationErrors.first_name[0] }}
+              </p>
             </div>
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Nom</label>
-              <input v-model="editForm.last_name" :disabled="!isEditing" type="text" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all">
+              <input v-model="editForm.last_name" :disabled="!isEditing" type="text" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all" :aria-invalid="validationErrors.last_name ? 'true' : 'false'" :aria-describedby="validationErrors.last_name ? 'last_name-error' : null">
+              <p v-if="validationErrors.last_name" id="last_name-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
+                {{ validationErrors.last_name[0] }}
+              </p>
             </div>
           </div>
 
@@ -196,23 +256,33 @@ const handleUpdate = async () => {
             <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Téléphone</label>
             <div class="relative">
               <Phone class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-              <input v-model="editForm.phone" :disabled="!isEditing || !!authStore.user.phone" type="tel" :class="(isEditing && !authStore.user.phone) ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-400'" class="w-full border-2 rounded-2xl py-3 pl-11 pr-4 font-bold text-sm transition-all">
+              <input v-model="editForm.phone" :disabled="!isEditing || !!authStore.user.phone" type="tel" :class="(isEditing && !authStore.user.phone) ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-400'" class="w-full border-2 rounded-2xl py-3 pl-11 pr-4 font-bold text-sm transition-all" :aria-invalid="validationErrors.phone ? 'true' : 'false'" :aria-describedby="validationErrors.phone ? 'phone-error' : null">
             </div>
+            <p v-if="validationErrors.phone" id="phone-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
+              {{ validationErrors.phone[0] }}
+            </p>
           </div>
 
           <!-- Pays / Ville -->
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Pays</label>
-              <select v-model="editForm.country" :disabled="!isEditing" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all appearance-none">
-                <option v-for="(loc, code) in locations" :key="code" :value="loc.name">{{ loc.name }}</option>
+              <select v-model="editForm.country" @change="handleCountryChange" :disabled="!isEditing" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all appearance-none" :aria-invalid="validationErrors.country ? 'true' : 'false'" :aria-describedby="validationErrors.country ? 'country-error' : null">
+                <option v-for="c in countries.slice().sort((a, b) => a.name.localeCompare(b.name))" :key="c.code" :value="c.name">{{ c.name }}</option>
               </select>
+              <p v-if="validationErrors.country" id="country-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
+                {{ validationErrors.country[0] }}
+              </p>
             </div>
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Ville</label>
-              <select v-model="editForm.city" :disabled="!isEditing" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all appearance-none">
-                <option v-for="city in Object.values(locations).find(l => l.name === editForm.country)?.cities" :key="city" :value="city">{{ city }}</option>
+              <select v-model="editForm.city" :disabled="!isEditing || loadingCities" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all appearance-none" :aria-invalid="validationErrors.city ? 'true' : 'false'" :aria-describedby="validationErrors.city ? 'city-error' : null">
+                <option value="" disabled>{{ loadingCities ? 'Chargement...' : 'Ville de résidence' }}</option>
+                <option v-for="city in cities" :key="city" :value="city">{{ city }}</option>
               </select>
+              <p v-if="validationErrors.city" id="city-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
+                {{ validationErrors.city[0] }}
+              </p>
             </div>
           </div>
 
@@ -221,8 +291,11 @@ const handleUpdate = async () => {
             <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Employeur</label>
             <div class="relative">
               <Building2 class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-              <input v-model="editForm.employer" :disabled="!isEditing" type="text" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 pl-11 pr-4 font-bold text-sm transition-all" placeholder="Non renseigné">
+              <input v-model="editForm.employer" :disabled="!isEditing" type="text" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 pl-11 pr-4 font-bold text-sm transition-all" placeholder="Non renseigné" :aria-invalid="validationErrors.employer ? 'true' : 'false'" :aria-describedby="validationErrors.employer ? 'employer-error' : null">
             </div>
+            <p v-if="validationErrors.employer" id="employer-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
+              {{ validationErrors.employer[0] }}
+            </p>
           </div>
         </div>
       </div>
@@ -257,12 +330,18 @@ const handleUpdate = async () => {
 
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Mot de passe actuel</label>
-              <input v-model="passwordForm.current_password" type="password" placeholder="••••••••" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 px-4 font-bold text-sm focus:bg-white focus:border-primary transition-all">
+              <input v-model="passwordForm.current_password" type="password" placeholder="••••••••" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 px-4 font-bold text-sm focus:bg-white focus:border-primary transition-all" :aria-invalid="passwordValidationErrors.current_password ? 'true' : 'false'" :aria-describedby="passwordValidationErrors.current_password ? 'current_password-error' : null">
+              <p v-if="passwordValidationErrors.current_password" id="current_password-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
+                {{ passwordValidationErrors.current_password[0] }}
+              </p>
             </div>
 
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Nouveau mot de passe</label>
-              <input v-model="passwordForm.new_password" type="password" placeholder="Min. 8 caractères" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 px-4 font-bold text-sm focus:bg-white focus:border-primary transition-all">
+              <input v-model="passwordForm.new_password" type="password" placeholder="Min. 8 caractères" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 px-4 font-bold text-sm focus:bg-white focus:border-primary transition-all" :aria-invalid="passwordValidationErrors.new_password ? 'true' : 'false'" :aria-describedby="passwordValidationErrors.new_password ? 'new_password-error' : null">
+              <p v-if="passwordValidationErrors.new_password" id="new_password-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
+                {{ passwordValidationErrors.new_password[0] }}
+              </p>
             </div>
 
             <button 

@@ -1,7 +1,9 @@
 import axios from 'axios'
+import { useAuthStore } from '../stores/auth'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -11,10 +13,29 @@ const api = axios.create({
 // Interceptor to add token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
-  if (token) {
+  if (token && token !== 'cookie_session') {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
 
+// Interceptor to handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      const authStore = useAuthStore()
+      authStore.logout()
+      
+      const isLoginRequest = error.config && error.config.url && error.config.url.includes('/login')
+      if (window.location.pathname !== '/login' && !isLoginRequest) {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+
 export default api
+

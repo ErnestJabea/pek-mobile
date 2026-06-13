@@ -10,7 +10,9 @@ const loading = ref(true)
 const searchQuery = ref('')
 const showWarningModal = ref(false)
 
-const isOnboardingValidated = computed(() => authStore.user?.onboarding_status === 'validated')
+const canSubscribe = computed(() => {
+  return true
+})
 
 const fetchData = async () => {
   try {
@@ -80,16 +82,10 @@ const filteredProducts = computed(() => {
               ]">
                 Risque {{ product.risk }}
               </span>
-              <span class="text-slate-400 text-[10px]">•</span>
-              <span class="text-slate-500 text-[10px] font-bold">Min: {{ parseFloat(product.min).toLocaleString() }} FCFA</span>
+              <span class="text-slate-500 text-[10px] font-bold"></span>
             </div>
           </div>
           <div class="text-right">
-            <div :class="[
-                'font-black text-sm',
-                product.trend.startsWith('+') ? 'text-emerald-500' : 'text-rose-500'
-            ]">{{ product.trend }}</div>
-            <div class="text-slate-400 text-[10px] font-bold">P.A.</div>
           </div>
         </div>
 
@@ -103,12 +99,9 @@ const filteredProducts = computed(() => {
             <span class="text-primary font-black text-2xl leading-none">{{ parseFloat(product.vl).toLocaleString() }} FCFA</span>
           </div>
           <div class="flex gap-2">
-            <button class="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
-              <Info class="w-5 h-5" />
-            </button>
             <router-link 
               v-slot="{ href, navigate }" 
-              v-if="isOnboardingValidated" 
+              v-if="canSubscribe" 
               :to="'/subscribe/' + product.id"
               custom
             >
@@ -143,7 +136,7 @@ const filteredProducts = computed(() => {
         <div class="space-y-2">
           <h3 class="text-lg font-black text-slate-900">Compte en attente</h3>
           <p class="text-xs text-slate-500 font-medium leading-relaxed">
-            Votre dossier d'onboarding est actuellement en cours de validation par notre service conformité. Vous pourrez effectuer vos souscriptions dès que votre compte sera activé.
+            Notre service conformité étudie actuellement votre dossier. Vous pourrez effectuer vos souscriptions dès que votre compte sera activé.
           </p>
         </div>
         <button 

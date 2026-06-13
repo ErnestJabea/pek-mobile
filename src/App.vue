@@ -4,11 +4,13 @@ import MobileLayout from './layouts/MobileLayout.vue'
 import { Smartphone, MonitorOff, WifiOff } from 'lucide-vue-next'
 import { useAuthStore } from './stores/auth'
 import api from './api/api'
+import { QrcodeSvg } from 'qrcode.vue'
 
 const isDesktop = ref(false)
 const isOffline = ref(!window.navigator.onLine)
 const authStore = useAuthStore()
 const showApplePrompt = ref(false)
+const qrValue = ref(window.location.href)
 
 const checkScreenSize = () => {
   isDesktop.value = window.innerWidth > 1024
@@ -39,7 +41,7 @@ const closeApplePrompt = () => {
 }
 
 const initUser = async () => {
-  if (authStore.token && !authStore.user) {
+  if (authStore.token) {
     try {
       const response = await api.get('/user')
       authStore.setUser(response.data)
@@ -53,6 +55,7 @@ onMounted(() => {
   checkScreenSize()
   detectiOS()
   initUser()
+  qrValue.value = window.location.href
   window.addEventListener('resize', checkScreenSize)
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
@@ -126,15 +129,22 @@ onUnmounted(() => {
       <div class="space-y-4">
         <h1 class="text-2xl font-black text-slate-900 leading-tight">Version Mobile Uniquement</h1>
         <p class="text-slate-500 leading-relaxed font-medium">
-          L'expérience PEK FCP est optimisée exclusivement pour les appareils mobiles et tablettes afin de garantir la sécurité de vos transactions.
+          L'application PEK est optimisée exclusivement pour les appareils mobiles et tablettes.
         </p>
       </div>
 
       <div class="pt-4">
         <div class="bg-slate-50 p-6 rounded-3xl space-y-4">
           <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Scannez pour continuer</p>
-          <div class="w-32 h-32 bg-slate-200 mx-auto rounded-2xl flex items-center justify-center italic text-[10px] text-slate-400">
-            QR CODE PEK
+          <div class="w-36 h-36 bg-white mx-auto rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 p-2">
+            <QrcodeSvg
+              v-if="qrValue"
+              :value="qrValue"
+              :size="120"
+              level="H"
+              foreground="#00236B"
+            />
+            <div v-else class="text-[10px] text-slate-400 italic">Génération...</div>
           </div>
         </div>
       </div>

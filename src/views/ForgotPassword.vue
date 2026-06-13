@@ -9,16 +9,22 @@ const router = useRouter()
 const email = ref('')
 const loading = ref(false)
 const error = ref('')
+const validationErrors = ref({})
 const success = ref(false)
 
 const handleSubmit = async () => {
   loading.value = true
   error.value = ''
+  validationErrors.value = {}
   try {
     const response = await api.post('/forgot-password', { email: email.value })
     success.value = true
   } catch (err) {
-    error.value = err.response?.data?.message || 'Aucun compte trouvé avec cet email.'
+    if (err.response?.status === 422) {
+      validationErrors.value = err.response.data.errors || {}
+    } else {
+      error.value = err.response?.data?.message || 'Aucun compte trouvé avec cet email.'
+    }
   } finally {
     loading.value = false
   }
@@ -69,8 +75,13 @@ const handleSubmit = async () => {
             placeholder="votre@email.com"
             class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all"
             required
+            :aria-invalid="validationErrors.email ? 'true' : 'false'"
+            :aria-describedby="validationErrors.email ? 'email-error' : null"
           >
         </div>
+        <p v-if="validationErrors.email" id="email-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+          {{ validationErrors.email[0] }}
+        </p>
       </div>
 
       <button

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { TrendingUp, TrendingDown, ArrowUpRight, ShieldCheck, Zap, Loader2, AlertCircle, CheckCircle2 } from 'lucide-vue-next'
+import { ArrowUpRight, Zap, Loader2, AlertCircle, CheckCircle2 } from 'lucide-vue-next'
 import api from '../api/api'
 
 const stats = ref(null)
@@ -31,13 +31,7 @@ const fetchData = async () => {
   }
 }
 
-// Rendement positif ou négatif
-const isPositive = computed(() => (stats.value?.plus_value ?? 0) >= 0)
 
-const rendementLabel = computed(() => {
-  const r = stats.value?.rendement_global ?? 0
-  return (r >= 0 ? '+' : '') + r.toFixed(2) + '%'
-})
 
 const chartData = computed(() => {
   if (featuredFunds.value.length === 0) return []
@@ -88,7 +82,7 @@ onMounted(() => {
         <span class="text-white/60 text-xs font-semibold uppercase tracking-wider block">Plan d'Épargne Kori</span>
         <h2 class="text-2xl font-black mt-1">Bonjour, {{ stats?.user?.first_name || 'Investisseur' }}</h2>
         <p v-if="stats?.onboarding_status === 'validated'" class="text-emerald-400 text-xs mt-1 font-bold leading-relaxed flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+         
           Votre compte est actif et prêt pour vos investissements.
         </p>
         <p v-else-if="stats?.onboarding_status === 'completed'" class="text-white/80 text-xs mt-1 font-semibold leading-relaxed">
@@ -105,20 +99,39 @@ onMounted(() => {
     </section>
 
     <!-- Case 1: Onboarding NOT completed (and not rejected) -->
-    <section v-if="!stats?.onboarding_completed && stats?.onboarding_status !== 'rejected'" class="bg-amber-500 rounded-3xl p-6 text-white relative overflow-hidden flex flex-col gap-4 animate-in slide-in-from-bottom duration-500 text-left">
-      <div class="relative z-10 space-y-2">
-        <div class="flex items-center gap-2">
-          <h3 class="text-lg font-black leading-none">Complétez votre Onboarding</h3>
+    <div v-if="!stats?.onboarding_completed && stats?.onboarding_status !== 'rejected'" class="space-y-6">
+      <section class="bg-amber-500 rounded-3xl p-6 text-white relative overflow-hidden flex flex-col gap-4 animate-in slide-in-from-bottom duration-500 text-left">
+        <div class="relative z-10 space-y-2">
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-black leading-none">Complétez votre Onboarding</h3>
+          </div>
+          <p class="text-white/90 text-xs font-semibold leading-relaxed">
+            Pour pouvoir ouvrir votre compte titres réglementé et souscrire à nos fonds, vous devez compléter votre profil de connaissance client.
+          </p>
         </div>
-        <p class="text-white/90 text-xs font-semibold leading-relaxed">
-          Pour pouvoir ouvrir votre compte titres réglementé et souscrire à nos fonds, vous devez compléter votre profil de connaissance client.
-        </p>
-      </div>
-      <router-link to="/onboarding" class="bg-white text-amber-600 text-center font-black py-3 rounded-2xl shadow-lg hover:bg-slate-50 transition-all text-xs uppercase tracking-wider">
-        Remplir mon dossier réglementaire
-      </router-link>
-      <div class="absolute -right-10 -bottom-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-    </section>
+        <router-link to="/onboarding" class="bg-white text-amber-600 text-center font-black py-3 rounded-2xl shadow-lg hover:bg-slate-50 transition-all text-xs uppercase tracking-wider">
+          Remplir mon dossier réglementaire
+        </router-link>
+        <div class="absolute -right-10 -bottom-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+      </section>
+
+      <!-- New CTA Card: encourage user to invest (show catalog) -->
+      <section class="bg-gradient-to-br from-primary to-slate-900 rounded-[32px] p-6 text-white shadow-xl shadow-primary/20 relative overflow-hidden flex flex-col gap-4 animate-in slide-in-from-bottom duration-500 text-left">
+        <div class="relative z-10 space-y-2">
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-black leading-none">Prêt à investir ?</h3>
+          </div>
+          <p class="text-white/80 text-xs font-semibold leading-relaxed">
+            Découvrez dès maintenant notre catalogue de fonds de placement. Explorez nos opportunités et préparez vos futurs investissements.
+          </p>
+        </div>
+        <router-link to="/catalog" class="bg-white text-primary text-center font-black py-3 rounded-2xl shadow-lg hover:bg-slate-50 transition-all text-xs uppercase tracking-wider relative z-10">
+          Découvrir les fonds de placement
+        </router-link>
+        <!-- Circle overlay decoration -->
+        <div class="absolute -right-10 -bottom-10 w-32 h-32 bg-accent/25 rounded-full blur-2xl"></div>
+      </section>
+    </div>
 
     <!-- Case 2: Onboarding COMPLETED (waiting review) OR REJECTED -->
     <div v-else-if="stats?.onboarding_status === 'completed' || stats?.onboarding_status === 'rejected'" class="space-y-6">
@@ -182,7 +195,6 @@ onMounted(() => {
       <section class="bg-gradient-to-br from-primary to-slate-900 rounded-[32px] p-6 text-white shadow-xl shadow-primary/20 relative overflow-hidden flex flex-col gap-4 animate-in slide-in-from-bottom duration-500 text-left">
         <div class="relative z-10 space-y-2">
           <div class="flex items-center gap-2">
-            <Zap class="w-6 h-6 text-accent fill-accent" />
             <h3 class="text-lg font-black leading-none">Prêt à investir ?</h3>
           </div>
           <p class="text-white/80 text-xs font-semibold leading-relaxed">
@@ -200,38 +212,6 @@ onMounted(() => {
     <!-- Case 3: Onboarding VALIDATED (Active account) -->
     <div v-else-if="stats?.onboarding_status === 'validated'" class="space-y-8">
       
-      <!-- Portfolio Value Hero Card -->
-      <section class="relative overflow-hidden bg-primary rounded-[32px] p-6 text-white shadow-xl shadow-primary/20">
-        <div class="relative z-10 space-y-4">
-          <div class="flex justify-between items-start">
-            <span class="text-white/70 text-xs font-bold uppercase tracking-wider">Solde de votre Portefeuille</span>
-            <ShieldCheck class="w-5 h-5 text-accent" />
-          </div>
-          <div class="space-y-1">
-            <h2 class="text-3xl font-black">{{ (stats?.total_balance || 0).toLocaleString() }} FCFA</h2>
-            <div class="flex items-center gap-1.5 text-emerald-400 text-xs font-bold">
-              <TrendingUp class="w-4 h-4" />
-              <span>{{ rendementLabel }} (Rendement global)</span>
-            </div>
-          </div>
-          <div class="pt-4 flex gap-3">
-            <router-link to="/catalog" class="flex-1 bg-white text-primary font-black py-3 rounded-2xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-lg shadow-black/10">
-              <Zap class="w-4 h-4 text-accent fill-accent" />
-              Investir
-            </router-link>
-            <button 
-              @click="showRedeemModal = true" 
-              :disabled="!stats || stats.total_balance <= 0"
-              class="flex-1 bg-white/10 backdrop-blur-md text-white font-black py-3 rounded-2xl hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white/10 text-xs uppercase tracking-wider"
-            >
-              Racheter
-            </button>
-          </div>
-        </div>
-        <!-- Decorative background circle -->
-        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-accent/20 rounded-full blur-3xl"></div>
-      </section>
-
       <!-- Opportunities section -->
       <section class="space-y-4">
         <div class="flex justify-between items-center px-1">

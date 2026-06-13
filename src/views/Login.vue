@@ -13,10 +13,14 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
+const validationErrors = ref({})
+const showVerificationLink = ref(false)
 
 const handleLogin = async () => {
   loading.value = true
   error.value = ''
+  validationErrors.value = {}
+  showVerificationLink.value = false
   try {
     const response = await api.post('/login', {
       email: email.value,
@@ -29,7 +33,14 @@ const handleLogin = async () => {
     const redirectPath = route.query.redirect || '/'
     router.push(redirectPath)
   } catch (err) {
-    error.value = err.response?.data?.message || 'Erreur lors de la connexion'
+    if (err.response?.status === 422) {
+      validationErrors.value = err.response.data.errors || {}
+    } else {
+      error.value = err.response?.data?.message || 'Erreur lors de la connexion'
+      if (err.response?.status === 403) {
+        showVerificationLink.value = true
+      }
+    }
   } finally {
     loading.value = false
   }
@@ -47,8 +58,15 @@ const handleLogin = async () => {
     </div>
 
     <form @submit.prevent="handleLogin" class="space-y-6">
-      <div v-if="error" class="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-sm font-medium animate-in fade-in slide-in-from-top-2">
-        {{ error }}
+      <div v-if="error" class="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-xl text-sm font-medium animate-in fade-in slide-in-from-top-2 flex flex-col gap-2">
+        <span>{{ error }}</span>
+        <router-link 
+          v-if="showVerificationLink" 
+          :to="{ path: '/register', query: { email: email, step: '2' } }"
+          class="text-xs font-bold text-primary hover:underline mt-1 self-start flex items-center gap-1"
+        >
+          Saisir le code de vérification →
+        </router-link>
       </div>
       <div class="space-y-4">
         <div class="space-y-2">
@@ -61,8 +79,13 @@ const handleLogin = async () => {
               placeholder="votre@email.com" 
               class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all"
               required
+              :aria-invalid="validationErrors.email ? 'true' : 'false'"
+              :aria-describedby="validationErrors.email ? 'email-error' : null"
             >
           </div>
+          <p v-if="validationErrors.email" id="email-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+            {{ validationErrors.email[0] }}
+          </p>
         </div>
 
         <div class="space-y-2">
@@ -75,8 +98,13 @@ const handleLogin = async () => {
               placeholder="••••••••" 
               class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all"
               required
+              :aria-invalid="validationErrors.password ? 'true' : 'false'"
+              :aria-describedby="validationErrors.password ? 'password-error' : null"
             >
           </div>
+          <p v-if="validationErrors.password" id="password-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+            {{ validationErrors.password[0] }}
+          </p>
           <div class="text-right">
             <router-link to="/forgot-password" class="text-xs font-semibold text-primary hover:underline">Mot de passe oublié ?</router-link>
           </div>

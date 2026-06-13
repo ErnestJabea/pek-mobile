@@ -95,22 +95,61 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-slate-50 flex flex-col">
-    <!-- Header -->
-    <header class="bg-white px-6 py-6 border-b border-slate-100 flex items-center gap-4 sticky top-0 z-10">
-      <button @click="router.back()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 active:scale-95 transition-all">
-        <ChevronLeft class="w-6 h-6" />
-      </button>
-      <h2 class="text-xl font-bold text-slate-900">Souscriptions</h2>
-    </header>
+    <!-- Skeleton loader covering the entire view (including Appbar) -->
+    <div v-if="loading" class="flex-1 flex flex-col animate-pulse">
+      <!-- Skeleton Header -->
+      <header class="bg-white px-6 py-6 border-b border-slate-100 flex items-center gap-4">
+        <div class="w-10 h-10 bg-slate-100 rounded-xl"></div>
+        <div class="h-6 bg-slate-200 rounded-lg w-32"></div>
+      </header>
 
-    <main class="flex-1 flex flex-col p-6 pb-24">
-      <div v-if="loading" class="flex-1 flex flex-col items-center justify-center space-y-4">
-        <Loader2 class="w-10 h-10 text-primary animate-spin" />
-        <p class="text-slate-400 font-bold">Chargement de vos investissements...</p>
-      </div>
+      <!-- Skeleton Main Content -->
+      <main class="flex-1 p-6 space-y-6">
+        <div class="space-y-4">
+          <div v-for="i in 3" :key="i" class="bg-white p-5 rounded-[32px] border border-slate-100 shadow-sm space-y-4">
+            <div class="flex justify-between items-start">
+              <div class="space-y-2">
+                <div class="h-3 bg-slate-200 rounded-full w-20"></div>
+                <div class="h-5 bg-slate-200 rounded-full w-40"></div>
+              </div>
+              <div class="w-20 h-6 bg-slate-200 rounded-full"></div>
+            </div>
 
-      <!-- Empty State -->
-      <div v-else-if="subscriptions.length === 0" class="flex-1 flex flex-col items-center justify-center space-y-6 text-center animate-in fade-in zoom-in duration-500">
+            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
+              <div class="space-y-2">
+                <div class="h-3 bg-slate-100 rounded-full w-12"></div>
+                <div class="h-5 bg-slate-200 rounded-full w-16"></div>
+              </div>
+              <div class="space-y-2 flex flex-col items-end">
+                <div class="h-3 bg-slate-100 rounded-full w-16"></div>
+                <div class="h-5 bg-slate-200 rounded-full w-24"></div>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2 border-t border-slate-50 pt-3">
+              <div class="flex justify-between items-center">
+                <div class="h-3 bg-slate-100 rounded-full w-32"></div>
+                <div class="h-3 bg-slate-100 rounded-full w-16"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Actual Content -->
+    <template v-else>
+      <!-- Header -->
+      <header class="bg-white px-6 py-6 border-b border-slate-100 flex items-center gap-4 sticky top-0 z-10">
+        <button @click="router.back()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 active:scale-95 transition-all">
+          <ChevronLeft class="w-6 h-6" />
+        </button>
+        <h2 class="text-xl font-bold text-slate-900">Souscriptions</h2>
+      </header>
+
+      <main class="flex-1 flex flex-col p-6 pb-24">
+        <!-- Empty State -->
+        <div v-if="subscriptions.length === 0" class="flex-1 flex flex-col items-center justify-center space-y-6 text-center animate-in fade-in zoom-in duration-500">
         <div class="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center">
           <Wallet class="w-10 h-10 text-primary/30" />
         </div>
@@ -207,6 +246,7 @@ onMounted(() => {
         </div>
       </div>
     </main>
+    </template>
 
     <!-- Premium Verification Status Modal Window -->
     <div v-if="showStatusModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
