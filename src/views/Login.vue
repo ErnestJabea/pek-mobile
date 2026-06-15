@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-vue-next'
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-vue-next'
 import api from '../api/api'
 
 const router = useRouter()
@@ -15,6 +15,7 @@ const loading = ref(false)
 const error = ref('')
 const validationErrors = ref({})
 const showVerificationLink = ref(false)
+const showPassword = ref(false)
 
 const handleLogin = async () => {
   loading.value = true
@@ -94,13 +95,20 @@ const handleLogin = async () => {
             <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input 
               v-model="password"
-              type="password" 
+              :type="showPassword ? 'text' : 'password'" 
               placeholder="••••••••" 
-              class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all"
+              class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-12 focus:bg-white focus:border-primary transition-all"
               required
               :aria-invalid="validationErrors.password ? 'true' : 'false'"
               :aria-describedby="validationErrors.password ? 'password-error' : null"
             >
+            <button 
+              type="button" 
+              @click="showPassword = !showPassword"
+              class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center"
+            >
+              <component :is="showPassword ? EyeOff : Eye" class="w-5 h-5" />
+            </button>
           </div>
           <p v-if="validationErrors.password" id="password-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
             {{ validationErrors.password[0] }}

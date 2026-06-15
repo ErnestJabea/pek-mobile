@@ -177,6 +177,24 @@ const initSession = async () => {
     payload.value.nat = 'Camerounaise'
   }
 
+  // Populate split date selects from loaded payload values
+  if (payload.value.dob) {
+    const parts = payload.value.dob.split('-')
+    if (parts.length === 3) {
+      dobYear.value = parts[0]
+      dobMonth.value = String(parseInt(parts[1]))
+      dobDay.value = String(parseInt(parts[2]))
+    }
+  }
+  if (payload.value.expiration_piece) {
+    const parts = payload.value.expiration_piece.split('-')
+    if (parts.length === 3) {
+      expYear.value = parts[0]
+      expMonth.value = String(parseInt(parts[1]))
+      expDay.value = String(parseInt(parts[2]))
+    }
+  }
+
   loading.value = false
 }
 
@@ -273,6 +291,113 @@ const minExpirationDate = computed(() => {
   const month = String(tomorrow.getMonth() + 1).padStart(2, '0')
   const day = String(tomorrow.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+})
+
+// French months array
+const frenchMonths = [
+  { value: '1', label: 'Janvier' },
+  { value: '2', label: 'Février' },
+  { value: '3', label: 'Mars' },
+  { value: '4', label: 'Avril' },
+  { value: '5', label: 'Mai' },
+  { value: '6', label: 'Juin' },
+  { value: '7', label: 'Juillet' },
+  { value: '8', label: 'Août' },
+  { value: '9', label: 'Septembre' },
+  { value: '10', label: 'Octobre' },
+  { value: '11', label: 'Novembre' },
+  { value: '12', label: 'Décembre' }
+]
+
+// Date of birth states
+const dobDay = ref('')
+const dobMonth = ref('')
+const dobYear = ref('')
+
+// Expiration date states
+const expDay = ref('')
+const expMonth = ref('')
+const expYear = ref('')
+
+// Max year for DOB is current year - 21 (and let's go back 100 years)
+const currentYear = new Date().getFullYear()
+const dobYearsList = computed(() => {
+  const years = []
+  const maxYear = currentYear - 21
+  const minYear = currentYear - 100
+  for (let y = maxYear; y >= minYear; y--) {
+    years.push(String(y))
+  }
+  return years
+})
+
+// Expiration years: current year to current year + 30
+const expYearsList = computed(() => {
+  const years = []
+  for (let y = currentYear; y <= currentYear + 30; y++) {
+    years.push(String(y))
+  }
+  return years
+})
+
+// Helper to get days in month
+const getDaysInMonth = (month, year) => {
+  if (!month) return 31
+  const m = parseInt(month)
+  const y = parseInt(year) || 2020 // leap year default if not set
+  return new Date(y, m, 0).getDate()
+}
+
+// Days lists computed properties
+const dobDaysList = computed(() => {
+  const maxDay = getDaysInMonth(dobMonth.value, dobYear.value)
+  return Array.from({ length: maxDay }, (_, i) => String(i + 1))
+})
+
+const expDaysList = computed(() => {
+  const maxDay = getDaysInMonth(expMonth.value, expYear.value)
+  return Array.from({ length: maxDay }, (_, i) => String(i + 1))
+})
+
+// Update payload helper functions
+const updateDobPayload = () => {
+  if (dobDay.value && dobMonth.value && dobYear.value) {
+    payload.value.dob = `${dobYear.value}-${String(dobMonth.value).padStart(2, '0')}-${String(dobDay.value).padStart(2, '0')}`
+    clearError('dob')
+  } else {
+    payload.value.dob = ''
+  }
+}
+
+const updateExpPayload = () => {
+  if (expDay.value && expMonth.value && expYear.value) {
+    payload.value.expiration_piece = `${expYear.value}-${String(expMonth.value).padStart(2, '0')}-${String(expDay.value).padStart(2, '0')}`
+    clearError('expiration_piece')
+  } else {
+    payload.value.expiration_piece = ''
+  }
+}
+
+// Watchers for DOB changes
+watch([dobMonth, dobYear], () => {
+  if (dobDay.value && dobDaysList.value.length < parseInt(dobDay.value)) {
+    dobDay.value = String(dobDaysList.value.length)
+  }
+  updateDobPayload()
+})
+watch(dobDay, () => {
+  updateDobPayload()
+})
+
+// Watchers for Expiration changes
+watch([expMonth, expYear], () => {
+  if (expDay.value && expDaysList.value.length < parseInt(expDay.value)) {
+    expDay.value = String(expDaysList.value.length)
+  }
+  updateExpPayload()
+})
+watch(expDay, () => {
+  updateExpPayload()
 })
 
 // Form Step Navigations
@@ -646,14 +771,31 @@ const submitOnboarding = async () => {
           </div>
 
           <!-- Date de naissance et Lieu -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-4">
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Date Naissance *</label>
-              <input v-model="payload.dob" @blur="clearError('dob')" @change="clearError('dob')" type="date" :max="maxBirthDate" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.dob ? 'true' : 'false'" :aria-describedby="validationErrors.dob ? 'dob-error' : null">
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Date de Naissance *</label>
+              <div class="grid grid-cols-3 gap-2">
+                <!-- Jour -->
+                <select v-model="dobDay" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
+                  <option value="" disabled>Jour</option>
+                  <option v-for="d in dobDaysList" :key="d" :value="d">{{ String(d).padStart(2, '0') }}</option>
+                </select>
+                <!-- Mois -->
+                <select v-model="dobMonth" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
+                  <option value="" disabled>Mois</option>
+                  <option v-for="m in frenchMonths" :key="m.value" :value="m.value">{{ m.label }}</option>
+                </select>
+                <!-- Année -->
+                <select v-model="dobYear" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
+                  <option value="" disabled>Année</option>
+                  <option v-for="y in dobYearsList" :key="y" :value="y">{{ y }}</option>
+                </select>
+              </div>
               <p v-if="validationErrors.dob" id="dob-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
                 {{ validationErrors.dob }}
               </p>
             </div>
+            
             <div class="space-y-2 text-left">
               <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Lieu Naissance *</label>
               <input v-model="payload.lieu_naiss" @blur="clearError('lieu_naiss')" @input="clearError('lieu_naiss')" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.lieu_naiss ? 'true' : 'false'" :aria-describedby="validationErrors.lieu_naiss ? 'lieu_naiss-error' : null">
@@ -751,7 +893,23 @@ const submitOnboarding = async () => {
 
           <div class="space-y-2 text-left">
             <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Date d'expiration de la pièce *</label>
-            <input v-model="payload.expiration_piece" :min="minExpirationDate" @blur="clearError('expiration_piece')" @change="clearError('expiration_piece')" type="date" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.expiration_piece ? 'true' : 'false'" :aria-describedby="validationErrors.expiration_piece ? 'expiration_piece-error' : null">
+            <div class="grid grid-cols-3 gap-2">
+              <!-- Jour -->
+              <select v-model="expDay" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
+                <option value="" disabled>Jour</option>
+                <option v-for="d in expDaysList" :key="d" :value="d">{{ String(d).padStart(2, '0') }}</option>
+              </select>
+              <!-- Mois -->
+              <select v-model="expMonth" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
+                <option value="" disabled>Mois</option>
+                <option v-for="m in frenchMonths" :key="m.value" :value="m.value">{{ m.label }}</option>
+              </select>
+              <!-- Année -->
+              <select v-model="expYear" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
+                <option value="" disabled>Année</option>
+                <option v-for="y in expYearsList" :key="y" :value="y">{{ y }}</option>
+              </select>
+            </div>
             <p v-if="validationErrors.expiration_piece" id="expiration_piece-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.expiration_piece }}
             </p>

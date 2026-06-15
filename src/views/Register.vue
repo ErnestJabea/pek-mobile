@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { ChevronLeft, User, Mail, Phone, Lock, ArrowRight, ShieldCheck, MapPin, Globe, Loader2 } from 'lucide-vue-next'
+import { ChevronLeft, User, Mail, Phone, Lock, ArrowRight, ShieldCheck, MapPin, Globe, Loader2, Eye, EyeOff } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
 
@@ -14,6 +14,7 @@ const loading = ref(false)
 const error = ref('')
 const validationErrors = ref({})
 const showCountryList = ref(false)
+const showPassword = ref(false)
 
 const clearError = (field) => {
   if (validationErrors.value[field]) {
@@ -339,7 +340,14 @@ const handleNext = async () => {
           <label class="text-sm font-bold text-slate-700 ml-1">Mot de passe</label>
           <div class="relative">
             <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input v-model="form.password" @blur="clearError('password')" @input="clearError('password')" type="password" placeholder="••••••••" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.password ? 'true' : 'false'" :aria-describedby="validationErrors.password ? 'password-error' : null">
+            <input v-model="form.password" @blur="clearError('password')" @input="clearError('password')" :type="showPassword ? 'text' : 'password'" placeholder="••••••••" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-12 focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.password ? 'true' : 'false'" :aria-describedby="validationErrors.password ? 'password-error' : null">
+            <button 
+              type="button" 
+              @click="showPassword = !showPassword"
+              class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center"
+            >
+              <component :is="showPassword ? EyeOff : Eye" class="w-5 h-5" />
+            </button>
           </div>
           <p v-if="validationErrors.password" id="password-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
             {{ validationErrors.password[0] }}

@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { User, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock } from 'lucide-vue-next'
+import { User, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
 
@@ -21,6 +21,8 @@ const passwordForm = ref({
 const passwordLoading = ref(false)
 const passwordMessage = ref({ type: '', text: '' })
 const passwordValidationErrors = ref({})
+const showCurrentPassword = ref(false)
+const showNewPassword = ref(false)
 
 const handleUpdatePassword = async () => {
   passwordLoading.value = true
@@ -330,7 +332,16 @@ const handleUpdate = async () => {
 
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Mot de passe actuel</label>
-              <input v-model="passwordForm.current_password" type="password" placeholder="••••••••" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 px-4 font-bold text-sm focus:bg-white focus:border-primary transition-all" :aria-invalid="passwordValidationErrors.current_password ? 'true' : 'false'" :aria-describedby="passwordValidationErrors.current_password ? 'current_password-error' : null">
+              <div class="relative">
+                <input v-model="passwordForm.current_password" :type="showCurrentPassword ? 'text' : 'password'" placeholder="••••••••" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 pl-4 pr-12 font-bold text-sm focus:bg-white focus:border-primary transition-all" :aria-invalid="passwordValidationErrors.current_password ? 'true' : 'false'" :aria-describedby="passwordValidationErrors.current_password ? 'current_password-error' : null">
+                <button 
+                  type="button" 
+                  @click="showCurrentPassword = !showCurrentPassword"
+                  class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center"
+                >
+                  <component :is="showCurrentPassword ? EyeOff : Eye" class="w-4 h-4" />
+                </button>
+              </div>
               <p v-if="passwordValidationErrors.current_password" id="current_password-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
                 {{ passwordValidationErrors.current_password[0] }}
               </p>
@@ -338,7 +349,16 @@ const handleUpdate = async () => {
 
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Nouveau mot de passe</label>
-              <input v-model="passwordForm.new_password" type="password" placeholder="Min. 8 caractères" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 px-4 font-bold text-sm focus:bg-white focus:border-primary transition-all" :aria-invalid="passwordValidationErrors.new_password ? 'true' : 'false'" :aria-describedby="passwordValidationErrors.new_password ? 'new_password-error' : null">
+              <div class="relative">
+                <input v-model="passwordForm.new_password" :type="showNewPassword ? 'text' : 'password'" placeholder="Min. 8 caractères" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 pl-4 pr-12 font-bold text-sm focus:bg-white focus:border-primary transition-all" :aria-invalid="passwordValidationErrors.new_password ? 'true' : 'false'" :aria-describedby="passwordValidationErrors.new_password ? 'new_password-error' : null">
+                <button 
+                  type="button" 
+                  @click="showNewPassword = !showNewPassword"
+                  class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center"
+                >
+                  <component :is="showNewPassword ? EyeOff : Eye" class="w-4 h-4" />
+                </button>
+              </div>
               <p v-if="passwordValidationErrors.new_password" id="new_password-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
                 {{ passwordValidationErrors.new_password[0] }}
               </p>

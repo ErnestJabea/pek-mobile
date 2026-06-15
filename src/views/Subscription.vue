@@ -15,6 +15,7 @@ const submitting = ref(false)
 const success = ref(false)
 const showErrorModal = ref(false)
 const showOnboardingModal = ref(false)
+const showOnboardingRequiredModal = ref(false)
 const transactionRef = ref('')
 const coolpayTransactionRef = ref('')
 const phoneNumber = ref('')
@@ -90,10 +91,14 @@ const isMinimumMet = computed(() => {
 })
 
 const handleSubscribe = async () => {
-  if (!authStore.user?.onboarding_completed) {
-    showOnboardingModal.value = true
+  const amount = inputMode.value === 'amount' ? inputAmount.value : (parts.value * fund.value.vl)
+  const onboardingStatus = authStore.user?.onboarding_status
+
+  if (amount > 50000 && onboardingStatus !== 'validated') {
+    showOnboardingRequiredModal.value = true
     return
   }
+
   stripeError.value = null
   submitting.value = true
   try {
@@ -179,6 +184,16 @@ const handleSubscribe = async () => {
         <div class="pt-2 border-t border-slate-200 flex justify-between items-center">
           <span class="text-slate-400 font-bold uppercase tracking-tighter">Montant total</span>
           <span class="text-primary font-black">{{ parseFloat(finalAmount).toLocaleString() }} FCFA</span>
+        </div>
+      </div>
+
+      <!-- Warning alert box for unvalidated onboarding status -->
+      <div v-if="authStore.user?.onboarding_status !== 'validated'" class="w-full bg-amber-50 rounded-3xl p-6 border border-amber-100 text-left animate-in fade-in duration-300">
+        <div class="flex items-start gap-3 text-amber-800">
+          <AlertCircle class="w-5 h-5 shrink-0 mt-0.5" />
+          <div class="text-xs font-bold leading-relaxed">
+            Attention : Votre souscription a bien été enregistrée mais elle ne sera validée que si et seulement si vous renseignez les informations qui vous sont demandées par mail pour finaliser votre dossier d'onboarding.
+          </div>
         </div>
       </div>
     </div>
@@ -406,6 +421,44 @@ const handleSubscribe = async () => {
             class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider"
           >
             Plus tard
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Premium Onboarding Required Modal Window -->
+    <div v-if="showOnboardingRequiredModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+      <!-- Backdrop with glassmorphism blur -->
+      <div @click="showOnboardingRequiredModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+      
+      <!-- Modal card -->
+      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+        <!-- Floating Red Icon -->
+        <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-500">
+          <AlertCircle class="w-8 h-8" />
+        </div>
+        
+        <!-- Text details -->
+        <div class="space-y-2">
+          <h3 class="text-lg font-black text-slate-900">Validation Requise</h3>
+          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+            Pour finaliser votre souscription de plus de 50 000 FCFA, vous devez fournir les informations restantes qui vous ont été demandées par mail pour faire valider votre dossier d'onboarding.
+          </p>
+        </div>
+        
+        <!-- Actions -->
+        <div class="space-y-2">
+          <button 
+            @click="router.push('/onboarding')" 
+            class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20"
+          >
+            Compléter mon onboarding
+          </button>
+          <button 
+            @click="showOnboardingRequiredModal = false" 
+            class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider"
+          >
+            Fermer
           </button>
         </div>
       </div>
