@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { Info, Plus, Search, Filter, Loader2, AlertCircle } from 'lucide-vue-next'
+import { Info, Plus, Search, Filter, Loader2, AlertCircle, X } from 'lucide-vue-next'
 import api from '../api/api'
 import { useAuthStore } from '../stores/auth'
 
@@ -9,6 +9,7 @@ const products = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
 const showWarningModal = ref(false)
+const selectedProduct = ref(null)
 
 const canSubscribe = computed(() => {
   return true
@@ -37,6 +38,54 @@ const filteredProducts = computed(() => {
     p.description.toLowerCase().includes(q)
   )
 })
+
+const selectedHistory = computed(() => {
+  const history = selectedProduct.value?.history || []
+  return history
+    .map(item => ({
+      date: item.date,
+      vl: parseFloat(item.vl)
+    }))
+    .filter(item => Number.isFinite(item.vl))
+})
+
+const selectedLatestVl = computed(() => {
+  if (!selectedProduct.value) return 0
+  const latestHistoryItem = selectedHistory.value[selectedHistory.value.length - 1]
+  return latestHistoryItem?.vl || parseFloat(selectedProduct.value.vl) || 0
+})
+
+const selectedVariation = computed(() => {
+  if (selectedHistory.value.length < 2) return null
+  const first = selectedHistory.value[0].vl
+  const latest = selectedLatestVl.value
+  if (!first) return null
+  return ((latest - first) / first) * 100
+})
+
+const selectedChartBars = computed(() => {
+  if (selectedHistory.value.length === 0) return []
+
+  const vls = selectedHistory.value.map(item => item.vl)
+  const minVl = Math.min(...vls)
+  const maxVl = Math.max(...vls)
+  const range = maxVl - minVl || 1
+
+  return selectedHistory.value.map(item => ({
+    height: ((item.vl - minVl) / range) * 65 + 20,
+    label: item.date,
+    vl: item.vl,
+    displayValue: `${item.vl.toLocaleString()} FCFA`
+  }))
+})
+
+const openProductDetails = (product) => {
+  selectedProduct.value = product
+}
+
+const closeProductDetails = () => {
+  selectedProduct.value = null
+}
 </script>
 
 <template>
@@ -72,7 +121,7 @@ const filteredProducts = computed(() => {
       </div>
       <div v-for="product in filteredProducts" :key="product.id" class="bg-white border border-slate-100 rounded-3xl p-5 space-y-4 hover:shadow-xl hover:shadow-slate-200/50 transition-all">
         <div class="flex justify-between items-start">
-          <div class="space-y-1 text-left">
+          <div class="space-y-1 text-left pr-3">
             <h3 class="font-bold text-slate-900 text-lg leading-tight">{{ product.name }}</h3>
             <div class="flex items-center gap-2">
               <span :class="[
@@ -85,8 +134,14 @@ const filteredProducts = computed(() => {
               <span class="text-slate-500 text-[10px] font-bold"></span>
             </div>
           </div>
-          <div class="text-right">
-          </div>
+          <button
+            type="button"
+            @click="openProductDetails(product)"
+            class="shrink-0 h-9 px-3 bg-warm text-primary border border-primary/10 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 transition-all hover:bg-accent/15"
+          >
+            <Info class="w-3.5 h-3.5" />
+            Detail
+          </button>
         </div>
 
         <p class="text-slate-500 text-sm leading-relaxed line-clamp-2 text-left">
@@ -124,6 +179,85 @@ const filteredProducts = computed(() => {
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Product VL Details Modal -->
+    <div v-if="selectedProduct" class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div class="bg-white rounded-[32px] p-6 w-full max-w-sm border border-slate-100 shadow-2xl animate-in zoom-in-95 duration-200 text-left space-y-6">
+        <div class="flex items-start justify-between gap-4">
+          <div class="space-y-1">
+            <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Evolution de la VL</span>
+            <h3 class="text-lg font-black text-slate-900 leading-tight">{{ selectedProduct.name }}</h3>
+          </div>
+          <button
+            type="button"
+            @click="closeProductDetails"
+            class="w-9 h-9 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center active:scale-95 transition-all"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <div class="bg-cream border border-accent/20 rounded-3xl p-5 space-y-2">
+          <span class="text-[10px] text-secondary block uppercase font-black tracking-widest">Derniere VL</span>
+          <div class="flex items-end justify-between gap-3">
+            <span class="text-primary font-black text-3xl leading-none">{{ selectedLatestVl.toLocaleString() }} FCFA</span>
+            <span
+              v-if="selectedVariation !== null"
+              :class="selectedVariation >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'"
+              class="px-2.5 py-1 rounded-full text-[10px] font-black"
+            >
+              {{ selectedVariation >= 0 ? '+' : '' }}{{ selectedVariation.toFixed(2) }}%
+            </span>
+          </div>
+        </div>
+
+        <div v-if="selectedChartBars.length > 1" class="space-y-4 animate-in fade-in duration-300">
+          <div class="h-48 w-full flex items-end gap-1.5 pt-8 px-2 bg-slate-50 rounded-3xl p-5 border border-slate-100 relative overflow-hidden">
+            <!-- Grid Lines -->
+            <div class="absolute inset-x-0 top-1/4 border-b border-slate-100 border-dashed pointer-events-none"></div>
+            <div class="absolute inset-x-0 top-2/4 border-b border-slate-100 border-dashed pointer-events-none"></div>
+            <div class="absolute inset-x-0 top-3/4 border-b border-slate-100 pointer-events-none"></div>
+
+            <div
+              v-for="(bar, index) in selectedChartBars"
+              :key="index"
+              :style="{ height: bar.height + '%' }"
+              class="flex-1 bg-gradient-to-t from-primary/10 to-primary/40 hover:from-primary/30 hover:to-primary/60 border-t-2 border-x border-primary/20 hover:border-primary/40 rounded-t-lg relative group transition-all duration-300 min-h-[16px] flex flex-col justify-end items-center"
+            >
+              <!-- Permanently visible VL label -->
+              <span class="absolute -top-7 text-[8px] font-black text-primary/80 whitespace-nowrap pointer-events-none scale-90 sm:scale-100 bg-white/60 px-1 py-0.5 rounded backdrop-blur-[2px]">
+                {{ Math.round(bar.vl).toLocaleString() }}
+              </span>
+
+              <!-- Hover Tooltip (Detailed) -->
+              <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1.5 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg z-20 font-black">
+                {{ bar.displayValue }}
+              </div>
+            </div>
+          </div>
+          <div class="flex justify-between text-[9px] text-slate-400 font-bold uppercase tracking-wider px-1">
+            <span>{{ selectedChartBars[0].label }}</span>
+            <span>{{ selectedChartBars[Math.floor(selectedChartBars.length / 2)].label }}</span>
+            <span>{{ selectedChartBars[selectedChartBars.length - 1].label }}</span>
+          </div>
+        </div>
+
+        <div v-else class="bg-slate-50 rounded-3xl p-6 border border-slate-100 text-center space-y-2">
+          <Info class="w-8 h-8 text-primary/40 mx-auto" />
+          <p class="text-xs text-slate-500 font-bold leading-relaxed">
+            L'historique de VL n'est pas encore disponible pour ce fonds.
+          </p>
+        </div>
+
+        <router-link
+          :to="'/subscribe/' + selectedProduct.id"
+          class="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
+        >
+          <Plus class="w-4 h-4" />
+          Souscrire
+        </router-link>
       </div>
     </div>
 

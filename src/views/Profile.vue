@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { User, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff } from 'lucide-vue-next'
@@ -12,6 +12,37 @@ const isEditing = ref(false)
 const loading = ref(false)
 const message = ref({ type: '', text: '' })
 const validationErrors = ref({})
+
+const formattedRegistrationDate = computed(() => {
+  const dateStr = authStore.user?.created_at
+  if (!dateStr) return '---'
+  try {
+    const date = new Date(dateStr)
+    const formatted = date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+    // Capitalize the first letter (useful if month comes first or for layout styling)
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1)
+  } catch (e) {
+    return '---'
+  }
+})
+
+const verificationStatus = computed(() => {
+  const status = authStore.user?.onboarding_status
+  switch (status) {
+    case 'validated':
+      return { label: 'Vérifié', class: 'text-emerald-500' }
+    case 'completed':
+      return { label: 'En attente', class: 'text-amber-500' }
+    case 'rejected':
+      return { label: 'À corriger', class: 'text-rose-500' }
+    default:
+      return { label: 'Incomplet', class: 'text-slate-400' }
+  }
+})
 
 const showPasswordForm = ref(false)
 const passwordForm = ref({
@@ -175,6 +206,7 @@ const handleUpdate = async () => {
             {{ authStore.user?.first_name?.charAt(0) }}{{ authStore.user?.last_name?.charAt(0) }}
           </div>
           <button 
+            v-if="authStore.user?.onboarding_status !== 'validated'"
             @click="toggleEdit"
             class="absolute -bottom-2 -right-12 h-10 px-4 bg-white rounded-full shadow-lg flex items-center gap-2 text-primary border-4 border-primary hover:scale-105 active:scale-95 transition-all z-20"
           >
@@ -184,9 +216,15 @@ const handleUpdate = async () => {
         </div>
         <h2 class="text-white text-2xl font-bold">{{ authStore.user?.first_name }} {{ authStore.user?.last_name }}</h2>
         <p class="text-white/60 text-sm font-medium mb-6">Membre Premium</p>
-
+ 
+        <div 
+          v-if="authStore.user?.onboarding_status === 'validated'"
+          class="bg-white/10 backdrop-blur-md border border-white/10 text-white text-xs font-bold px-6 py-3.5 rounded-2xl max-w-[280px] text-center leading-relaxed"
+        >
+          Compte vérifié. Contactez le support pour modifier vos données réglementaires.
+        </div>
         <button 
-          v-if="!isEditing"
+          v-else-if="!isEditing"
           @click="toggleEdit"
           class="bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-black uppercase tracking-widest px-6 py-3 rounded-2xl hover:bg-white/20 active:scale-95 transition-all flex items-center gap-2"
         >
@@ -201,13 +239,12 @@ const handleUpdate = async () => {
       <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-6 flex justify-between divide-x divide-slate-100">
         <div class="flex-1 text-center pr-2">
           <div class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Inscrit le</div>
-          <div class="text-slate-700 font-bold">Mai 2026</div>
+          <div class="text-slate-700 font-bold">{{ formattedRegistrationDate }}</div>
         </div>
         <div class="flex-1 text-center px-2">
           <div class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Status</div>
-          <div class="flex items-center justify-center gap-1 text-emerald-500 font-bold">
-            <ShieldCheck class="w-4 h-4" />
-            Vérifié
+          <div :class="verificationStatus.class" class="font-bold">
+            {{ verificationStatus.label }}
           </div>
         </div>
       </div>
@@ -399,7 +436,7 @@ const handleUpdate = async () => {
         </button>
       </div>
 
-      <p class="text-center text-slate-300 text-[10px] font-black uppercase tracking-widest pt-4">© 2026 PEK - Sécurisé par Sanctum</p>
+      <p class="text-center text-slate-300 text-[10px] font-black uppercase tracking-widest pt-4">© 2026 PEK - Tous droits reserves</p>
     </div>
   </div>
 </template>

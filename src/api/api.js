@@ -24,11 +24,15 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      const authStore = useAuthStore()
-      authStore.logout()
-      
       const isLoginRequest = error.config && error.config.url && error.config.url.includes('/login')
-      if (window.location.pathname !== '/login' && !isLoginRequest) {
+      const isLogoutRequest = error.config && error.config.url && error.config.url.includes('/logout')
+      
+      if (!isLogoutRequest) {
+        const authStore = useAuthStore()
+        authStore.logout()
+      }
+      
+      if (window.location.pathname !== '/login' && !isLoginRequest && !isLogoutRequest) {
         window.location.href = '/login'
       }
     }

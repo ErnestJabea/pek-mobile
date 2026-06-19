@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-vue-next'
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, ChevronLeft } from 'lucide-vue-next'
 import api from '../api/api'
 
 const router = useRouter()
@@ -11,11 +11,19 @@ const authStore = useAuthStore()
 
 const email = ref('')
 const password = ref('')
+const step = ref(1) // 1 = credentials, 2 = MFA OTP
+const otpCode = ref('')
 const loading = ref(false)
 const error = ref('')
 const validationErrors = ref({})
 const showVerificationLink = ref(false)
 const showPassword = ref(false)
+
+const clearError = (field) => {
+  if (validationErrors.value[field]) {
+    delete validationErrors.value[field]
+  }
+}
 
 const handleLogin = async () => {
   loading.value = true
@@ -23,19 +31,53 @@ const handleLogin = async () => {
   validationErrors.value = {}
   showVerificationLink.value = false
   try {
-    const response = await api.post('/login', {
-      email: email.value,
-      password: password.value
-    })
-    
-    authStore.setToken(response.data.access_token)
-    authStore.setUser(response.data.user)
-    
-    const redirectPath = route.query.redirect || '/'
-    router.push(redirectPath)
+    if (step.value === 1) {
+      const response = await api.post('/login', {
+        email: email.value,
+        password: password.value
+      })
+      
+      if (response.data.requires_mfa) {
+        step.value = 2
+        if (response.data.otp_debug) {
+          console.log('DEBUG MFA OTP:', response.data.otp_debug)
+        }
+      } else {
+        authStore.setToken(response.data.access_token)
+        authStore.setUser(response.data.user)
+        
+        const redirectPath = route.query.redirect || '/'
+        router.push(redirectPath)
+      }
+    } else {
+      if (!otpCode.value || otpCode.value.trim() === '') {
+        validationErrors.value.code = ['Le code de vérification est obligatoire.']
+        error.value = 'Veuillez saisir le code de vérification.'
+        loading.value = false
+        return
+      }
+
+      const response = await api.post('/verify-otp', {
+        email: email.value,
+        code: otpCode.value
+      })
+      
+      authStore.setToken(response.data.access_token)
+      authStore.setUser(response.data.user)
+      
+      const redirectPath = route.query.redirect || '/'
+      router.push(redirectPath)
+    }
   } catch (err) {
     if (err.response?.status === 422) {
       validationErrors.value = err.response.data.errors || {}
+      if (err.response.data.message && !err.response.data.errors) {
+        if (step.value === 2) {
+          validationErrors.value.code = [err.response.data.message]
+        } else {
+          error.value = err.response.data.message
+        }
+      }
     } else {
       error.value = err.response?.data?.message || 'Erreur lors de la connexion'
       if (err.response?.status === 403) {
@@ -46,15 +88,32 @@ const handleLogin = async () => {
     loading.value = false
   }
 }
+
+const handleResendOtp = async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const response = await api.post('/resend-otp', { email: email.value })
+    if (response.data.otp_debug) {
+      console.log('DEBUG NEW MFA OTP:', response.data.otp_debug)
+    }
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Erreur lors de l\'envoi du code'
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
   <div class="px-6 py-12 flex flex-col justify-center min-h-[80vh] space-y-10">
     <div class="flex flex-col items-center space-y-6">
-      <img src="/logo.png" alt="PEK Logo" class="h-20 w-auto object-contain">
+      <img src="/logo.png" alt="PEK Logo" class="h-28 max-w-[220px] w-auto object-contain">
       <div class="text-center space-y-2">
-        <h2 class="text-3xl font-bold text-primary">Bon retour !</h2>
-        <p class="text-slate-500">Connectez-vous à votre Plan d'Épargne Kori.</p>
+        <h2 class="text-3xl font-bold text-primary">{{ step === 1 ? 'Bon retour !' : 'Sécurité' }}</h2>
+        <p class="text-slate-500">
+          {{ step === 1 ? 'Connectez-vous à votre Plan d\'Épargne Kori.' : 'Saisissez le code de vérification envoyé à ' + email }}
+        </p>
       </div>
     </div>
 
@@ -69,7 +128,8 @@ const handleLogin = async () => {
           Saisir le code de vérification →
         </router-link>
       </div>
-      <div class="space-y-4">
+
+      <div v-if="step === 1" class="space-y-4">
         <div class="space-y-2">
           <label class="text-sm font-bold text-slate-700 ml-1">Email</label>
           <div class="relative">
@@ -119,6 +179,46 @@ const handleLogin = async () => {
         </div>
       </div>
 
+      <div v-else class="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div class="space-y-2 text-center">
+            <label class="text-sm font-bold text-slate-700">Code de vérification</label>
+            <input 
+              v-model="otpCode" 
+              @blur="clearError('code')" 
+              @input="clearError('code')" 
+              type="text" 
+              maxlength="6" 
+              placeholder="000000" 
+              class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 text-center text-2xl font-bold tracking-[1em] focus:bg-white focus:border-primary transition-all font-mono" 
+              required 
+              :aria-invalid="validationErrors.code ? 'true' : 'false'" 
+              :aria-describedby="validationErrors.code ? 'code-error' : null"
+            >
+            <p v-if="validationErrors.code" id="code-error" role="alert" class="text-rose-500 text-xs mt-1 font-semibold text-center tracking-normal">
+              {{ validationErrors.code[0] }}
+            </p>
+        </div>
+        
+        <div class="flex items-center justify-between px-2">
+          <button 
+            type="button" 
+            @click="step = 1; otpCode = ''; error = ''; validationErrors = {}"
+            class="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1"
+          >
+            <ChevronLeft class="w-4 h-4" /> Retour
+          </button>
+          
+          <button 
+            type="button" 
+            @click="handleResendOtp"
+            :disabled="loading"
+            class="text-xs font-bold text-primary hover:underline disabled:text-slate-400"
+          >
+            Renvoyer le code
+          </button>
+        </div>
+      </div>
+
       <button 
         type="submit"
         :disabled="loading"
@@ -126,13 +226,11 @@ const handleLogin = async () => {
       >
         <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
         <template v-else>
-          Se connecter
+          {{ step === 1 ? 'Se connecter' : 'Confirmer la connexion' }}
           <ArrowRight class="w-5 h-5" />
         </template>
       </button>
     </form>
-
-
 
     <p class="text-center text-sm text-slate-500">
       Pas encore de compte ? 

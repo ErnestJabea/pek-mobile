@@ -13,6 +13,7 @@ import Notifications from '../views/Notifications.vue'
 import MySubscriptions from '../views/MySubscriptions.vue'
 import Onboarding from '../views/Onboarding.vue'
 import Welcome from '../views/Welcome.vue'
+import ResetTempPassword from '../views/ResetTempPassword.vue'
 
 
 const routes = [
@@ -81,6 +82,12 @@ const routes = [
     path: '/welcome',
     name: 'welcome',
     component: Welcome
+  },
+  {
+    path: '/reset-temp-password',
+    name: 'reset-temp-password',
+    component: ResetTempPassword,
+    meta: { requiresAuth: true }
   }
 ]
 
@@ -98,6 +105,12 @@ router.beforeEach((to, from, next) => {
   }
 
   const user = authStore.user
+
+  // Force change of temporary password if flag is true
+  if (authStore.isAuthenticated && (user?.has_temp_password === true || user?.has_temp_password == 1) && to.path !== '/reset-temp-password') {
+    return next('/reset-temp-password')
+  }
+  
   const isOnboardingCompleted = user?.onboarding_completed || false
   const isOnboardingValidated = user?.onboarding_status === 'validated'
   const isOnboardingStatus = user?.onboarding_status || null

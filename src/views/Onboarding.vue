@@ -536,7 +536,7 @@ const initCanvas = () => {
   canvas.height = 150
   
   const ctx = canvas.getContext('2d')
-  ctx.strokeStyle = '#1a2b44'
+  ctx.strokeStyle = '#482010'
   ctx.lineWidth = 3
   ctx.lineCap = 'round'
   

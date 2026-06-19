@@ -142,7 +142,7 @@ onUnmounted(() => {
               :value="qrValue"
               :size="120"
               level="H"
-              foreground="#00236B"
+              foreground="#482010"
             />
             <div v-else class="text-[10px] text-slate-400 italic">Génération...</div>
           </div>
@@ -171,8 +171,8 @@ onUnmounted(() => {
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
-  --primary: #00236B;
-  --accent: #FFD700;
+  --primary: #482010;
+  --accent: #E8B010;
 }
 
 body {
