@@ -8,6 +8,7 @@ import api from '../api/api'
 import { countries } from '../data/countries'
 import { getCitiesForCountry, getImmediateCitiesForCountry } from '../data/cities.js'
 import LanguageSelector from '../components/LanguageSelector.vue'
+import PasswordCriteria from '../components/PasswordCriteria.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -20,6 +21,7 @@ const validationErrors = ref({})
 const showCountryList = ref(false)
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+const isPasswordFocused = ref(false)
 const challengeId = ref('')
 
 const clearError = (field) => {
@@ -401,7 +403,20 @@ const handleNext = async () => {
           <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('password_label') }}</label>
           <div class="relative">
             <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input v-model="form.password" @blur="clearError('password')" @input="clearError('password')" :type="showPassword ? 'text' : 'password'" minlength="12" autocomplete="new-password" :placeholder="languageStore.t('password_hint')" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-12 focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.password ? 'true' : 'false'" :aria-describedby="validationErrors.password ? 'password-error' : null">
+            <input 
+              v-model="form.password" 
+              @focus="isPasswordFocused = true"
+              @blur="clearError('password')" 
+              @input="clearError('password')" 
+              :type="showPassword ? 'text' : 'password'" 
+              minlength="12" 
+              autocomplete="new-password" 
+              :placeholder="languageStore.t('password_hint')" 
+              class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-12 focus:bg-white focus:border-primary transition-all" 
+              required 
+              :aria-invalid="validationErrors.password ? 'true' : 'false'" 
+              :aria-describedby="validationErrors.password ? 'password-error' : null"
+            >
             <button 
               type="button" 
               @click="showPassword = !showPassword"
@@ -421,6 +436,7 @@ const handleNext = async () => {
             <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input 
               v-model="form.password_confirmation" 
+              @focus="isPasswordFocused = true"
               @blur="clearError('password_confirmation')" 
               @input="clearError('password_confirmation')" 
               :type="showConfirmPassword ? 'text' : 'password'" 
@@ -444,6 +460,14 @@ const handleNext = async () => {
             {{ validationErrors.password_confirmation[0] }}
           </p>
         </div>
+
+        <!-- Real-time security criteria checklist & strength meter -->
+        <PasswordCriteria 
+          v-if="form.password || form.password_confirmation || isPasswordFocused"
+          :password="form.password"
+          :confirmation="form.password_confirmation"
+          :show-confirmation-criteria="true"
+        />
       </div>
 
       <div v-else class="space-y-6">

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { Lock, Eye, EyeOff, Loader2, CheckCircle2, ShieldAlert } from 'lucide-vue-next'
 import api from '../api/api'
+import PasswordCriteria from '../components/PasswordCriteria.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -144,6 +145,13 @@ const handleSubmit = async () => {
             </button>
           </div>
         </div>
+
+        <PasswordCriteria 
+          v-if="newPassword || confirmPassword"
+          :password="newPassword"
+          :confirmation="confirmPassword"
+          :show-confirmation-criteria="true"
+        />
       </div>
 
       <button
