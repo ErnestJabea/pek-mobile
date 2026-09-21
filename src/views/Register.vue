@@ -19,6 +19,7 @@ const error = ref('')
 const validationErrors = ref({})
 const showCountryList = ref(false)
 const showPassword = ref(false)
+const showConfirmPassword = ref(false)
 const challengeId = ref('')
 
 const clearError = (field) => {
@@ -37,6 +38,7 @@ const form = ref({
   country: '',
   employer: '',
   password: '',
+  password_confirmation: '',
   otp: ''
 })
 
@@ -153,9 +155,19 @@ const handleNext = async () => {
       validationErrors.value.city = ['La ville est obligatoire.']
     }
     if (!form.value.password || form.value.password.trim() === '') {
-      validationErrors.value.password = ['Le mot de passe est obligatoire.']
+      validationErrors.value.password = [languageStore.isEn() ? 'Password is required.' : 'Le mot de passe est obligatoire.']
     } else if (form.value.password.length < 12) {
-      validationErrors.value.password = ['Le mot de passe doit contenir au moins 12 caractères.']
+      validationErrors.value.password = [languageStore.isEn() ? 'Password must contain at least 12 characters.' : 'Le mot de passe doit contenir au moins 12 caractères.']
+    }
+
+    if (!form.value.password_confirmation || form.value.password_confirmation.trim() === '') {
+      validationErrors.value.password_confirmation = [
+        languageStore.isEn() ? 'Please confirm your password.' : 'Veuillez confirmer votre mot de passe.'
+      ]
+    } else if (form.value.password !== form.value.password_confirmation) {
+      validationErrors.value.password_confirmation = [
+        languageStore.isEn() ? 'Passwords do not match.' : 'Les mots de passe ne correspondent pas.'
+      ]
     }
 
     if (Object.keys(validationErrors.value).length > 0) {
@@ -400,6 +412,36 @@ const handleNext = async () => {
           </div>
           <p v-if="validationErrors.password" id="password-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
             {{ validationErrors.password[0] }}
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('confirm_password_label') }}</label>
+          <div class="relative">
+            <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input 
+              v-model="form.password_confirmation" 
+              @blur="clearError('password_confirmation')" 
+              @input="clearError('password_confirmation')" 
+              :type="showConfirmPassword ? 'text' : 'password'" 
+              minlength="12" 
+              autocomplete="new-password" 
+              :placeholder="languageStore.t('confirm_password_placeholder')" 
+              class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-12 focus:bg-white focus:border-primary transition-all" 
+              required 
+              :aria-invalid="validationErrors.password_confirmation ? 'true' : 'false'" 
+              :aria-describedby="validationErrors.password_confirmation ? 'password_confirmation-error' : null"
+            >
+            <button 
+              type="button" 
+              @click="showConfirmPassword = !showConfirmPassword"
+              class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none flex items-center justify-center"
+            >
+              <component :is="showConfirmPassword ? EyeOff : Eye" class="w-5 h-5" />
+            </button>
+          </div>
+          <p v-if="validationErrors.password_confirmation" id="password_confirmation-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+            {{ validationErrors.password_confirmation[0] }}
           </p>
         </div>
       </div>
