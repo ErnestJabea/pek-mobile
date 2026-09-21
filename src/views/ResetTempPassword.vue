@@ -9,6 +9,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const newPassword = ref('')
+const currentPassword = ref('')
 const confirmPassword = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -28,14 +29,15 @@ const handleSubmit = async () => {
     return
   }
 
-  if (newPassword.value.length < 8) {
-    error.value = 'Le mot de passe doit contenir au moins 8 caractères.'
+  if (newPassword.value.length < 12) {
+    error.value = 'Le mot de passe doit contenir au moins 12 caractères.'
     loading.value = false
     return
   }
 
   try {
     const response = await api.post('/reset-temp-password', {
+      current_password: currentPassword.value,
       new_password: newPassword.value
     })
     
@@ -87,6 +89,13 @@ const handleSubmit = async () => {
       </div>
 
       <div class="space-y-4">
+        <div class="space-y-2">
+          <label class="text-sm font-bold text-slate-700 ml-1">Mot de passe temporaire actuel</label>
+          <div class="relative">
+            <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input v-model="currentPassword" type="password" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4" required autocomplete="current-password">
+          </div>
+        </div>
         <!-- Nouveau mot de passe -->
         <div class="space-y-2">
           <label class="text-sm font-bold text-slate-700 ml-1">Nouveau mot de passe</label>
@@ -139,7 +148,7 @@ const handleSubmit = async () => {
 
       <button
         type="submit"
-        :disabled="loading || !newPassword || !confirmPassword"
+        :disabled="loading || !currentPassword || !newPassword || !confirmPassword"
         class="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 hover:bg-slate-800 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2"
       >
         <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />

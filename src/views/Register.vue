@@ -1,33 +1,31 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { ChevronLeft, User, Mail, Phone, Lock, ArrowRight, ShieldCheck, MapPin, Globe, Loader2, Eye, EyeOff } from 'lucide-vue-next'
+import { useLanguageStore } from '../stores/language'
+import { ChevronLeft, ChevronDown, User, Mail, Phone, Lock, ArrowRight, ShieldCheck, MapPin, Globe, Loader2, Eye, EyeOff } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
+import { getCitiesForCountry, getImmediateCitiesForCountry } from '../data/cities.js'
+import LanguageSelector from '../components/LanguageSelector.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
 const step = ref(1)
 const loading = ref(false)
 const error = ref('')
 const validationErrors = ref({})
 const showCountryList = ref(false)
 const showPassword = ref(false)
+const challengeId = ref('')
 
 const clearError = (field) => {
   if (validationErrors.value[field]) {
     delete validationErrors.value[field]
   }
 }
-
-onMounted(() => {
-  if (route.query.email && route.query.step === '2') {
-    form.value.email = route.query.email
-    step.value = 2
-  }
-})
 
 const form = ref({
   first_name: '',
@@ -42,40 +40,62 @@ const form = ref({
   otp: ''
 })
 
-const cities = ref([])
+const availableCities = ref([])
 const loadingCities = ref(false)
+const isCustomCity = ref(false)
+const customCity = ref('')
 
-const handleCountryChange = async () => {
-  clearError('country')
-  form.value.city = ''
-  cities.value = []
-  
-  if (!form.value.country) return
-  
-  const countryObj = countries.find(c => c.name === form.value.country)
-  const englishName = countryObj ? countryObj.english : form.value.country
-  
+const updateCitiesForSelectedCountry = async (countryName) => {
+  if (!countryName) {
+    availableCities.value = []
+    return
+  }
+  availableCities.value = getImmediateCitiesForCountry(countryName)
   loadingCities.value = true
   try {
-    const response = await fetch('https://countriesnow.space/api/v0.1/countries/cities', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ country: englishName })
-    })
-    const data = await response.json()
-    if (data && !data.error && Array.isArray(data.data)) {
-      cities.value = data.data.sort((a, b) => a.localeCompare(b))
-    } else {
-      cities.value = []
+    const list = await getCitiesForCountry(countryName)
+    if (form.value.country === countryName) {
+      availableCities.value = list
     }
-  } catch (error) {
-    console.error('Error fetching cities:', error)
-    cities.value = []
+  } catch (err) {
+    console.error('Erreur chargement villes:', err)
   } finally {
     loadingCities.value = false
   }
+}
+
+watch(() => form.value.country, (newCountry) => {
+  if (newCountry) {
+    updateCitiesForSelectedCountry(newCountry)
+  } else {
+    availableCities.value = []
+  }
+}, { immediate: true })
+
+const handleCountryChange = () => {
+  clearError('country')
+  clearError('city')
+  form.value.city = ''
+  isCustomCity.value = false
+  customCity.value = ''
+  updateCitiesForSelectedCountry(form.value.country)
+}
+
+const handleCityChange = (e) => {
+  clearError('city')
+  const val = e.target.value
+  if (val === '__AUTRE__') {
+    isCustomCity.value = true
+    form.value.city = customCity.value.trim()
+  } else {
+    isCustomCity.value = false
+    form.value.city = val
+  }
+}
+
+const handleCustomCityInput = () => {
+  clearError('city')
+  form.value.city = customCity.value.trim()
 }
 
 const handlePhoneInput = (e) => {
@@ -101,9 +121,7 @@ const handleResendOtp = async () => {
   error.value = ''
   try {
     const response = await api.post('/resend-otp', { email: form.value.email })
-    if (response.data.otp_debug) {
-      console.log('DEBUG NEW OTP:', response.data.otp_debug)
-    }
+    challengeId.value = response.data.challenge_id
     // Optionnel: afficher un message de succès (toast ou autre)
   } catch (err) {
     error.value = err.response?.data?.message || 'Erreur lors de l\'envoi du code'
@@ -136,6 +154,8 @@ const handleNext = async () => {
     }
     if (!form.value.password || form.value.password.trim() === '') {
       validationErrors.value.password = ['Le mot de passe est obligatoire.']
+    } else if (form.value.password.length < 12) {
+      validationErrors.value.password = ['Le mot de passe doit contenir au moins 12 caractères.']
     }
 
     if (Object.keys(validationErrors.value).length > 0) {
@@ -162,13 +182,11 @@ const handleNext = async () => {
         delete payload.phone
       }
       const response = await api.post('/register', payload)
+      challengeId.value = response.data.challenge_id
       step.value = 2
-      if (response.data.otp_debug) {
-        console.log('DEBUG OTP:', response.data.otp_debug)
-      }
     } else {
       const response = await api.post('/verify-otp', {
-        email: form.value.email,
+        challenge_id: challengeId.value,
         code: form.value.otp
       })
       
@@ -198,11 +216,18 @@ const handleNext = async () => {
 </script>
 
 <template>
-  <div class="px-6 py-12 flex flex-col justify-center min-h-[80vh] space-y-8">
+  <div class="px-6 py-6 flex flex-col justify-center min-h-[85vh] space-y-8 max-w-md mx-auto relative">
+    <div class="flex items-center justify-between pt-2">
+      <router-link to="/login" class="text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1 text-xs font-bold">
+        <ChevronLeft class="w-4 h-4" /> {{ languageStore.t('back') }}
+      </router-link>
+      <LanguageSelector />
+    </div>
+
     <div class="space-y-2">
-      <h2 class="text-3xl font-bold text-slate-900">{{ step === 1 ? 'Créer un compte' : 'Vérification' }}</h2>
-      <p class="text-slate-500">
-        {{ step === 1 ? 'Rejoignez des milliers d\'investisseurs dès aujourd\'hui.' : 'Entrez le code à 6 chiffres envoyé à ' + form.email }}
+      <h2 class="text-3xl font-bold text-slate-900">{{ step === 1 ? languageStore.t('create_account') : languageStore.t('otp_title') }}</h2>
+      <p class="text-slate-500 text-sm">
+        {{ step === 1 ? languageStore.t('register_subtitle') : (languageStore.isEn() ? 'Enter the 6-digit code sent to ' : 'Entrez le code à 6 chiffres envoyé à ') + form.email }}
       </p>
     </div>
 
@@ -214,14 +239,14 @@ const handleNext = async () => {
       <div v-if="step === 1" class="space-y-4">
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <label class="text-sm font-bold text-slate-700 ml-1">Prénom</label>
+            <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('first_name_label') }}</label>
             <input v-model="form.first_name" @blur="clearError('first_name')" @input="clearError('first_name')" type="text" placeholder="Jean" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.first_name ? 'true' : 'false'" :aria-describedby="validationErrors.first_name ? 'first_name-error' : null">
             <p v-if="validationErrors.first_name" id="first_name-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.first_name[0] }}
             </p>
           </div>
           <div class="space-y-2">
-            <label class="text-sm font-bold text-slate-700 ml-1">Nom</label>
+            <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('last_name_label') }}</label>
             <input v-model="form.last_name" @blur="clearError('last_name')" @input="clearError('last_name')" type="text" placeholder="Dupont" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.last_name ? 'true' : 'false'" :aria-describedby="validationErrors.last_name ? 'last_name-error' : null">
             <p v-if="validationErrors.last_name" id="last_name-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.last_name[0] }}
@@ -242,26 +267,50 @@ const handleNext = async () => {
 
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2 text-left">
-            <label class="text-sm font-bold text-slate-700 ml-1">Pays de résidence</label>
+            <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('country_label') }}</label>
             <div class="relative">
-              <Globe class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <select v-model="form.country" @change="handleCountryChange" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all appearance-none" required :aria-invalid="validationErrors.country ? 'true' : 'false'" :aria-describedby="validationErrors.country ? 'country-error' : null">
-                <option value="" disabled>Sélectionner</option>
+              <Globe class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+              <select v-model="form.country" @change="handleCountryChange" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-10 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer text-slate-800" required :aria-invalid="validationErrors.country ? 'true' : 'false'" :aria-describedby="validationErrors.country ? 'country-error' : null">
+                <option value="" disabled>{{ languageStore.isEn() ? 'Select' : 'Sélectionner' }}</option>
                 <option v-for="c in countries.slice().sort((a, b) => a.name.localeCompare(b.name))" :key="c.code" :value="c.name">{{ c.name }}</option>
               </select>
+              <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
             <p v-if="validationErrors.country" id="country-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.country[0] }}
             </p>
           </div>
           <div class="space-y-2 text-left">
-            <label class="text-sm font-bold text-slate-700 ml-1">Ville</label>
+            <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('city_label') }}</label>
             <div class="relative">
-              <MapPin class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <select v-model="form.city" @change="clearError('city')" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all appearance-none disabled:opacity-50" :disabled="!form.country || loadingCities" required :aria-invalid="validationErrors.city ? 'true' : 'false'" :aria-describedby="validationErrors.city ? 'city-error' : null">
-                <option value="" disabled>{{ loadingCities ? 'Chargement...' : 'Ville' }}</option>
-                <option v-for="city in cities" :key="city" :value="city">{{ city }}</option>
+              <MapPin class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+              <select 
+                :value="isCustomCity ? '__AUTRE__' : form.city" 
+                @change="handleCityChange" 
+                class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-10 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed" 
+                :disabled="!form.country" 
+                required 
+                :aria-invalid="validationErrors.city ? 'true' : 'false'" 
+                :aria-describedby="validationErrors.city ? 'city-error' : null"
+              >
+                <option value="" disabled>
+                  {{ !form.country ? (languageStore.isEn() ? "Select country first" : "Sélectionner le pays d'abord") : (availableCities.length ? (languageStore.isEn() ? "Select city" : "Sélectionner la ville") : (languageStore.isEn() ? "No cities listed" : "Aucune ville répertoriée")) }}
+                </option>
+                <option v-for="city in availableCities" :key="city" :value="city">{{ city }}</option>
+                <option v-if="availableCities.length > 0" value="__AUTRE__">{{ languageStore.isEn() ? 'Other city...' : 'Autre ville...' }}</option>
               </select>
+              <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+            <div v-if="isCustomCity || (form.country && availableCities.length === 0)" class="relative mt-2 animate-in fade-in duration-200">
+              <MapPin class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+              <input 
+                v-model="customCity" 
+                @input="handleCustomCityInput" 
+                type="text" 
+                :placeholder="languageStore.isEn() ? 'Specify your city' : 'Précisez votre ville'" 
+                class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 pl-11 pr-4 focus:bg-white focus:border-primary transition-all text-xs" 
+                required 
+              />
             </div>
             <p v-if="validationErrors.city" id="city-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.city[0] }}
@@ -270,10 +319,10 @@ const handleNext = async () => {
         </div>
 
         <div class="space-y-2 text-left">
-          <label class="text-sm font-bold text-slate-700 ml-1">Employeur (Optionnel)</label>
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('employer_label') }}</label>
           <div class="relative">
             <User class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input v-model="form.employer" @blur="clearError('employer')" @input="clearError('employer')" type="text" placeholder="Entreprise / Auto-entrepreneur" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all" :aria-invalid="validationErrors.employer ? 'true' : 'false'" :aria-describedby="validationErrors.employer ? 'employer-error' : null">
+            <input v-model="form.employer" @blur="clearError('employer')" @input="clearError('employer')" type="text" :placeholder="languageStore.isEn() ? 'Company / Self-employed' : 'Entreprise / Auto-entrepreneur'" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all" :aria-invalid="validationErrors.employer ? 'true' : 'false'" :aria-describedby="validationErrors.employer ? 'employer-error' : null">
           </div>
           <p v-if="validationErrors.employer" id="employer-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
             {{ validationErrors.employer[0] }}
@@ -281,7 +330,7 @@ const handleNext = async () => {
         </div>
 
         <div class="space-y-2">
-          <label class="text-sm font-bold text-slate-700 ml-1">Téléphone</label>
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('phone_label') }}</label>
           <div class="flex gap-2">
             <!-- Custom Country Selector -->
             <div class="relative w-32">
@@ -337,10 +386,10 @@ const handleNext = async () => {
         </div>
 
         <div class="space-y-2">
-          <label class="text-sm font-bold text-slate-700 ml-1">Mot de passe</label>
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('password_label') }}</label>
           <div class="relative">
             <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input v-model="form.password" @blur="clearError('password')" @input="clearError('password')" :type="showPassword ? 'text' : 'password'" placeholder="••••••••" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-12 focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.password ? 'true' : 'false'" :aria-describedby="validationErrors.password ? 'password-error' : null">
+            <input v-model="form.password" @blur="clearError('password')" @input="clearError('password')" :type="showPassword ? 'text' : 'password'" minlength="12" autocomplete="new-password" :placeholder="languageStore.t('password_hint')" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-12 focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.password ? 'true' : 'false'" :aria-describedby="validationErrors.password ? 'password-error' : null">
             <button 
               type="button" 
               @click="showPassword = !showPassword"
@@ -357,7 +406,7 @@ const handleNext = async () => {
 
       <div v-else class="space-y-6">
         <div class="space-y-2 text-center">
-            <label class="text-sm font-bold text-slate-700">Code de vérification</label>
+            <label class="text-sm font-bold text-slate-700">{{ languageStore.t('otp_title') }}</label>
             <input v-model="form.otp" @blur="clearError('code')" @input="clearError('code')" type="text" maxlength="6" placeholder="000000" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 text-center text-2xl font-bold tracking-[1em] focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.code ? 'true' : 'false'" :aria-describedby="validationErrors.code ? 'code-error' : null">
             <p v-if="validationErrors.code" id="code-error" role="alert" class="text-rose-500 text-xs mt-1 font-semibold text-center tracking-normal">
               {{ validationErrors.code[0] }}
@@ -370,7 +419,7 @@ const handleNext = async () => {
             :disabled="loading"
             class="text-xs font-bold text-primary hover:underline disabled:text-slate-400"
           >
-            Renvoyer le code
+            {{ languageStore.t('resend_code') }}
           </button>
         </div>
       </div>
@@ -378,19 +427,21 @@ const handleNext = async () => {
       <button 
         type="submit"
         :disabled="loading"
-        class="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 hover:bg-slate-800 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2"
+        class="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 hover:bg-slate-800 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95"
       >
         <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
         <template v-else>
-          {{ step === 1 ? 'Suivant' : 'Vérifier et S\'inscrire' }}
+          {{ step === 1 ? languageStore.t('next') : languageStore.t('complete_registration') }}
           <ArrowRight class="w-5 h-5" />
         </template>
       </button>
     </form>
 
     <p class="text-center text-sm text-slate-500">
-      Déjà un compte ? 
-      <router-link to="/login" class="text-primary font-bold hover:underline">Se connecter</router-link>
+      {{ languageStore.t('already_account') }} 
+      <router-link to="/login" class="text-primary font-bold hover:underline ml-1">
+        {{ languageStore.t('login_link') }}
+      </router-link>
     </p>
   </div>
 </template>

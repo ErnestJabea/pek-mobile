@@ -11,9 +11,12 @@ import SplashScreen from '../views/SplashScreen.vue'
 import Profile from '../views/Profile.vue'
 import Notifications from '../views/Notifications.vue'
 import MySubscriptions from '../views/MySubscriptions.vue'
+import History from '../views/History.vue'
 import Onboarding from '../views/Onboarding.vue'
 import Welcome from '../views/Welcome.vue'
 import ResetTempPassword from '../views/ResetTempPassword.vue'
+import ResetPassword from '../views/ResetPassword.vue'
+import PaymentReturn from '../views/PaymentReturn.vue'
 
 
 const routes = [
@@ -44,6 +47,12 @@ const routes = [
     path: '/my-subscriptions',
     name: 'my-subscriptions',
     component: MySubscriptions,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/history',
+    name: 'history',
+    component: History,
     meta: { requiresAuth: true }
   },
   {
@@ -88,6 +97,16 @@ const routes = [
     name: 'reset-temp-password',
     component: ResetTempPassword,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/password-reset/:token',
+    name: 'password-reset',
+    component: ResetPassword
+  },
+  {
+    path: '/payment/return/:reference?',
+    name: 'payment-return',
+    component: PaymentReturn
   }
 ]
 
@@ -96,26 +115,20 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const authStore = useAuthStore()
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // Redirect to register if trying to access auth routes without account
-    return next({ path: '/register', query: { redirect: to.fullPath } })
+    // Redirect to login if trying to access auth routes without active session
+    return { path: '/login', query: { redirect: to.fullPath } }
   }
 
   const user = authStore.user
 
   // Force change of temporary password if flag is true
   if (authStore.isAuthenticated && (user?.has_temp_password === true || user?.has_temp_password == 1) && to.path !== '/reset-temp-password') {
-    return next('/reset-temp-password')
+    return '/reset-temp-password'
   }
-  
-  const isOnboardingCompleted = user?.onboarding_completed || false
-  const isOnboardingValidated = user?.onboarding_status === 'validated'
-  const isOnboardingStatus = user?.onboarding_status || null
-
-  next()
 })
 
 export default router

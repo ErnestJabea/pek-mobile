@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
+import api from '../api/api'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: JSON.parse(localStorage.getItem('user')) || null,
+    user: null,
     token: localStorage.getItem('token') || null,
     unreadNotificationsCount: 0,
   }),
@@ -19,19 +20,25 @@ export const useAuthStore = defineStore('auth', {
     },
     setUser(user) {
       this.user = user
-      localStorage.setItem('user', JSON.stringify(user))
     },
-    async logout() {
+    clearAuth() {
       this.user = null
       this.token = null
+      this.unreadNotificationsCount = 0
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      
+      localStorage.removeItem('pek_onboarding_draft')
+      localStorage.removeItem('seen_notification_ids')
+    },
+    async logout() {
       try {
-        const api = (await import('../api/api')).default
-        await api.post('/logout')
+        if (this.token) {
+          await api.post('/logout')
+        }
       } catch (error) {
         console.error('Logout error:', error)
+      } finally {
+        this.clearAuth()
       }
     }
   }

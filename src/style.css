@@ -8,11 +8,17 @@
   --color-warm: #F8EFE2;
   --color-cocoa: #3A190C;
   
-  --font-sans: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Montserrat', 'Poppins', system-ui, -apple-system, sans-serif;
+  --font-montserrat: 'Montserrat', sans-serif;
+  --font-poppins: 'Poppins', sans-serif;
   
   --radius-3xl: 2rem;
   --radius-2xl: 1.25rem;
   --radius-xl: 0.75rem;
+}
+
+:root, html, body, #app, input, button, select, textarea {
+  font-family: 'Montserrat', 'Poppins', system-ui, -apple-system, sans-serif !important;
 }
 
 :root {
@@ -22,7 +28,6 @@
 
 body {
   margin: 0;
-  font-family: var(--font-sans);
 }
 
 .mobile-container {
@@ -42,4 +47,12 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #e2e8f0;
   border-radius: 10px;
+}
+
+.font-montserrat {
+  font-family: 'Montserrat', sans-serif;
+}
+
+.font-poppins {
+  font-family: 'Poppins', sans-serif;
 }

@@ -100,19 +100,9 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <!-- Écran de déconnexion Internet -->
-  <div v-if="isOffline" class="fixed inset-0 bg-white z-[10000] flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
-    <div class="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mb-6 animate-bounce">
-      <WifiOff class="w-12 h-12 text-rose-500" />
-    </div>
-    <h2 class="text-2xl font-black text-slate-900 mb-2">Connexion perdue</h2>
-    <p class="text-slate-500 font-medium mb-8">
-      Vérifiez votre connexion internet pour continuer à utiliser PEK.
-    </p>
-    <div class="flex items-center gap-2 text-primary font-bold animate-pulse">
-      <div class="w-2 h-2 bg-primary rounded-full"></div>
-      Tentative de reconnexion...
-    </div>
+  <div v-if="isOffline" role="status" class="fixed top-3 left-3 right-3 z-[10000] bg-rose-600 text-white rounded-2xl px-4 py-3 shadow-xl flex items-center gap-3 max-w-md mx-auto">
+    <WifiOff class="w-5 h-5 shrink-0" />
+    <p class="text-xs font-bold">Mode hors connexion : consultation limitée, aucun dossier KYC ne peut être enregistré.</p>
   </div>
 
   <div v-if="isDesktop" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-[9999]">
@@ -168,15 +158,13 @@ onUnmounted(() => {
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
-
 :root {
   --primary: #482010;
   --accent: #E8B010;
 }
 
 body {
-  font-family: 'Outfit', sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background-color: #f8fafc;
   margin: 0;
 }

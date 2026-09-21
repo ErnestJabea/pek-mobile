@@ -2,12 +2,20 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { User, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff } from 'lucide-vue-next'
+import { useLanguageStore } from '../stores/language'
+import { User, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
+import { getCitiesForCountry, getImmediateCitiesForCountry } from '../data/cities.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
+
+const changeLang = (lang) => {
+  languageStore.setLanguage(lang)
+  window.location.reload()
+}
 const isEditing = ref(false)
 const loading = ref(false)
 const message = ref({ type: '', text: '' })
@@ -89,69 +97,91 @@ const editForm = ref({
   employer: ''
 })
 
-const cities = ref([])
+const availableCities = ref([])
 const loadingCities = ref(false)
+const isCustomCity = ref(false)
+const customCity = ref('')
 
-const fetchCitiesOfCountry = async (countryName) => {
+const updateCitiesForSelectedCountry = async (countryName, preselectedCity = '') => {
   if (!countryName) {
-    cities.value = []
+    availableCities.value = []
     return
   }
-  const countryObj = countries.find(c => c.name === countryName)
-  const englishName = countryObj ? countryObj.english : countryName
-  
+  availableCities.value = getImmediateCitiesForCountry(countryName)
   loadingCities.value = true
   try {
-    const response = await fetch('https://countriesnow.space/api/v0.1/countries/cities', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ country: englishName })
-    })
-    const data = await response.json()
-    if (data && !data.error && Array.isArray(data.data)) {
-      cities.value = data.data.sort((a, b) => a.localeCompare(b))
-    } else {
-      cities.value = []
+    const list = await getCitiesForCountry(countryName)
+    if (editForm.value.country === countryName) {
+      availableCities.value = list
+      if (preselectedCity && list.length > 0 && !list.includes(preselectedCity)) {
+        isCustomCity.value = true
+        customCity.value = preselectedCity
+      }
     }
-  } catch (error) {
-    console.error('Error fetching cities:', error)
-    cities.value = []
+  } catch (err) {
+    console.error('Erreur chargement villes:', err)
   } finally {
     loadingCities.value = false
   }
 }
 
-const handleCountryChange = async () => {
+const handleCountryChange = () => {
+  if (validationErrors.value.country) delete validationErrors.value.country
+  if (validationErrors.value.city) delete validationErrors.value.city
   editForm.value.city = ''
-  cities.value = []
-  await fetchCitiesOfCountry(editForm.value.country)
+  isCustomCity.value = false
+  customCity.value = ''
+  updateCitiesForSelectedCountry(editForm.value.country)
+}
+
+const handleCityChange = (e) => {
+  if (validationErrors.value.city) delete validationErrors.value.city
+  const val = e.target.value
+  if (val === '__AUTRE__') {
+    isCustomCity.value = true
+    editForm.value.city = customCity.value.trim()
+  } else {
+    isCustomCity.value = false
+    editForm.value.city = val
+  }
+}
+
+const handleCustomCityInput = () => {
+  if (validationErrors.value.city) delete validationErrors.value.city
+  editForm.value.city = customCity.value.trim()
 }
 
 const syncForm = () => {
+  const currentCity = authStore.user?.city || ''
+  const currentCountry = authStore.user?.country || ''
   editForm.value = {
-    first_name: authStore.user.first_name || '',
-    last_name: authStore.user.last_name || '',
-    email: authStore.user.email || '',
-    phone: authStore.user.phone || '',
-    city: authStore.user.city || '',
-    country: authStore.user.country || '',
-    employer: authStore.user.employer || ''
+    first_name: authStore.user?.first_name || '',
+    last_name: authStore.user?.last_name || '',
+    email: authStore.user?.email || '',
+    phone: authStore.user?.phone || '',
+    city: currentCity,
+    country: currentCountry,
+    employer: authStore.user?.employer || ''
+  }
+
+  isCustomCity.value = false
+  customCity.value = ''
+  if (currentCountry) {
+    updateCitiesForSelectedCountry(currentCountry, currentCity)
+  } else {
+    availableCities.value = []
   }
 }
 
 watch(() => authStore.user, (newUser) => {
   if (newUser) {
     syncForm()
-    fetchCitiesOfCountry(newUser.country)
   }
 }, { immediate: true })
 
 onMounted(() => {
   if (authStore.user) {
     syncForm()
-    fetchCitiesOfCountry(authStore.user.country)
   }
 })
 
@@ -306,19 +336,52 @@ const handleUpdate = async () => {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Pays</label>
-              <select v-model="editForm.country" @change="handleCountryChange" :disabled="!isEditing" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all appearance-none" :aria-invalid="validationErrors.country ? 'true' : 'false'" :aria-describedby="validationErrors.country ? 'country-error' : null">
-                <option v-for="c in countries.slice().sort((a, b) => a.name.localeCompare(b.name))" :key="c.code" :value="c.name">{{ c.name }}</option>
-              </select>
+              <div class="relative">
+                <select v-model="editForm.country" @change="handleCountryChange" :disabled="!isEditing" :class="isEditing ? 'bg-white border-primary/20 text-slate-700 pr-8' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all appearance-none" :aria-invalid="validationErrors.country ? 'true' : 'false'" :aria-describedby="validationErrors.country ? 'country-error' : null">
+                  <option v-for="c in countries.slice().sort((a, b) => a.name.localeCompare(b.name))" :key="c.code" :value="c.name">{{ c.name }}</option>
+                </select>
+                <ChevronDown v-if="isEditing" class="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              </div>
               <p v-if="validationErrors.country" id="country-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
                 {{ validationErrors.country[0] }}
               </p>
             </div>
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Ville</label>
-              <select v-model="editForm.city" :disabled="!isEditing || loadingCities" :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all appearance-none" :aria-invalid="validationErrors.city ? 'true' : 'false'" :aria-describedby="validationErrors.city ? 'city-error' : null">
-                <option value="" disabled>{{ loadingCities ? 'Chargement...' : 'Ville de résidence' }}</option>
-                <option v-for="city in cities" :key="city" :value="city">{{ city }}</option>
-              </select>
+              <div class="relative">
+                <select 
+                  v-if="isEditing && availableCities.length > 0" 
+                  :value="isCustomCity ? '__AUTRE__' : editForm.city" 
+                  @change="handleCityChange" 
+                  class="w-full border-2 border-primary/20 rounded-2xl py-3 pl-3 pr-8 font-bold text-sm bg-white text-slate-700 transition-all appearance-none cursor-pointer" 
+                  :aria-invalid="validationErrors.city ? 'true' : 'false'" 
+                  :aria-describedby="validationErrors.city ? 'city-error' : null"
+                >
+                  <option value="" disabled>Sélectionner une ville</option>
+                  <option v-for="c in availableCities" :key="c" :value="c">{{ c }}</option>
+                  <option value="__AUTRE__">Autre ville...</option>
+                </select>
+                <input 
+                  v-else 
+                  v-model="editForm.city" 
+                  :disabled="!isEditing" 
+                  type="text" 
+                  placeholder="Ville de résidence" 
+                  :class="isEditing ? 'bg-white border-primary/20 text-slate-700' : 'bg-slate-50 border-slate-50 text-slate-500'" 
+                  class="w-full border-2 rounded-2xl py-3 px-4 font-bold text-sm transition-all" 
+                  :aria-invalid="validationErrors.city ? 'true' : 'false'" 
+                  :aria-describedby="validationErrors.city ? 'city-error' : null"
+                >
+                <ChevronDown v-if="isEditing && availableCities.length > 0" class="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              </div>
+              <input 
+                v-if="isEditing && (isCustomCity || (editForm.country && availableCities.length === 0))" 
+                v-model="customCity" 
+                @input="handleCustomCityInput" 
+                type="text" 
+                placeholder="Précisez votre ville" 
+                class="mt-1.5 w-full border-2 border-primary/20 rounded-xl py-2 px-3 text-xs font-bold text-slate-700 bg-white" 
+              />
               <p v-if="validationErrors.city" id="city-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
                 {{ validationErrors.city[0] }}
               </p>
@@ -387,7 +450,7 @@ const handleUpdate = async () => {
             <div class="space-y-1">
               <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Nouveau mot de passe</label>
               <div class="relative">
-                <input v-model="passwordForm.new_password" :type="showNewPassword ? 'text' : 'password'" placeholder="Min. 8 caractères" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 pl-4 pr-12 font-bold text-sm focus:bg-white focus:border-primary transition-all" :aria-invalid="passwordValidationErrors.new_password ? 'true' : 'false'" :aria-describedby="passwordValidationErrors.new_password ? 'new_password-error' : null">
+                <input v-model="passwordForm.new_password" :type="showNewPassword ? 'text' : 'password'" minlength="12" placeholder="Min. 12 caractères" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 pl-4 pr-12 font-bold text-sm focus:bg-white focus:border-primary transition-all" :aria-invalid="passwordValidationErrors.new_password ? 'true' : 'false'" :aria-describedby="passwordValidationErrors.new_password ? 'new_password-error' : null">
                 <button 
                   type="button" 
                   @click="showNewPassword = !showNewPassword"
@@ -403,12 +466,52 @@ const handleUpdate = async () => {
 
             <button 
               @click="handleUpdatePassword"
-              :disabled="passwordLoading || !passwordForm.current_password || passwordForm.new_password.length < 8"
+              :disabled="passwordLoading || !passwordForm.current_password || passwordForm.new_password.length < 12"
               class="w-full bg-slate-950 text-white font-black py-4 rounded-2xl text-xs flex items-center justify-center gap-2 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:active:scale-100 transition-all"
             >
               <Loader2 v-if="passwordLoading" class="w-4 h-4 animate-spin" />
               Changer le mot de passe
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Langue de l'application -->
+      <div v-if="!isEditing" class="space-y-4">
+        <div class="flex items-center justify-between ml-1">
+          <h3 class="text-slate-400 text-xs font-black uppercase tracking-widest">{{ languageStore.isEn() ? 'Language' : 'Langue' }}</h3>
+        </div>
+
+        <div class="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500">
+                <Globe class="w-5 h-5" />
+              </div>
+              <div>
+                <h4 class="font-bold text-slate-700 text-sm">{{ languageStore.isEn() ? 'App Language' : 'Langue de l\'application' }}</h4>
+                <p class="text-slate-400 text-[10px]">{{ languageStore.isEn() ? 'Select your language' : 'Choisissez votre langue' }}</p>
+              </div>
+            </div>
+            
+            <div class="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/50">
+              <button 
+                type="button"
+                @click="changeLang('fr')" 
+                :class="languageStore.currentLang === 'fr' ? 'bg-white text-slate-900 shadow-sm font-black' : 'text-slate-500 font-medium'"
+                class="px-3 py-1.5 rounded-xl text-xs transition-all"
+              >
+                FR
+              </button>
+              <button 
+                type="button"
+                @click="changeLang('en')" 
+                :class="languageStore.currentLang === 'en' ? 'bg-white text-slate-900 shadow-sm font-black' : 'text-slate-500 font-medium'"
+                class="px-3 py-1.5 rounded-xl text-xs transition-all"
+              >
+                EN
+              </button>
+            </div>
           </div>
         </div>
       </div>

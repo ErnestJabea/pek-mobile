@@ -1,18 +1,22 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useLanguageStore } from '../stores/language'
 import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, ChevronLeft } from 'lucide-vue-next'
 import api from '../api/api'
+import LanguageSelector from '../components/LanguageSelector.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
 
 const email = ref('')
 const password = ref('')
 const step = ref(1) // 1 = credentials, 2 = MFA OTP
 const otpCode = ref('')
+const challengeId = ref('')
 const loading = ref(false)
 const error = ref('')
 const validationErrors = ref({})
@@ -24,6 +28,12 @@ const clearError = (field) => {
     delete validationErrors.value[field]
   }
 }
+
+onMounted(() => {
+  if (route.query.expired || route.query.session_expired) {
+    error.value = languageStore.t('session_expired_msg')
+  }
+})
 
 const handleLogin = async () => {
   loading.value = true
@@ -38,10 +48,8 @@ const handleLogin = async () => {
       })
       
       if (response.data.requires_mfa) {
+        challengeId.value = response.data.challenge_id
         step.value = 2
-        if (response.data.otp_debug) {
-          console.log('DEBUG MFA OTP:', response.data.otp_debug)
-        }
       } else {
         authStore.setToken(response.data.access_token)
         authStore.setUser(response.data.user)
@@ -58,7 +66,7 @@ const handleLogin = async () => {
       }
 
       const response = await api.post('/verify-otp', {
-        email: email.value,
+        challenge_id: challengeId.value,
         code: otpCode.value
       })
       
@@ -94,9 +102,7 @@ const handleResendOtp = async () => {
   error.value = ''
   try {
     const response = await api.post('/resend-otp', { email: email.value })
-    if (response.data.otp_debug) {
-      console.log('DEBUG NEW MFA OTP:', response.data.otp_debug)
-    }
+    challengeId.value = response.data.challenge_id
   } catch (err) {
     error.value = err.response?.data?.message || 'Erreur lors de l\'envoi du code'
   } finally {
@@ -106,13 +112,20 @@ const handleResendOtp = async () => {
 </script>
 
 <template>
-  <div class="px-6 py-12 flex flex-col justify-center min-h-[80vh] space-y-10">
+  <div class="px-6 py-6 flex flex-col justify-between min-h-[85vh] space-y-8 max-w-md mx-auto relative">
+    <!-- Top Bar with Language Selector -->
+    <div class="flex justify-end pt-2">
+      <LanguageSelector />
+    </div>
+
     <div class="flex flex-col items-center space-y-6">
-      <img src="/logo.png" alt="PEK Logo" class="h-28 max-w-[220px] w-auto object-contain">
+      <img src="/logo.png" alt="PEK Logo" class="h-24 max-w-[200px] w-auto object-contain">
       <div class="text-center space-y-2">
-        <h2 class="text-3xl font-bold text-primary">{{ step === 1 ? 'Bon retour !' : 'Sécurité' }}</h2>
-        <p class="text-slate-500">
-          {{ step === 1 ? 'Connectez-vous à votre Plan d\'Épargne Kori.' : 'Saisissez le code de vérification envoyé à ' + email }}
+        <h2 class="text-3xl font-bold text-primary">
+          {{ step === 1 ? languageStore.t('welcome_back') : languageStore.t('otp_title') }}
+        </h2>
+        <p class="text-slate-500 text-sm">
+          {{ step === 1 ? languageStore.t('login_subtitle') : (languageStore.isEn() ? 'Enter the verification code sent to ' : 'Saisissez le code de vérification envoyé à ') + email }}
         </p>
       </div>
     </div>
@@ -131,13 +144,13 @@ const handleResendOtp = async () => {
 
       <div v-if="step === 1" class="space-y-4">
         <div class="space-y-2">
-          <label class="text-sm font-bold text-slate-700 ml-1">Email</label>
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('email_label') }}</label>
           <div class="relative">
             <Mail class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input 
               v-model="email"
               type="email" 
-              placeholder="votre@email.com" 
+              :placeholder="languageStore.t('email_placeholder')" 
               class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all"
               required
               :aria-invalid="validationErrors.email ? 'true' : 'false'"
@@ -150,13 +163,13 @@ const handleResendOtp = async () => {
         </div>
 
         <div class="space-y-2">
-          <label class="text-sm font-bold text-slate-700 ml-1">Mot de passe</label>
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('password_label') }}</label>
           <div class="relative">
             <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input 
               v-model="password"
               :type="showPassword ? 'text' : 'password'" 
-              placeholder="••••••••" 
+              :placeholder="languageStore.t('password_placeholder')" 
               class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-12 focus:bg-white focus:border-primary transition-all"
               required
               :aria-invalid="validationErrors.password ? 'true' : 'false'"
@@ -174,14 +187,16 @@ const handleResendOtp = async () => {
             {{ validationErrors.password[0] }}
           </p>
           <div class="text-right">
-            <router-link to="/forgot-password" class="text-xs font-semibold text-primary hover:underline">Mot de passe oublié ?</router-link>
+            <router-link to="/forgot-password" class="text-xs font-semibold text-primary hover:underline">
+              {{ languageStore.t('forgot_password') }}
+            </router-link>
           </div>
         </div>
       </div>
 
       <div v-else class="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div class="space-y-2 text-center">
-            <label class="text-sm font-bold text-slate-700">Code de vérification</label>
+            <label class="text-sm font-bold text-slate-700">{{ languageStore.t('otp_title') }}</label>
             <input 
               v-model="otpCode" 
               @blur="clearError('code')" 
@@ -202,10 +217,10 @@ const handleResendOtp = async () => {
         <div class="flex items-center justify-between px-2">
           <button 
             type="button" 
-            @click="step = 1; otpCode = ''; error = ''; validationErrors = {}"
+            @click="step = 1; challengeId = ''; otpCode = ''; error = ''; validationErrors = {}"
             class="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1"
           >
-            <ChevronLeft class="w-4 h-4" /> Retour
+            <ChevronLeft class="w-4 h-4" /> {{ languageStore.t('back') }}
           </button>
           
           <button 
@@ -214,7 +229,7 @@ const handleResendOtp = async () => {
             :disabled="loading"
             class="text-xs font-bold text-primary hover:underline disabled:text-slate-400"
           >
-            Renvoyer le code
+            {{ languageStore.t('resend_code') }}
           </button>
         </div>
       </div>
@@ -222,19 +237,21 @@ const handleResendOtp = async () => {
       <button 
         type="submit"
         :disabled="loading"
-        class="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 hover:bg-slate-800 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2"
+        class="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 hover:bg-slate-800 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95"
       >
         <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
         <template v-else>
-          {{ step === 1 ? 'Se connecter' : 'Confirmer la connexion' }}
+          {{ step === 1 ? languageStore.t('login_button') : languageStore.t('verify_button') }}
           <ArrowRight class="w-5 h-5" />
         </template>
       </button>
     </form>
 
-    <p class="text-center text-sm text-slate-500">
-      Pas encore de compte ? 
-      <router-link to="/register" class="text-primary font-bold hover:underline">S'inscrire</router-link>
+    <p class="text-center text-sm text-slate-500 pt-4">
+      {{ languageStore.t('no_account') }} 
+      <router-link to="/register" class="text-primary font-bold hover:underline ml-1">
+        {{ languageStore.t('register_link') }}
+      </router-link>
     </p>
   </div>
 </template>

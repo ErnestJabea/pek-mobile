@@ -13,7 +13,7 @@ const loading = ref(true)
 const fetchNotifications = async () => {
   try {
     const response = await api.get('/notifications')
-    notifications.value = response.data
+    notifications.value = response.data.data || response.data
     
     // Mark as read in backend if any are unread, and clear count in store
     const hasUnread = notifications.value.some(n => !n.read_at)

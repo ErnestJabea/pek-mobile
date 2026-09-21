@@ -1,34 +1,37 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { TrendingUp, ShieldCheck, Wallet, ChevronRight, ChevronLeft } from 'lucide-vue-next'
+import { useLanguageStore } from '../stores/language'
+import LanguageSelector from '../components/LanguageSelector.vue'
 
 const router = useRouter()
+const languageStore = useLanguageStore()
 const currentSlide = ref(0)
 
-const slides = [
+const slides = computed(() => [
   {
     icon: TrendingUp,
-    title: "Votre épargne, simplifiée.",
-    description: "Découvrez le PEK par Kori Asset Management. Une solution moderne et performante pour faire fructifier vos fonds en toute simplicité.",
+    title: languageStore.t('slide1_title'),
+    description: languageStore.t('slide1_desc'),
     color: "text-blue-600 bg-blue-50"
   },
   {
     icon: ShieldCheck,
-    title: "Sécurité & Régulation",
-    description: "Renseignez vos informations de profil. Vos données sont chiffrées et traitées dans le strict respect des normes de conformité",
+    title: languageStore.t('slide2_title'),
+    description: languageStore.t('slide2_desc'),
     color: "text-emerald-600 bg-emerald-50"
   },
   {
     icon: Wallet,
-    title: "Investissez pour votre avenir",
-    description: "Accédez à des solutions de placement performantes et adaptées à vos objectifs financiers pour faire fructifier votre épargne.",
+    title: languageStore.t('slide3_title'),
+    description: languageStore.t('slide3_desc'),
     color: "text-amber-600 bg-amber-50"
   }
-]
+])
 
 const nextSlide = () => {
-  if (currentSlide.value < slides.length - 1) {
+  if (currentSlide.value < slides.value.length - 1) {
     currentSlide.value++
   }
 }
@@ -46,15 +49,17 @@ const finishOnboarding = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white flex flex-col justify-between p-6 max-width-container mx-auto">
-    <!-- Skip Button (top right) -->
-    <div class="flex justify-end pt-4">
+  <div class="min-h-screen bg-white flex flex-col justify-between p-6 max-width-container mx-auto relative">
+    <!-- Top Bar with Language Selector and Skip Button -->
+    <div class="flex items-center justify-between pt-4">
+      <LanguageSelector />
+
       <button 
         v-if="currentSlide < slides.length - 1"
         @click="finishOnboarding" 
-        class="text-slate-400 hover:text-slate-600 text-xs font-black uppercase tracking-wider transition-colors"
+        class="text-slate-400 hover:text-slate-600 text-xs font-black uppercase tracking-wider transition-colors px-2 py-1"
       >
-        Passer
+        {{ languageStore.t('skip') }}
       </button>
       <div v-else class="h-4"></div>
     </div>
@@ -63,7 +68,7 @@ const finishOnboarding = () => {
     <div class="flex-1 flex flex-col items-center justify-center my-8">
       <!-- Animated Slide transition-like reactive display -->
       <div 
-        :key="currentSlide" 
+        :key="currentSlide + '-' + languageStore.currentLang" 
         class="space-y-8 text-center animate-in fade-in slide-in-from-bottom-6 duration-500 flex flex-col items-center max-w-sm"
       >
         <!-- Large Floating Icon Container -->
@@ -107,7 +112,7 @@ const finishOnboarding = () => {
           class="flex-1 bg-slate-100 text-slate-600 font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2"
         >
           <ChevronLeft class="w-4 h-4" />
-          Précédent
+          {{ languageStore.t('prev') }}
         </button>
 
         <!-- Next / Start Button -->
@@ -116,7 +121,7 @@ const finishOnboarding = () => {
           class="flex-1 bg-primary text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
         >
           <span>
-            {{ currentSlide === slides.length - 1 ? 'Commencer' : 'Suivant' }}
+            {{ currentSlide === slides.length - 1 ? languageStore.t('start') : languageStore.t('next') }}
           </span>
           <ChevronRight class="w-4 h-4" />
         </button>
