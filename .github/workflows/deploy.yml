@@ -22,7 +22,14 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://pek-api-v2.ejabbing.com/api' }}
 
+      - name: Archive production build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fcp-mobile-production-dist
+          path: ./dist/
+
       - name: Deploy via FTP
+        if: ${{ secrets.FTP_SERVER != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: ${{ secrets.FTP_SERVER }}
