@@ -4,7 +4,7 @@ import { Info, Plus, Search, Filter, Loader2, AlertCircle, X, FileText, Download
 import api from '../api/api'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
-import { getFrontendDocumentUrl } from '../utils/document'
+import { getFrontendDocumentUrl, downloadDocument } from '../utils/document'
 
 const authStore = useAuthStore()
 const languageStore = useLanguageStore()
@@ -13,6 +13,31 @@ const loading = ref(true)
 const searchQuery = ref('')
 const showWarningModal = ref(false)
 const selectedProduct = ref(null)
+const downloadingDoc = ref('')
+
+const handleDownload = async (item, type) => {
+  if (!item) return
+  const docKey = `${item.id}-${type}`
+  if (downloadingDoc.value === docKey) return
+
+  downloadingDoc.value = docKey
+  try {
+    const downloadUrl = type === 'depliant'
+      ? (item.depliant_download_url || `/api/v1/products/${item.id}/download/depliant`)
+      : (item.document_information_download_url || `/api/v1/products/${item.id}/download/dici`)
+
+    const cleanName = (item.name || item.libelle || 'fcp-kori').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const fallbackFilename = type === 'depliant'
+      ? `depliant-commercial-${cleanName}.pdf`
+      : `dici-document-information-${cleanName}.pdf`
+
+    await downloadDocument(downloadUrl, fallbackFilename)
+  } catch (err) {
+    console.error('Erreur téléchargement document:', err)
+  } finally {
+    downloadingDoc.value = ''
+  }
+}
 
 const canSubscribe = computed(() => {
   return true
@@ -296,33 +321,31 @@ const closeProductDetails = () => {
 
         <!-- Document Badges / Mini-vignettes -->
         <div v-if="product.depliant_url || product.document_information_url" class="flex flex-wrap items-center gap-2 pt-1 text-left">
-          <a
+          <button
             v-if="product.depliant_url"
-            :href="getFrontendDocumentUrl(product.depliant_url)"
-            target="_blank"
-            download
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-rose-50 border border-slate-100 hover:border-rose-200 text-slate-700 hover:text-rose-700 text-[11px] font-black transition-all group active:scale-95 shadow-xs"
-            title="Télécharger le Dépliant commercial"
+            type="button"
+            @click.stop="handleDownload(product, 'depliant')"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-rose-50 border border-slate-100 hover:border-rose-200 text-slate-700 hover:text-rose-700 text-[11px] font-black transition-all group active:scale-95 shadow-xs cursor-pointer"
+            :title="languageStore.isEn() ? 'Download Brochure' : 'Télécharger le Dépliant commercial'"
           >
-            
-            <FileText class="w-3.5 h-3.5 text-rose-500" />
-            <span>Dépliant</span>
+            <Loader2 v-if="downloadingDoc === `${product.id}-depliant`" class="w-3.5 h-3.5 text-rose-500 animate-spin" />
+            <FileText v-else class="w-3.5 h-3.5 text-rose-500" />
+            <span>{{ languageStore.isEn() ? 'Brochure' : 'Dépliant' }}</span>
             <Download class="w-3 h-3 text-slate-400 group-hover:text-rose-600 ml-0.5" />
-          </a>
+          </button>
 
-          <a
+          <button
             v-if="product.document_information_url"
-            :href="getFrontendDocumentUrl(product.document_information_url)"
-            target="_blank"
-            download
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 text-slate-700 hover:text-primary text-[11px] font-black transition-all group active:scale-95 shadow-xs"
-            title="Télécharger le Document d'information clé (DICI)"
+            type="button"
+            @click.stop="handleDownload(product, 'dici')"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 text-slate-700 hover:text-primary text-[11px] font-black transition-all group active:scale-95 shadow-xs cursor-pointer"
+            :title="languageStore.isEn() ? 'Download Key Info Document' : 'Télécharger le Document d\'information clé (DICI)'"
           >
-            
-            <FileText class="w-3.5 h-3.5 text-primary" />
-            <span>Document Info (DICI)</span>
+            <Loader2 v-if="downloadingDoc === `${product.id}-dici`" class="w-3.5 h-3.5 text-primary animate-spin" />
+            <FileText v-else class="w-3.5 h-3.5 text-primary" />
+            <span>{{ languageStore.isEn() ? 'KID (DICI)' : 'Document Info (DICI)' }}</span>
             <Download class="w-3 h-3 text-slate-400 group-hover:text-primary ml-0.5" />
-          </a>
+          </button>
         </div>
 
         <div class="pt-4 border-t border-slate-50 space-y-4">
@@ -628,16 +651,17 @@ const closeProductDetails = () => {
               </div>
 
               <!-- Action Button -->
-              <a 
+              <button 
                 v-if="selectedProduct.depliant_url" 
-                :href="getFrontendDocumentUrl(selectedProduct.depliant_url)" 
-                target="_blank" 
-                download
-                class="shrink-0 h-9 px-3 bg-white text-primary border border-slate-200 hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+                type="button"
+                @click="handleDownload(selectedProduct, 'depliant')"
+                :disabled="downloadingDoc === `${selectedProduct.id}-depliant`"
+                class="shrink-0 h-9 px-3 bg-white text-primary border border-slate-200 hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-50"
               >
-                <Download class="w-3.5 h-3.5" />
-                <span>{{ languageStore.isEn() ? 'Download' : 'Télécharger' }}</span>
-              </a>
+                <Loader2 v-if="downloadingDoc === `${selectedProduct.id}-depliant`" class="w-3.5 h-3.5 animate-spin" />
+                <Download v-else class="w-3.5 h-3.5" />
+                <span>{{ downloadingDoc === `${selectedProduct.id}-depliant` ? (languageStore.isEn() ? 'Downloading...' : 'Téléchargement...') : (languageStore.isEn() ? 'Download' : 'Télécharger') }}</span>
+              </button>
               <span v-else class="text-[10px] font-bold text-slate-400 italic shrink-0">
                 {{ languageStore.isEn() ? 'Not available' : 'Non disponible' }}
               </span>
@@ -661,16 +685,17 @@ const closeProductDetails = () => {
               </div>
 
               <!-- Action Button -->
-              <a 
+              <button 
                 v-if="selectedProduct.document_information_url" 
-                :href="getFrontendDocumentUrl(selectedProduct.document_information_url)" 
-                target="_blank" 
-                download
-                class="shrink-0 h-9 px-3 bg-white text-primary border border-slate-200 hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+                type="button"
+                @click="handleDownload(selectedProduct, 'dici')"
+                :disabled="downloadingDoc === `${selectedProduct.id}-dici`"
+                class="shrink-0 h-9 px-3 bg-white text-primary border border-slate-200 hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-50"
               >
-                <Download class="w-3.5 h-3.5" />
-                <span>{{ languageStore.isEn() ? 'Download' : 'Télécharger' }}</span>
-              </a>
+                <Loader2 v-if="downloadingDoc === `${selectedProduct.id}-dici`" class="w-3.5 h-3.5 animate-spin" />
+                <Download v-else class="w-3.5 h-3.5" />
+                <span>{{ downloadingDoc === `${selectedProduct.id}-dici` ? (languageStore.isEn() ? 'Downloading...' : 'Téléchargement...') : (languageStore.isEn() ? 'Download' : 'Télécharger') }}</span>
+              </button>
               <span v-else class="text-[10px] font-bold text-slate-400 italic shrink-0">
                 {{ languageStore.isEn() ? 'Not available' : 'Non disponible' }}
               </span>

@@ -4,6 +4,7 @@ import MobileLayout from './layouts/MobileLayout.vue'
 import { Smartphone, MonitorOff, WifiOff } from 'lucide-vue-next'
 import { useAuthStore } from './stores/auth'
 import api from './api/api'
+import { restoreSession } from './services/restoreSession'
 import { QrcodeSvg } from 'qrcode.vue'
 
 const isDesktop = ref(false)
@@ -18,6 +19,7 @@ const checkScreenSize = () => {
 
 const updateOnlineStatus = () => {
   isOffline.value = !window.navigator.onLine
+  if (!isOffline.value) initUser()
 }
 
 const detectiOS = () => {
@@ -41,13 +43,10 @@ const closeApplePrompt = () => {
 }
 
 const initUser = async () => {
-  if (authStore.token) {
-    try {
-      const response = await api.get('/user')
-      authStore.setUser(response.data)
-    } catch (error) {
-      authStore.logout()
-    }
+  const status = await restoreSession(api, authStore)
+  if (status === 'expired' && window.location.pathname !== '/login') {
+    const currentPath = window.location.pathname + window.location.search
+    window.location.href = `/login?expired=1&redirect=${encodeURIComponent(currentPath)}`
   }
 }
 

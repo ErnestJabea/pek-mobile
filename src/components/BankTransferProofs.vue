@@ -164,7 +164,7 @@ const reviewLabel = (status) => ({
 
     <div v-if="subscription.value_date" class="text-xs font-semibold text-emerald-700 bg-emerald-50 p-3 rounded-xl border border-emerald-100 flex items-center gap-2">
       <Clock class="w-4 h-4 shrink-0" />
-      <span>Date de valeur : {{ subscription.value_date.slice(0, 10) }}<span v-if="subscription.valuation_status === 'awaiting_nav'"> — fonds reçus, en attente de la VL de cette date.</span></span>
+      <span>Date de valeur : {{ subscription.value_date.slice(0, 10) }}<span v-if="subscription.valuation_status === 'awaiting_nav'"> — fonds reçus, valorisation en attente avec la dernière VL publiée avant cette date.</span></span>
     </div>
 
     <!-- Formulaire d'upload de justificatif -->

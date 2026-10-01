@@ -256,7 +256,7 @@ const getTotalAmount = (sub) => {
             </div>
 
             <div class="text-right">
-              <span class="text-slate-400 text-[10px] font-bold uppercase block">{{ languageStore.isEn() ? 'Management Fee (1%)' : 'Frais de gestion (1%)' }}</span>
+              <span class="text-slate-400 text-[10px] font-bold uppercase block">{{ languageStore.isEn() ? 'Entry Fee (1%)' : 'Frais d\'entrée (1%)' }}</span>
               <span class="text-slate-600 font-medium text-xs mt-0.5 block">
                 + {{ getFeesAmount(sub).toLocaleString() }} XAF
               </span>

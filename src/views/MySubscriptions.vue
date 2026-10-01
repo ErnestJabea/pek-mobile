@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { Landmark, ChevronLeft, Wallet, CreditCard, Smartphone, ArrowRight, Loader2, CheckCircle2, Clock, AlertCircle, ChevronRight, TrendingUp, TrendingDown, PieChart, Coins, Layers, Sparkles } from 'lucide-vue-next'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Landmark, ChevronLeft, Wallet, CreditCard, Smartphone, ArrowRight, Loader2, CheckCircle2, Clock, AlertCircle, ChevronRight, TrendingUp, TrendingDown, PieChart, Coins, Layers, Sparkles, FileText } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import BankTransferProofs from '../components/BankTransferProofs.vue'
 import api from '../api/api'
@@ -23,7 +23,10 @@ const currentPage = ref(1)
 const itemsPerPage = 4
 const activeTab = ref(useRoute().query.tab === 'transactions' ? 'transactions' : 'positions')
 
+let fetching = false
 const fetchData = async () => {
+  if (fetching) return
+  fetching = true
   try {
     const [subRes, valRes] = await Promise.all([
       api.get('/subscriptions'),
@@ -35,6 +38,7 @@ const fetchData = async () => {
     console.error('Error fetching subscriptions or valuation:', error)
   } finally {
     loading.value = false
+    fetching = false
   }
 }
 
@@ -125,6 +129,14 @@ const prevPage = () => {
   if (currentPage.value > 1) currentPage.value--
 }
 
+const getEffectiveStatus = (sub) => {
+  if (!sub) return 'En attente'
+  if (sub.statut === 'Succès' || sub.mobile_state === 'success' || sub.valuation_status === 'valued') {
+    return 'Succès'
+  }
+  return sub.statut || 'En attente'
+}
+
 const getStatusClass = (status) => {
   switch (status) {
     case 'Succès': return 'bg-emerald-50 text-emerald-600 border-emerald-100'
@@ -145,8 +157,21 @@ const getStatusIcon = (status) => {
   }
 }
 
+let refreshTimer
+const refreshVisible = () => {
+  if (document.visibilityState === 'visible' && navigator.onLine) fetchData()
+}
 onMounted(() => {
   fetchData()
+  // Read PEK only: provider reconciliation continues on the server when this page is closed.
+  refreshTimer = window.setInterval(refreshVisible, 10000)
+  document.addEventListener('visibilitychange', refreshVisible)
+  window.addEventListener('online', refreshVisible)
+})
+onUnmounted(() => {
+  window.clearInterval(refreshTimer)
+  document.removeEventListener('visibilitychange', refreshVisible)
+  window.removeEventListener('online', refreshVisible)
 })
 </script>
 
@@ -366,9 +391,9 @@ onMounted(() => {
                 <span class="text-primary text-[10px] font-black uppercase tracking-widest">{{ sub.product?.libelle }}</span>
                 <h4 class="font-bold text-slate-900">{{ sub.product?.name }}</h4>
               </div>
-              <div :class="getStatusClass(sub.statut)" class="px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 border">
-                <component :is="getStatusIcon(sub.statut)" class="w-3 h-3" />
-                {{ sub.statut }}
+              <div :class="getStatusClass(getEffectiveStatus(sub))" class="px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 border">
+                <component :is="getStatusIcon(getEffectiveStatus(sub))" class="w-3 h-3" />
+                {{ getEffectiveStatus(sub) }}
               </div>
             </div>
 
@@ -378,15 +403,15 @@ onMounted(() => {
                 <span class="text-slate-900 font-black">{{ (sub.montant_net !== undefined && sub.montant_net !== null ? sub.montant_net : Math.round(sub.montant_total / 1.01)).toLocaleString() }} XAF</span>
               </div>
               <div class="text-right">
-                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">Frais de gestion (1%)</span>
+                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">Frais d'entrée (1%)</span>
                 <span class="text-slate-600 font-bold">+ {{ (sub.frais_gestion !== undefined && sub.frais_gestion !== null ? sub.frais_gestion : Math.max(0, sub.montant_total - Math.round(sub.montant_total / 1.01))).toLocaleString() }} XAF</span>
               </div>
               <div>
-                <span class="text-primary text-[10px] block font-black uppercase tracking-tighter mb-0.5">Montant Total Débité</span>
+                <span class="text-primary text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ getEffectiveStatus(sub) === 'Succès' ? 'Montant payé' : 'Montant total à payer' }}</span>
                 <span class="text-primary font-black">{{ parseFloat(sub.montant_total).toLocaleString() }} XAF</span>
               </div>
               <div class="text-right">
-                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">Parts</span>
+                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ getEffectiveStatus(sub) === 'Succès' ? 'Parts attribuées' : 'Parts estimées' }}</span>
                 <span class="text-slate-900 font-black">{{ parseFloat(sub.nb_parts).toLocaleString() }}</span>
               </div>
             </div>
@@ -401,24 +426,26 @@ onMounted(() => {
               </div>
             </div>
 
+            <p v-if="sub.valuation_status === 'valued' && sub.nav_date" class="text-xs text-slate-600">VL appliquée : {{ Number(sub.prix_unitaire).toLocaleString('fr-FR', { maximumFractionDigits: 4 }) }} XAF — du {{ sub.nav_date.slice(0, 10) }}</p>
             <!-- Bouton premium pour forcer la vérification de paiement -->
             <BankTransferProofs v-if="['bank_transfer', 'virement'].includes(sub.moyen_paiement)" :subscription="sub" />
             <div v-if="sub.mobile_provider" class="text-xs space-y-2 rounded-xl bg-slate-50 p-3">
               <p class="font-semibold">{{ sub.mobile_provider === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</p>
-              <p v-if="sub.valuation_status === 'staging_only'" class="font-semibold text-amber-800">Paiement de test réussi — aucune part réelle créditée.</p>
+              <p v-if="getEffectiveStatus(sub) === 'Succès'" class="font-bold text-emerald-700">✓ Paiement confirmé et parts créditées sur votre portefeuille.</p>
               <p v-if="sub.s3p_ptn" class="break-all">Référence opérateur : {{ sub.s3p_ptn }}</p>
               <p v-if="sub.s3p_receipt_number">Reçu opérateur : {{ sub.s3p_receipt_number }}</p>
               <p v-if="sub.mobile_state === 'errored' && sub.s3p_error_code">Code de retour : {{ sub.s3p_error_code }} — conservez votre référence PEK pour le support.</p>
-              <p v-if="sub.valuation_status === 'awaiting_payment_date'">Paiement confirmé. La date de réception reste à rapprocher avant attribution des parts.</p>
+              <p v-if="sub.valuation_status === 'awaiting_payment_date' && getEffectiveStatus(sub) !== 'Succès'">Paiement confirmé. La date de réception reste à rapprocher avant attribution des parts.</p>
               <button v-if="sub.mobile_state === 'quote_failed'" @click="resumeHostedPayment(sub.id)" :disabled="redirectingId === sub.id" class="w-full rounded-xl bg-primary text-white py-3 disabled:opacity-50">Réessayer la préparation du paiement</button>
               <p v-if="sub.mobile_state === 'quote_failed'">Le paiement n’a pas été transmis à l’opérateur.</p>
-              <p v-if="sub.valuation_status === 'awaiting_nav'">Fonds reçus. Les parts attendent la VL du {{ sub.value_date?.slice(0, 10) }}.</p>
+              <p v-if="sub.valuation_status === 'awaiting_nav' && getEffectiveStatus(sub) !== 'Succès'">Fonds reçus. Attribution des parts en cours...</p>
               <p v-if="sub.mobile_state === 'simulation_review'">Opération de simulation exclue du portefeuille. Contactez le support.</p>
               <button v-if="sub.mobile_state === 'errored'" @click="router.push(`/subscribe/${sub.product_id}`)" class="underline text-primary">Créer une nouvelle demande après cet échec confirmé</button>
-              <p>{{ { preparing: 'Préparation du paiement', submitted: 'Confirmez sur votre téléphone', pending: 'En attente de confirmation', verification_required: 'Résultat à vérifier — ne relancez pas de débit', success: 'Paiement confirmé', errored: 'Paiement non abouti', reversed: 'Paiement annulé par le prestataire — contactez le support' }[sub.mobile_state] || 'En attente' }}</p>
-              <button v-if="!['success', 'reversed'].includes(sub.mobile_state)" @click="verifyPayment(sub.id)" :disabled="checkingId === sub.id" class="w-full rounded-xl bg-primary text-white py-3 disabled:opacity-50">{{ checkingId === sub.id ? 'Vérification…' : 'Vérifier le paiement' }}</button>
+              <p v-if="getEffectiveStatus(sub) !== 'Succès'">{{ { preparing: 'Préparation du paiement', submitted: 'Confirmez sur votre téléphone', pending: 'En attente de confirmation', verification_required: 'Résultat à vérifier — ne relancez pas de débit', errored: 'Paiement non abouti', reversed: 'Paiement annulé par le prestataire — contactez le support' }[sub.mobile_state] || 'En attente' }}</p>
+              <p v-if="['submitted', 'pending', 'verification_required'].includes(sub.mobile_state) && getEffectiveStatus(sub) !== 'Succès'">La confirmation et l’attribution des parts sont automatiques. Vous pouvez quitter cette page.</p>
+              <button v-if="['submitted', 'pending', 'verification_required'].includes(sub.mobile_state) && getEffectiveStatus(sub) !== 'Succès'" @click="verifyPayment(sub.id)" :disabled="checkingId === sub.id" class="text-primary underline text-xs disabled:opacity-50">{{ checkingId === sub.id ? 'Vérification…' : 'Vérifier le paiement (facultatif)' }}</button>
             </div>
-            <div v-if="sub.statut !== 'Succès' && ['card', 'mobile_money'].includes(sub.moyen_paiement)" class="pt-2">
+            <div v-if="getEffectiveStatus(sub) !== 'Succès' && ['card', 'mobile_money'].includes(sub.moyen_paiement)" class="pt-2">
               <button
                 @click="resumeHostedPayment(sub.id)"
                 :disabled="redirectingId === sub.id"
@@ -431,7 +458,7 @@ onMounted(() => {
               </button>
             </div>
 
-            <div v-if="sub.statut === 'En attente' && sub.maviance_transaction_ref && ['mobile_money', 'orange_money', 'mtn_momo'].includes(sub.moyen_paiement)" class="pt-2">
+            <div v-if="getEffectiveStatus(sub) !== 'Succès' && sub.maviance_transaction_ref && ['mobile_money', 'orange_money', 'mtn_momo'].includes(sub.moyen_paiement)" class="pt-2">
               <button 
                 @click="verifyPayment(sub.id)"
                 :disabled="checkingId === sub.id"
@@ -440,6 +467,15 @@ onMounted(() => {
                 <Loader2 v-if="checkingId === sub.id" class="w-4 h-4 animate-spin" />
                 <Clock v-else class="w-4 h-4" />
                 {{ checkingId === sub.id ? 'Vérification en cours...' : 'Vérifier le statut du paiement' }}
+              </button>
+            </div>
+            <div v-if="getEffectiveStatus(sub) === 'Succès'" class="pt-2">
+              <button
+                @click="router.push(`/subscriptions/${sub.id}/bulletin`)"
+                class="w-full bg-[#3B1300] hover:bg-[#4A1E00] text-white text-xs font-bold py-3.5 px-5 rounded-2xl transition-all flex items-center justify-start gap-2.5 active:scale-[0.98] shadow-md hover:shadow-lg text-left"
+              >
+                <FileText class="w-4 h-4 text-amber-400 shrink-0" />
+                <span class="truncate">Consulter la fiche de souscription</span>
               </button>
             </div>
           </div>

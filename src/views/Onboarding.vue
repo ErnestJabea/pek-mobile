@@ -5,7 +5,7 @@ import { ChevronLeft, User, ShieldCheck, HelpCircle, FileText, CheckCircle2, Ale
 import api from '../api/api'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
-import { compareFaces, verifyIDDocumentOCR } from '../services/kycVerification'
+
 import LanguageSelector from '../components/LanguageSelector.vue'
 
 const router = useRouter()
@@ -533,6 +533,7 @@ const executeKYCVerification = async () => {
   verificationStatusText.value = "Initialisation de l'analyse biométrique..."
 
   try {
+    const { compareFaces, verifyIDDocumentOCR } = await import('../services/kycVerification')
     // 1. Comparaison faciale (Pièce d'identité vs Selfie en direct)
     verificationStatusText.value = "Comparaison du visage de la pièce avec votre photo..."
     const faceRes = await compareFaces(recto, selfie)
@@ -566,7 +567,7 @@ const executeKYCVerification = async () => {
     payload.value.verification_timestamp = new Date().toISOString()
     payload.value.identity_audit_status = (faceRes.success && ocrRes.success) ? 'auto_verified' : 'manual_review_required'
 
-    return faceRes.success
+    return faceRes.success || faceRes.isFallback === true
   } catch (err) {
     console.error("KYC Verification failure:", err)
     triggerError("Erreur d'analyse", "Une erreur est survenue lors de l'analyse. Une vérification manuelle sera effectuée.")
@@ -577,10 +578,48 @@ const executeKYCVerification = async () => {
   }
 }
 
+const personnePhysiqueCategories = [
+  'Salarié secteur public',
+  'Salarié secteur privé',
+  'Agent des organismes internationaux',
+  'Profession libérale',
+  'Commerçant / entrepreneur',
+  'Chômeur'
+]
+
+const personneMoraleCategories = [
+  'Banques',
+  'OPC',
+  'Caisses de dépôt et consignation (CDC)',
+  'Autres institutions financières',
+  'Sociétés de bourse',
+  'Société de gestion d\'OPC',
+  'Entreprises non financières'
+]
+
+const availableClientCategories = computed(() => {
+  if (payload.value.nature_client === 'personne_morale') {
+    return personneMoraleCategories
+  }
+  return personnePhysiqueCategories
+})
+
+const onNatureClientChange = () => {
+  clearError('nature_client')
+  clearError('categorie_client')
+  if (payload.value.nature_client === 'personne_morale') {
+    payload.value.categorie_client = personneMoraleCategories[0]
+  } else {
+    payload.value.categorie_client = personnePhysiqueCategories[0]
+  }
+}
+
 // Payload for all onboarding steps
 const payload = ref({
   // KYC Step
   civ: 'M.',
+  nature_client: 'personne_physique',
+  categorie_client: 'Salarié secteur privé',
   nom: '',
   prenom: '',
   nat: 'Camerounaise',
@@ -1076,29 +1115,6 @@ const nextStep = async () => {
       validationErrors.value.dob = "Vous devez être âgé d'au moins 21 ans pour procéder à l'onboarding."
       return
     }
-
-    // Analyse biométrique uniquement si les deux documents sont fournis
-    const hasIDDoc = payload.value.piece_recto || payload.value.doc_piece_identite
-    const hasSelfie = payload.value.selfie_live || payload.value.doc_photo
-    if (hasIDDoc && hasSelfie) {
-      if (!kycVerificationAttempted.value || !verificationFaceResult.value) {
-        const verified = await executeKYCVerification()
-        if (!verified && verificationFaceResult.value && !verificationFaceResult.value.success) {
-          triggerError(
-            "Divergence Faciale Détectée",
-            verificationFaceResult.value.message || "Le visage sur le selfie ne correspond pas à la photo de la pièce d'identité."
-          )
-          return
-        }
-      } else if (verificationFaceResult.value && !verificationFaceResult.value.success) {
-        triggerError(
-          "Divergence Faciale Détectée",
-          verificationFaceResult.value.message || "Veuillez reprendre une photo nette face à la caméra pour continuer."
-        )
-        return
-      }
-    }
-
     const targetStep = identityRequired.value ? 'identity' : 'risk'
     if (!await syncWithServer(targetStep)) return
     currentStep.value = targetStep
@@ -1454,6 +1470,32 @@ const submitOnboarding = async () => {
             </p>
           </div>
 
+          <!-- Nature du client (Personne Physique vs Personne Morale) -->
+          <div class="space-y-2 text-left">
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Nature du client *</label>
+            <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
+              <button type="button" @click="payload.nature_client = 'personne_physique'; onNatureClientChange()" :class="payload.nature_client === 'personne_physique' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-black uppercase transition-all">Personne Physique</button>
+              <button type="button" @click="payload.nature_client = 'personne_morale'; onNatureClientChange()" :class="payload.nature_client === 'personne_morale' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-black uppercase transition-all">Personne Morale</button>
+            </div>
+            <p v-if="validationErrors.nature_client" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+              {{ validationErrors.nature_client }}
+            </p>
+          </div>
+
+          <!-- Catégorie du client -->
+          <div class="space-y-2 text-left">
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Catégorie du client *</label>
+            <div class="relative">
+              <select v-model="payload.categorie_client" @change="clearError('categorie_client')" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+                <option v-for="cat in availableClientCategories" :key="cat" :value="cat">{{ cat }}</option>
+              </select>
+              <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+            <p v-if="validationErrors.categorie_client" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+              {{ validationErrors.categorie_client }}
+            </p>
+          </div>
+
           <!-- Nom et Prénom -->
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2 text-left">
@@ -1631,210 +1673,7 @@ const submitOnboarding = async () => {
               {{ validationErrors.expiration_piece }}
             </p>
           </div>
-
-          <!-- Pièces justificatives (optionnelles) -->
-          <div class="pt-5 border-t border-slate-100 space-y-4">
-            <div class="text-left space-y-1">
-              <div class="flex items-center gap-2">
-                <h5 class="text-xs font-black text-slate-900 uppercase tracking-wider">Pièces justificatives</h5>
-                <span class="text-[10px] font-black px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full uppercase tracking-wider">Facultatif</span>
-              </div>
-              <p class="text-[11px] text-slate-500 font-medium leading-relaxed">
-                Vous pouvez téléverser vos documents maintenant ou plus tard. Ils seront demandés lors de la revue de votre dossier (JPG, PNG ou PDF, max. 8 Mo).
-              </p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-              <div v-for="doc in dynamicSupportingDocs" :key="doc.key" class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <label class="text-xs font-bold text-slate-800 tracking-wide">
-                    {{ doc.title }}
-                  </label>
-                  <span v-if="doc.allowCamera && !payload[doc.key]" class="text-[10px] text-slate-400 font-medium">
-                    Fichier ou Caméra
-                  </span>
-                </div>
-
-                <!-- Si aucun document n'est téléversé : Boîte de dépôt style Filament / PEK -->
-                <div
-                  v-if="!payload[doc.key]"
-                  @dragover.prevent="dragActive[doc.key] = true"
-                  @dragleave.prevent="dragActive[doc.key] = false"
-                  @drop.prevent="handleFileDrop($event, doc.key)"
-                  @click="triggerBrowse(doc.key)"
-                  :class="[
-                    dragActive[doc.key] ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/80',
-                    validationErrors[doc.key] ? 'border-rose-400 bg-rose-50/30' : ''
-                  ]"
-                  class="border border-dashed rounded-2xl py-5 px-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 min-h-[92px] group"
-                >
-                  <input
-                    :ref="el => registerFileInput(el, doc.key)"
-                    type="file"
-                    :accept="doc.accept"
-                    @change="e => handleFileInputChange(e, doc.key)"
-                    class="hidden"
-                  />
-                  <p class="text-xs text-slate-500 font-medium select-none">
-                    Faites glisser votre fichier ou <span class="text-primary font-bold group-hover:underline">Parcourir</span>
-                  </p>
-                  <p v-if="doc.hint" class="text-[10px] text-slate-400 font-normal mt-0.5 select-none">
-                    {{ doc.hint }}
-                  </p>
-                </div>
-
-                <!-- Si le document est téléversé : Carte de confirmation et actions -->
-                <div
-                  v-else
-                  class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 flex items-center justify-between gap-3 shadow-xs"
-                >
-                  <div class="flex items-center gap-2.5 min-w-0">
-                    <img 
-                      v-if="payload[doc.key] && payload[doc.key].startsWith('data:image')" 
-                      :src="payload[doc.key]" 
-                      alt="Aperçu" 
-                      class="w-12 h-10 object-cover rounded-lg border border-emerald-200 shadow-xs shrink-0"
-                    />
-                    <div v-else class="w-10 h-10 rounded-lg bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
-                      <FileText class="w-5 h-5" />
-                    </div>
-                    <div class="min-w-0">
-                      <p class="text-xs font-bold text-slate-800 truncate" :title="docFileNames[doc.key] || 'Document téléversé'">
-                        {{ docFileNames[doc.key] || 'Document téléversé' }}
-                      </p>
-                      <span class="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                        <CheckCircle2 class="w-3 h-3 text-emerald-600" /> Document prêt
-                      </span>
-                    </div>
-                  </div>
-
-                  <div class="flex items-center gap-1 shrink-0">
-                    <button 
-                      v-if="doc.allowCamera"
-                      type="button" 
-                      @click="openCamera(doc.cameraTarget)"
-                      class="p-1.5 text-slate-600 hover:text-primary hover:bg-white rounded-lg transition-colors" 
-                      title="Reprendre photo"
-                    >
-                      <Camera class="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      type="button" 
-                      @click="triggerBrowse(doc.key)" 
-                      class="p-1.5 text-slate-600 hover:text-primary hover:bg-white rounded-lg transition-colors" 
-                      title="Remplacer le fichier"
-                    >
-                      <Upload class="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      type="button" 
-                      @click="removeSupportingDoc(doc.key)" 
-                      class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors" 
-                      title="Supprimer"
-                    >
-                      <Trash2 class="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Texte d'aide sous la boîte -->
-                <div class="flex items-center justify-between pl-1">
-                  <p v-if="validationErrors[doc.key]" class="text-[11px] text-rose-500 font-semibold">
-                    {{ validationErrors[doc.key] }}
-                  </p>
-                  <p v-else-if="!payload[doc.key]" class="text-[11px] text-slate-400 font-normal">
-                    Optionnel — peut être fourni plus tard
-                  </p>
-                  <p v-else class="text-[11px] text-emerald-600 font-medium">
-                    Fichier validé
-                  </p>
-
-                  <!-- Raccourci caméra si applicable et non encore téléversé -->
-                  <button 
-                    v-if="doc.allowCamera && !payload[doc.key]"
-                    type="button" 
-                    @click="openCamera(doc.cameraTarget)"
-                    class="text-[11px] font-bold text-primary hover:text-primary-dark inline-flex items-center gap-1 transition-colors"
-                  >
-                    <Camera class="w-3 h-3" />
-                    <span>Prendre photo</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-            <!-- CONTRÔLE DE CONFORMITÉ BIOMÉTRIQUE & CNI (OCR) -->
-            <div v-if="(payload.piece_recto || payload.doc_piece_identite) && (payload.selfie_live || payload.doc_photo)" class="pt-5 border-t border-slate-100 space-y-3 text-left">
-              <div class="flex items-center justify-between">
-                <div class="space-y-0.5">
-                  <h5 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                    
-                    <span>Contrôle de conformité de l'identité</span>
-                  </h5>
-                  <p class="text-[11px] text-slate-500 font-medium">Comparaison faciale et vérification des informations CNI.</p>
-                </div>
-              </div>
-
-              <!-- En cours d'analyse -->
-              <div v-if="verifyingKYC" class="bg-slate-50 border border-primary/30 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-center">
-                <Loader2 class="w-6 h-6 text-primary animate-spin" />
-                <p class="text-xs font-bold text-slate-800">{{ verificationStatusText || "Analyse biométrique et lecture CNI en cours..." }}</p>
-                <p class="text-[10px] text-slate-400 font-medium">Vérification instantanée sur votre appareil</p>
-              </div>
-
-              <!-- Résultats de l'analyse -->
-              <div v-else-if="verificationFaceResult" class="space-y-3">
-                <!-- 1. Reconnaissance faciale -->
-                <div 
-                  :class="verificationFaceResult.success ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'"
-                  class="border rounded-2xl p-3.5 space-y-2 transition-all"
-                >
-                  <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-black uppercase tracking-wider" :class="verificationFaceResult.success ? 'text-emerald-800' : 'text-rose-800'">
-                      Correspondance faciale
-                    </span>
-                    <span 
-                      :class="verificationFaceResult.success ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'"
-                      class="text-[10px] font-black px-2 py-0.5 rounded-full"
-                    >
-                      {{ verificationFaceResult.score }}%
-                    </span>
-                  </div>
-                  <p class="text-xs font-semibold leading-relaxed" :class="verificationFaceResult.success ? 'text-emerald-700' : 'text-rose-700'">
-                    {{ verificationFaceResult.message }}
-                  </p>
-                </div>
-
-                <!-- 2. OCR text extraction & comparison s'exécute en arrière-plan pour l'audit admin -->
-
-                <!-- Bouton de ré-analyse si besoin -->
-                <button
-                  type="button"
-                  @click="executeKYCVerification"
-                  class="w-full py-2.5 px-3 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-all"
-                >
-                  <RefreshCw class="w-3.5 h-3.5 text-slate-500" />
-                  <span>Relancer la vérification</span>
-                </button>
-              </div>
-
-              <!-- Pas encore analysé : bouton d'action -->
-              <div v-else class="space-y-2">
-                <button
-                  type="button"
-                  @click="executeKYCVerification"
-                  class="w-full bg-primary hover:bg-primary-dark text-white font-black py-3 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-sm active:scale-[0.99] transition-all text-xs uppercase tracking-wider"
-                >
-                  <ShieldCheck class="w-4 h-4 text-white" />
-                  <span>Vérifier la conformité de ma pièce</span>
-                </button>
-                <p class="text-[10px] text-slate-400 text-center font-medium">
-                  L'analyse biométrique et textuelle compare votre selfie et les informations de votre CNI.
-                </p>
-              </div>
-            </div>
-          </div>
+        </div>
 
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
           <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">Profession</h4>
@@ -2342,74 +2181,6 @@ const submitOnboarding = async () => {
         >
           D'accord
         </button>
-      </div>
-    </div>
-    <!-- Real-time Live Camera Modal -->
-    <div v-if="showCameraModal" class="fixed inset-0 z-[110] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-between p-6 animate-in fade-in duration-200">
-      <!-- Top header bar -->
-      <div class="w-full max-w-md flex items-center justify-between text-white pt-2">
-        <div class="space-y-0.5 text-left">
-          <h4 class="text-sm font-black tracking-wide">
-            {{ activeCameraTarget === 'selfie_live' ? 'Vérification faciale en direct' : (activeCameraTarget === 'piece_recto' ? 'Photo de la pièce (Recto)' : 'Photo de la pièce (Verso)') }}
-          </h4>
-          <p class="text-[11px] text-slate-400">Positionnez votre document ou visage au centre</p>
-        </div>
-        <button type="button" @click="closeCamera" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all">
-          <X class="w-5 h-5" />
-        </button>
-      </div>
-
-      <!-- Camera Viewport with framing overlay -->
-      <div class="relative w-full max-w-md aspect-[3/4] sm:aspect-[4/3] rounded-3xl overflow-hidden bg-black flex items-center justify-center border-2 border-white/20 shadow-2xl my-auto">
-        <div v-if="cameraLoading" class="flex flex-col items-center gap-3 text-white p-6">
-          <Loader2 class="w-8 h-8 animate-spin text-primary" />
-          <p class="text-xs font-bold">Initialisation de la caméra en cours...</p>
-        </div>
-
-        <div v-else-if="cameraError" class="p-6 text-center text-rose-300 space-y-3">
-          <AlertCircle class="w-10 h-10 mx-auto text-rose-400" />
-          <p class="text-xs font-medium leading-relaxed">{{ cameraError }}</p>
-          <button type="button" @click="closeCamera" class="px-4 py-2 bg-white/10 rounded-xl text-xs font-bold text-white hover:bg-white/20 transition-all">
-            Fermer
-          </button>
-        </div>
-
-        <video
-          v-show="!cameraLoading && !cameraError"
-          ref="cameraVideoRef"
-          autoplay
-          playsinline
-          muted
-          class="w-full h-full object-cover"
-        ></video>
-
-        <!-- Framing guides overlay -->
-        <div v-if="!cameraLoading && !cameraError" class="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <!-- Oval guide for selfie -->
-          <div v-if="activeCameraTarget === 'selfie_live'" class="w-52 h-72 border-2 border-white/70 border-dashed rounded-[50%] shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"></div>
-          <!-- Rectangle guide for document -->
-          <div v-else class="w-80 h-52 border-2 border-white/70 border-dashed rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"></div>
-        </div>
-      </div>
-
-      <!-- Bottom controls bar -->
-      <div class="w-full max-w-md pb-4 flex items-center justify-between px-4">
-        <button type="button" @click="closeCamera" class="text-xs font-bold text-white/70 hover:text-white px-3 py-2">
-          Annuler
-        </button>
-
-        <!-- Big Shutter Button -->
-        <button
-          v-if="!cameraLoading && !cameraError"
-          type="button"
-          @click="capturePhoto"
-          class="w-20 h-20 rounded-full border-4 border-white p-1.5 flex items-center justify-center active:scale-95 transition-transform"
-          title="Prendre la photo"
-        >
-          <div class="w-full h-full rounded-full bg-white hover:bg-slate-100 shadow-lg"></div>
-        </button>
-
-        <div class="w-16"></div>
       </div>
     </div>
   </div>

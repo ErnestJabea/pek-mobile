@@ -1,22 +1,23 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import Home from '../views/Home.vue'
-import Catalog from '../views/Catalog.vue'
-import Login from '../views/Login.vue'
-import Register from '../views/Register.vue'
-import ForgotPassword from '../views/ForgotPassword.vue'
-import Subscription from '../views/Subscription.vue'
+const Home = () => import('../views/Home.vue')
+const Catalog = () => import('../views/Catalog.vue')
+const Login = () => import('../views/Login.vue')
+const Register = () => import('../views/Register.vue')
+const ForgotPassword = () => import('../views/ForgotPassword.vue')
+const Subscription = () => import('../views/Subscription.vue')
 
-import SplashScreen from '../views/SplashScreen.vue'
-import Profile from '../views/Profile.vue'
-import Notifications from '../views/Notifications.vue'
-import MySubscriptions from '../views/MySubscriptions.vue'
-import History from '../views/History.vue'
-import Onboarding from '../views/Onboarding.vue'
-import Welcome from '../views/Welcome.vue'
-import ResetTempPassword from '../views/ResetTempPassword.vue'
-import ResetPassword from '../views/ResetPassword.vue'
-import PaymentReturn from '../views/PaymentReturn.vue'
+const SplashScreen = () => import('../views/SplashScreen.vue')
+const Profile = () => import('../views/Profile.vue')
+const Notifications = () => import('../views/Notifications.vue')
+const MySubscriptions = () => import('../views/MySubscriptions.vue')
+const History = () => import('../views/History.vue')
+const Onboarding = () => import('../views/Onboarding.vue')
+const Welcome = () => import('../views/Welcome.vue')
+const ResetTempPassword = () => import('../views/ResetTempPassword.vue')
+const ResetPassword = () => import('../views/ResetPassword.vue')
+const PaymentReturn = () => import('../views/PaymentReturn.vue')
+const SubscriptionBulletin = () => import('../views/SubscriptionBulletin.vue')
 
 
 const routes = [
@@ -79,6 +80,12 @@ const routes = [
     path: '/subscribe/:id',
     name: 'subscribe',
     component: Subscription,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/subscriptions/:id/bulletin',
+    name: 'subscription-bulletin',
+    component: SubscriptionBulletin,
     meta: { requiresAuth: true }
   },
   {

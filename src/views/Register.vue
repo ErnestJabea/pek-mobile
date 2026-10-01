@@ -1,9 +1,9 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
-import { ChevronLeft, ChevronDown, User, Mail, Phone, Lock, ArrowRight, ShieldCheck, MapPin, Globe, Loader2, Eye, EyeOff } from 'lucide-vue-next'
+import { ChevronLeft, ChevronDown, User, Mail, Phone, Lock, ArrowRight, ShieldCheck, MapPin, Globe, Loader2, Eye, EyeOff, FileText } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
 import { getCitiesForCountry, getImmediateCitiesForCountry } from '../data/cities.js'
@@ -24,6 +24,89 @@ const showConfirmPassword = ref(false)
 const isPasswordFocused = ref(false)
 const challengeId = ref('')
 
+// Expiration date states (identique à l'onboarding KYC étape 1)
+const expDay = ref('')
+const expMonth = ref('')
+const expYear = ref('')
+
+const frenchMonths = [
+  { value: '1', label: 'Janvier' },
+  { value: '2', label: 'Février' },
+  { value: '3', label: 'Mars' },
+  { value: '4', label: 'Avril' },
+  { value: '5', label: 'Mai' },
+  { value: '6', label: 'Juin' },
+  { value: '7', label: 'Juillet' },
+  { value: '8', label: 'Août' },
+  { value: '9', label: 'Septembre' },
+  { value: '10', label: 'Octobre' },
+  { value: '11', label: 'Novembre' },
+  { value: '12', label: 'Décembre' }
+]
+
+const monthsList = computed(() => {
+  if (languageStore.isEn()) {
+    return [
+      { value: '1', label: 'January' },
+      { value: '2', label: 'February' },
+      { value: '3', label: 'March' },
+      { value: '4', label: 'April' },
+      { value: '5', label: 'May' },
+      { value: '6', label: 'June' },
+      { value: '7', label: 'July' },
+      { value: '8', label: 'August' },
+      { value: '9', label: 'September' },
+      { value: '10', label: 'October' },
+      { value: '11', label: 'November' },
+      { value: '12', label: 'December' }
+    ]
+  }
+  return frenchMonths
+})
+
+const currentYear = new Date().getFullYear()
+
+// Années d'expiration: année courante à année courante + 30 (comme dans Onboarding KYC)
+const expYearsList = computed(() => {
+  const years = []
+  for (let y = currentYear; y <= currentYear + 30; y++) {
+    years.push(String(y))
+  }
+  return years
+})
+
+const getDaysInMonth = (month, year) => {
+  if (!month) return 31
+  const m = parseInt(month)
+  const y = parseInt(year) || 2026
+  return new Date(y, m, 0).getDate()
+}
+
+const expDaysList = computed(() => {
+  const maxDay = getDaysInMonth(expMonth.value, expYear.value)
+  return Array.from({ length: maxDay }, (_, i) => String(i + 1))
+})
+
+const updateExpPayload = () => {
+  if (expDay.value && expMonth.value && expYear.value) {
+    form.value.expiration_piece = `${expYear.value}-${String(expMonth.value).padStart(2, '0')}-${String(expDay.value).padStart(2, '0')}`
+    clearError('expiration_piece')
+  } else {
+    form.value.expiration_piece = ''
+  }
+}
+
+watch([expMonth, expYear], () => {
+  if (expDay.value && expDaysList.value.length < parseInt(expDay.value)) {
+    expDay.value = String(expDaysList.value.length)
+  }
+  updateExpPayload()
+})
+
+watch(expDay, () => {
+  updateExpPayload()
+})
+
 const clearError = (field) => {
   if (validationErrors.value[field]) {
     delete validationErrors.value[field]
@@ -39,6 +122,9 @@ const form = ref({
   city: '',
   country: '',
   employer: '',
+  type_piece: 'CNI',
+  num_piece: '',
+  expiration_piece: '',
   password: '',
   password_confirmation: '',
   otp: ''
@@ -155,6 +241,22 @@ const handleNext = async () => {
     }
     if (!form.value.city || form.value.city.trim() === '') {
       validationErrors.value.city = ['La ville est obligatoire.']
+    }
+    if (!form.value.type_piece) {
+      validationErrors.value.type_piece = [languageStore.isEn() ? 'Document type is required.' : 'Le type de pièce d\'identification est obligatoire.']
+    }
+    if (!form.value.num_piece || form.value.num_piece.trim() === '') {
+      validationErrors.value.num_piece = [languageStore.isEn() ? 'Document number is required.' : 'Le numéro de la pièce d\'identification est obligatoire.']
+    }
+    if (!form.value.expiration_piece) {
+      validationErrors.value.expiration_piece = [languageStore.isEn() ? 'Expiration date is required.' : 'La date d\'expiration de la pièce est obligatoire.']
+    } else {
+      const expDate = new Date(form.value.expiration_piece)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (expDate <= today) {
+        validationErrors.value.expiration_piece = [languageStore.isEn() ? 'Expiration date must be in the future.' : 'La date d\'expiration doit être supérieure à la date du jour.']
+      }
     }
     if (!form.value.password || form.value.password.trim() === '') {
       validationErrors.value.password = [languageStore.isEn() ? 'Password is required.' : 'Le mot de passe est obligatoire.']
@@ -341,6 +443,79 @@ const handleNext = async () => {
           <p v-if="validationErrors.employer" id="employer-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
             {{ validationErrors.employer[0] }}
           </p>
+        </div>
+
+        <!-- Section Pièce d'identité (Informations) -->
+        <div class="p-4 bg-slate-50 border-2 border-slate-100 rounded-3xl space-y-4 text-left">
+          <div class="flex items-center gap-2 text-slate-800 font-bold text-sm">
+            <FileText class="w-4 h-4 text-primary" />
+            <span>{{ languageStore.isEn() ? 'Identity Document' : "Pièce d'identification" }}</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label class="text-xs font-bold text-slate-700 ml-1">
+                {{ languageStore.isEn() ? 'Document Type *' : 'Type de pièce *' }}
+              </label>
+              <div class="relative">
+                <select v-model="form.type_piece" @change="clearError('type_piece')" class="w-full bg-white border-2 border-slate-100 rounded-2xl py-3 px-4 focus:border-primary transition-all appearance-none text-xs font-bold text-slate-800 cursor-pointer">
+                  <option value="CNI">Carte Nationale d'Identité (CNI)</option>
+                  <option value="Passeport">Passeport</option>
+                  <option value="Carte de séjour">Carte de séjour</option>
+                </select>
+                <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+              <p v-if="validationErrors.type_piece" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+                {{ validationErrors.type_piece[0] }}
+              </p>
+            </div>
+
+            <div class="space-y-2">
+              <label class="text-xs font-bold text-slate-700 ml-1">
+                {{ languageStore.isEn() ? 'Document Number *' : 'Numéro de pièce *' }}
+              </label>
+              <input v-model="form.num_piece" @input="clearError('num_piece')" type="text" placeholder="Ex: 1029384756" class="w-full bg-white border-2 border-slate-100 rounded-2xl py-3 px-4 focus:border-primary transition-all text-xs font-semibold text-slate-800" required>
+              <p v-if="validationErrors.num_piece" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+                {{ validationErrors.num_piece[0] }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Date d'expiration (Structure identique à l'étape 1 Onboarding KYC) -->
+          <div class="space-y-2">
+            <label class="text-xs font-bold text-slate-700 ml-1">
+              {{ languageStore.isEn() ? 'Expiration Date *' : "Date d'expiration de la pièce *" }}
+            </label>
+            <div class="grid grid-cols-3 gap-2">
+              <!-- Jour -->
+              <div class="relative">
+                <select v-model="expDay" class="w-full bg-white border-2 border-slate-100 rounded-2xl py-3 pl-3 pr-7 text-xs font-bold text-slate-800 focus:border-primary transition-all appearance-none text-center cursor-pointer">
+                  <option value="" disabled>{{ languageStore.isEn() ? 'Day' : 'Jour' }}</option>
+                  <option v-for="d in expDaysList" :key="d" :value="d">{{ String(d).padStart(2, '0') }}</option>
+                </select>
+                <ChevronDown class="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              </div>
+              <!-- Mois -->
+              <div class="relative">
+                <select v-model="expMonth" class="w-full bg-white border-2 border-slate-100 rounded-2xl py-3 pl-2 pr-7 text-xs font-bold text-slate-800 focus:border-primary transition-all appearance-none text-center cursor-pointer">
+                  <option value="" disabled>{{ languageStore.isEn() ? 'Month' : 'Mois' }}</option>
+                  <option v-for="m in monthsList" :key="m.value" :value="m.value">{{ m.label }}</option>
+                </select>
+                <ChevronDown class="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              </div>
+              <!-- Année -->
+              <div class="relative">
+                <select v-model="expYear" class="w-full bg-white border-2 border-slate-100 rounded-2xl py-3 pl-3 pr-7 text-xs font-bold text-slate-800 focus:border-primary transition-all appearance-none text-center cursor-pointer">
+                  <option value="" disabled>{{ languageStore.isEn() ? 'Year' : 'Année' }}</option>
+                  <option v-for="y in expYearsList" :key="y" :value="y">{{ y }}</option>
+                </select>
+                <ChevronDown class="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+            <p v-if="validationErrors.expiration_piece" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+              {{ validationErrors.expiration_piece[0] }}
+            </p>
+          </div>
         </div>
 
         <div class="space-y-2">

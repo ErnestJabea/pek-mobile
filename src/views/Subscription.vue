@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, Wallet, CreditCard, Smartphone, Loader2, CheckCircle2, ArrowRight, AlertCircle, FileText, Download, Building2, Copy, Check, Info } from 'lucide-vue-next'
+import { ChevronLeft, Wallet, CreditCard, Smartphone, Loader2, CheckCircle2, ArrowRight, AlertCircle, FileText, Download, Building2, Copy, Check, Info, Sparkles, Clock, RefreshCw } from 'lucide-vue-next'
 import api from '../api/api'
+import { mobileRetryMode, verifyMobileRetry } from '../services/mobilePaymentStatus'
 import { useAuthStore } from '../stores/auth'
-import { getFrontendDocumentUrl } from '../utils/document'
+import { getFrontendDocumentUrl, downloadDocument } from '../utils/document'
 import BankTransferProofs from '../components/BankTransferProofs.vue'
 
 const route = useRoute()
@@ -19,6 +20,31 @@ const showErrorModal = ref(false)
 const showOnboardingModal = ref(false)
 const showOnboardingRequiredModal = ref(false)
 const transactionRef = ref('')
+const downloadingDoc = ref('')
+
+const handleDownload = async (item, type) => {
+  if (!item) return
+  const docKey = `${item.id}-${type}`
+  if (downloadingDoc.value === docKey) return
+
+  downloadingDoc.value = docKey
+  try {
+    const downloadUrl = type === 'depliant'
+      ? (item.depliant_download_url || `/api/v1/products/${item.id}/download/depliant`)
+      : (item.document_information_download_url || `/api/v1/products/${item.id}/download/dici`)
+
+    const cleanName = (item.name || item.libelle || 'fcp-kori').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const fallbackFilename = type === 'depliant'
+      ? `depliant-commercial-${cleanName}.pdf`
+      : `dici-document-information-${cleanName}.pdf`
+
+    await downloadDocument(downloadUrl, fallbackFilename)
+  } catch (err) {
+    console.error('Erreur téléchargement document:', err)
+  } finally {
+    downloadingDoc.value = ''
+  }
+}
 
 const parts = ref(1)
 const inputMode = ref('amount')
@@ -28,6 +54,191 @@ const idempotencyKey = ref(null)
 const recordedSubscription = ref(null)
 const paymentPhone = ref('')
 const paymentOptions = ref({ orange_money: false, mtn_momo: false, fee_basis_points: 100, max_investment: 100000000 })
+
+// Détection automatique de l'opérateur camerounais
+const phoneOperator = computed(() => {
+  const clean = (paymentPhone.value || '').replace(/\D/g, '')
+  let num = clean
+  if (clean.startsWith('237') && clean.length >= 5) num = clean.slice(3)
+  if (clean.startsWith('00237') && clean.length >= 7) num = clean.slice(5)
+
+  if (num.length >= 2 && num.startsWith('6')) {
+    const p2 = num.slice(0, 2)
+    const p3 = num.slice(0, 3)
+    // Orange Cameroun : 69x, 64x, 655-659
+    if (p2 === '69' || p2 === '64' || ['655', '656', '657', '658', '659'].includes(p3)) {
+      return 'orange_money'
+    }
+    // MTN Cameroun : 67x, 680-683, 650-654
+    if (p2 === '67' || ['680', '681', '682', '683'].includes(p3) || ['650', '651', '652', '653', '654'].includes(p3)) {
+      return 'mtn_momo'
+    }
+    if (p2 === '66') return 'nexttel'
+    if (['620', '621'].includes(p3) || p2 === '24') return 'camtel'
+  }
+  return null
+})
+
+// Vérifie si le numéro est valide pour l'opérateur sélectionné
+const isPhoneValidForOperator = computed(() => {
+  if (!['orange_money', 'mtn_momo'].includes(paymentMethod.value)) return true
+  const clean = (paymentPhone.value || '').replace(/\D/g, '')
+  let num = clean
+  if (clean.startsWith('237')) num = clean.slice(3)
+  if (clean.startsWith('00237')) num = clean.slice(5)
+  if (num.length !== 9) return false
+
+  return phoneOperator.value === paymentMethod.value
+})
+
+// Détecte une discordance d'opérateur
+const phoneOperatorMismatch = computed(() => {
+  if (!['orange_money', 'mtn_momo'].includes(paymentMethod.value)) return false
+  if (!paymentPhone.value || paymentPhone.value.trim().length < 4) return false
+  const detected = phoneOperator.value
+  if (!detected) return false
+  return detected !== paymentMethod.value
+})
+
+const switchOperatorTo = (target) => {
+  if (target) paymentMethod.value = target
+}
+
+// État du modal de paiement Mobile Money en direct
+const isMobilePendingModalOpen = ref(false)
+const mobilePaymentStatus = ref('waiting') // 'waiting' | 'success' | 'failed' | 'timeout'
+const mobilePaymentMessage = ref('')
+const mobilePaymentAdvice = ref('')
+const mobileCanRetry = ref(false)
+const mobileRetryBusy = ref(false)
+let mobilePollGeneration = 0
+const mobileErrorLabel = ref('')
+const MOBILE_PAYMENT_WAIT_SECONDS = 180
+const mobileCountdown = ref(MOBILE_PAYMENT_WAIT_SECONDS)
+const mobilePollAttempts = ref(0)
+let mobileCountdownInterval = null
+let mobilePollTimer = null
+
+const closeMobilePendingModal = () => {
+  mobilePollGeneration++
+  if (mobileCountdownInterval) clearInterval(mobileCountdownInterval)
+  if (mobilePollTimer) clearTimeout(mobilePollTimer)
+  isMobilePendingModalOpen.value = false
+  if (mobilePaymentStatus.value === 'success') {
+    router.push('/dashboard')
+  }
+}
+
+const verifyCurrentMobilePayment = () => {
+  if (recordedSubscription.value?.id) startMobilePaymentPolling(recordedSubscription.value.id)
+}
+
+const retryMobilePayment = async () => {
+  if (mobileRetryBusy.value || submitting.value || !recordedSubscription.value?.id) return
+  mobileRetryBusy.value = true
+  try {
+    const { data, mode } = await verifyMobileRetry(api, recordedSubscription.value.id)
+    if (!mode) {
+      verifyCurrentMobilePayment()
+      return
+    }
+    if (mode === 'resume') {
+      const response = await api.post(`/subscriptions/${recordedSubscription.value.id}/payment-session`)
+      recordedSubscription.value = response.data.subscription || data.subscription
+      verifyCurrentMobilePayment()
+      return
+    }
+    closeMobilePendingModal()
+    recordedSubscription.value = null
+    idempotencyKey.value = null
+    await handleSubscribe()
+  } catch (error) {
+    mobileCanRetry.value = false
+    mobilePaymentStatus.value = 'timeout'
+    isMobilePendingModalOpen.value = true
+    mobilePaymentMessage.value = 'Vérification indisponible. Ne lancez pas un autre paiement pour cette demande.'
+  } finally {
+    mobileRetryBusy.value = false
+  }
+}
+
+const goToPortfolio = () => {
+  closeMobilePendingModal()
+  router.push('/dashboard')
+}
+
+const goToCatalog = () => {
+  closeMobilePendingModal()
+  router.push('/catalog')
+}
+
+const startMobilePaymentPolling = (subId) => {
+  const generation = ++mobilePollGeneration
+  if (mobilePollTimer) clearTimeout(mobilePollTimer)
+  isMobilePendingModalOpen.value = true
+  mobilePaymentStatus.value = 'waiting'
+  mobileCountdown.value = MOBILE_PAYMENT_WAIT_SECONDS
+  mobilePollAttempts.value = 0
+  mobilePaymentMessage.value = ''
+  mobilePaymentAdvice.value = ''
+  mobileCanRetry.value = false
+  mobileErrorLabel.value = ''
+
+  if (mobileCountdownInterval) clearInterval(mobileCountdownInterval)
+  mobileCountdownInterval = setInterval(() => {
+    if (mobileCountdown.value > 0) {
+      mobileCountdown.value--
+    } else {
+      clearInterval(mobileCountdownInterval)
+      if (mobilePaymentStatus.value === 'waiting') {
+        mobilePaymentStatus.value = 'timeout'
+      }
+    }
+  }, 1000)
+
+  const poll = async () => {
+    if (!isMobilePendingModalOpen.value || mobilePaymentStatus.value !== 'waiting') return
+    try {
+      mobilePollAttempts.value++
+      const res = await api.get(`/subscriptions/${subId}/payment-status`)
+      if (generation !== mobilePollGeneration || !isMobilePendingModalOpen.value) return
+      const data = res.data
+      const sub = data.subscription
+      if (data.status === 'paid' || sub?.statut === 'Succès' || data.payment?.status === 'success') {
+        clearInterval(mobileCountdownInterval)
+        clearTimeout(mobilePollTimer)
+        mobilePaymentStatus.value = 'success'
+        recordedSubscription.value = sub || data.subscription
+        return
+      } else if (data.status === 'failed' || sub?.statut === 'Échec' || data.payment?.status === 'errored') {
+        clearInterval(mobileCountdownInterval)
+        clearTimeout(mobilePollTimer)
+        mobilePaymentStatus.value = 'failed'
+        mobilePaymentMessage.value = data.message || 'Le paiement a échoué ou a été refusé sur votre téléphone.'
+        mobilePaymentAdvice.value = data.action_advice || ''
+        mobileCanRetry.value = Boolean(mobileRetryMode(data))
+        mobileErrorLabel.value = data.payment?.error_label || ''
+        return
+      }
+
+      if (generation === mobilePollGeneration && mobileCountdown.value > 0 && mobilePaymentStatus.value === 'waiting') {
+        mobilePollTimer = setTimeout(poll, 3000)
+      }
+    } catch (err) {
+      if (generation === mobilePollGeneration && mobileCountdown.value > 0 && mobilePaymentStatus.value === 'waiting') {
+        mobilePollTimer = setTimeout(poll, 4000)
+      }
+    }
+  }
+
+  mobilePollTimer = setTimeout(poll, 3000)
+}
+
+onBeforeUnmount(() => {
+  mobilePollGeneration++
+  if (mobileCountdownInterval) clearInterval(mobileCountdownInterval)
+  if (mobilePollTimer) clearTimeout(mobilePollTimer)
+})
 
 const allowedCheckoutHosts = (import.meta.env.VITE_PAYMENT_ALLOWED_HOSTS || 'checkout.stripe.com')
   .split(',')
@@ -94,12 +305,15 @@ const copyToClipboard = async (text, fieldName) => {
   }
 }
 
+const userSubscriptionsCount = ref(0)
+
 const fetchData = async () => {
   try {
-    const [productsRes, bankRes, optionsRes] = await Promise.all([
+    const [productsRes, bankRes, optionsRes, subsRes] = await Promise.all([
       api.get('/products'),
       api.get('/bank-details'),
-      api.get('/payment-options')
+      api.get('/payment-options'),
+      api.get('/subscriptions').catch(() => ({ data: [] }))
     ])
     fund.value = productsRes.data.find(p => p.id == route.params.id)
     bankAccounts.value = Array.isArray(bankRes.data) ? bankRes.data : (bankRes.data ? [bankRes.data] : [])
@@ -107,7 +321,19 @@ const fetchData = async () => {
       selectedBankId.value = bankAccounts.value[0].id
     }
     paymentOptions.value = optionsRes.data
-    paymentPhone.value = (authStore.user?.phone || '').replace(/\D/g, '')
+
+    const subsList = Array.isArray(subsRes.data?.data) ? subsRes.data.data : (Array.isArray(subsRes.data) ? subsRes.data : [])
+    userSubscriptionsCount.value = subsList.filter(s => !['Annulée', 'Rejetée'].includes(s.statut)).length
+    
+    // Retirer l'indicatif 237 / +237 par défaut pour n'afficher que le numéro national camerounais
+    let initialPhone = (authStore.user?.phone || '').replace(/\D/g, '')
+    if (initialPhone.startsWith('00237')) {
+      initialPhone = initialPhone.slice(5)
+    } else if (initialPhone.startsWith('237') && initialPhone.length > 9) {
+      initialPhone = initialPhone.slice(3)
+    }
+    paymentPhone.value = initialPhone
+
     if (fund.value) {
       inputAmount.value = fund.value.vl
     } else {
@@ -119,6 +345,17 @@ const fetchData = async () => {
     loading.value = false
   }
 }
+
+// Nettoyage automatique en direct si l'utilisateur colle un numéro débutant par 237 ou 00237
+watch(paymentPhone, (val) => {
+  if (!val) return
+  const clean = val.replace(/\D/g, '')
+  if (clean.startsWith('00237') && clean.length > 5) {
+    paymentPhone.value = clean.slice(5)
+  } else if (clean.startsWith('237') && clean.length > 9) {
+    paymentPhone.value = clean.slice(3)
+  }
+})
 
 onMounted(() => {
   fetchData()
@@ -146,12 +383,26 @@ const isMinimumMet = computed(() => {
 })
 
 const handleSubscribe = async () => {
+  if (submitting.value) return
+  // Closing the modal must not silently create another payment for the same request.
+  if (recordedSubscription.value?.mobile_provider) {
+    verifyCurrentMobilePayment()
+    return
+  }
   if (!navigator.onLine) { stripeError.value = 'Une connexion est nécessaire pour initier un paiement.'; showErrorModal.value = true; return }
   const onboardingStatus = authStore.user?.onboarding_status
 
-  if (onboardingStatus !== 'validated') {
-    showOnboardingRequiredModal.value = true
-    return
+  if (userSubscriptionsCount.value === 0) {
+    if (totalAmount.value > 250000) {
+      stripeError.value = 'Pour votre première souscription avant la validation de votre onboarding, le montant est plafonné à 250 000 FCFA.'
+      showErrorModal.value = true
+      return
+    }
+  } else {
+    if (onboardingStatus !== 'validated') {
+      showOnboardingRequiredModal.value = true
+      return
+    }
   }
 
   stripeError.value = null
@@ -174,6 +425,11 @@ const handleSubscribe = async () => {
     
     const { subscription, pek_bank_details, payment } = response.data
     recordedSubscription.value = subscription
+    if (subscription.mobile_provider) {
+      idempotencyKey.value = null
+      startMobilePaymentPolling(subscription.id)
+      return
+    }
 
     if (payment?.redirect_required && payment?.checkout_url) {
       redirectToCheckout(payment.checkout_url)
@@ -351,6 +607,15 @@ const handleSubscribe = async () => {
     </header>
 
     <div class="flex-1 px-6 py-8 space-y-8 pb-44">
+      <!-- Welcome 1st Subscription Banner -->
+      <div v-if="userSubscriptionsCount === 0" class="bg-amber-50 border-2 border-amber-200/80 p-4 rounded-3xl flex items-start gap-3 text-left">
+        <Sparkles class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div class="space-y-1">
+          <p class="text-xs font-black text-amber-900">Première souscription (Accès immédiat)</p>
+          <p class="text-[11px] text-amber-800 font-medium">Vous pouvez effectuer cette 1ère souscription immédiatement avec un montant plafonné à <strong>250 000 FCFA</strong>. Votre dossier d'onboarding devra être complété et validé pour votre 2ème souscription.</p>
+        </div>
+      </div>
+
       <!-- Fund Summary Card -->
       <section class="bg-white rounded-[32px] p-6 shadow-xl shadow-slate-200/50 border border-slate-100">
         <div class="flex justify-between items-start mb-6">
@@ -379,16 +644,17 @@ const handleSubscribe = async () => {
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <!-- Vignette Dépliant -->
-            <a 
+            <button 
               v-if="fund.depliant_url" 
-              :href="getFrontendDocumentUrl(fund.depliant_url)" 
-              target="_blank" 
-              download
-              class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-rose-50/80 border border-slate-100 hover:border-rose-200 transition-all text-slate-700 hover:text-rose-700 group shadow-xs active:scale-95"
+              type="button"
+              @click="handleDownload(fund, 'depliant')"
+              :disabled="downloadingDoc === `${fund.id}-depliant`"
+              class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-rose-50/80 border border-slate-100 hover:border-rose-200 transition-all text-slate-700 hover:text-rose-700 group shadow-xs active:scale-95 cursor-pointer text-left w-full disabled:opacity-50"
             >
               <div class="flex items-center gap-2.5 min-w-0 pr-1">
                 <div class="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                  <FileText class="w-4 h-4" />
+                  <Loader2 v-if="downloadingDoc === `${fund.id}-depliant`" class="w-4 h-4 animate-spin" />
+                  <FileText v-else class="w-4 h-4" />
                 </div>
                 <div class="min-w-0">
                   <span class="block text-xs font-black truncate">Dépliant</span>
@@ -396,19 +662,20 @@ const handleSubscribe = async () => {
                 </div>
               </div>
               <Download class="w-4 h-4 text-slate-400 group-hover:text-rose-600 shrink-0" />
-            </a>
+            </button>
 
             <!-- Vignette Document d'information (DICI) -->
-            <a 
+            <button 
               v-if="fund.document_information_url" 
-              :href="getFrontendDocumentUrl(fund.document_information_url)" 
-              target="_blank" 
-              download
-              class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-blue-50/80 border border-slate-100 hover:border-blue-200 transition-all text-slate-700 hover:text-primary group shadow-xs active:scale-95"
+              type="button"
+              @click="handleDownload(fund, 'dici')"
+              :disabled="downloadingDoc === `${fund.id}-dici`"
+              class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-blue-50/80 border border-slate-100 hover:border-blue-200 transition-all text-slate-700 hover:text-primary group shadow-xs active:scale-95 cursor-pointer text-left w-full disabled:opacity-50"
             >
               <div class="flex items-center gap-2.5 min-w-0 pr-1">
                 <div class="w-8 h-8 rounded-xl bg-blue-100 text-primary flex items-center justify-center shrink-0">
-                  <FileText class="w-4 h-4" />
+                  <Loader2 v-if="downloadingDoc === `${fund.id}-dici`" class="w-4 h-4 animate-spin" />
+                  <FileText v-else class="w-4 h-4" />
                 </div>
                 <div class="min-w-0">
                   <span class="block text-xs font-black truncate">Document Info</span>
@@ -416,7 +683,7 @@ const handleSubscribe = async () => {
                 </div>
               </div>
               <Download class="w-4 h-4 text-slate-400 group-hover:text-primary shrink-0" />
-            </a>
+            </button>
           </div>
         </div>
       </section>
@@ -507,7 +774,7 @@ const handleSubscribe = async () => {
             <Smartphone class="w-5 h-5" />
             <div>
               <span class="text-[10px] font-black uppercase tracking-wider">{{ operator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</span>
-              <p class="text-[10px] mt-1">{{ paymentOptions[operator] ? (paymentOptions.s3p_mode === 'staging' ? 'Disponible en mode test Maviance.' : 'Confirmation du paiement sur votre téléphone.') : 'Temporairement indisponible.' }}</p>
+              <p class="text-[10px] mt-1">{{ paymentOptions[operator] ? 'Confirmation du paiement sur votre téléphone.' : 'Temporairement indisponible.' }}</p>
             </div>
           </button>
           <button type="button" @click="paymentMethod = 'bank_transfer'"
@@ -523,23 +790,53 @@ const handleSubscribe = async () => {
 
         <!-- Champ numéro de téléphone Mobile Money -->
         <div v-if="['orange_money', 'mtn_momo'].includes(paymentMethod)" class="bg-white p-5 rounded-[24px] border-2 border-primary/20 shadow-sm space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-          <p v-if="paymentOptions.s3p_mode === 'staging'" class="rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-900">Mode test Maviance : utilisez les numéros de recette. Un paiement réussi ici ne crédite aucune part réelle.</p>
-          <div class="flex items-center gap-2">
-            <Smartphone class="w-4 h-4 text-primary" />
-            <span class="text-xs font-black text-slate-800 uppercase tracking-wider">
-              Numéro {{ paymentMethod === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Smartphone class="w-4 h-4 text-primary" />
+              <span class="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Numéro {{ paymentMethod === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}
+              </span>
+            </div>
+            <span class="text-[10px] font-bold text-slate-400">
+              {{ paymentMethod === 'orange_money' ? '69x, 64x, 655-659' : '67x, 68x, 650-654' }}
             </span>
           </div>
+
           <div class="relative">
             <input 
               v-model="paymentPhone" 
               type="tel" 
               inputmode="tel" 
-              placeholder="Ex : 699 00 00 00 ou 237699000000" 
+              :placeholder="paymentMethod === 'orange_money' ? 'Ex : 699 00 00 00' : 'Ex : 677 00 00 00'" 
               maxlength="16" 
-              class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-black text-slate-900 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal" 
+              :class="phoneOperatorMismatch ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200' : (isPhoneValidForOperator && paymentPhone ? 'border-emerald-400 focus:border-emerald-500 focus:ring-emerald-200' : 'border-slate-200 focus:border-primary focus:ring-primary/20')"
+              class="w-full bg-slate-50 border rounded-2xl p-4 text-sm font-black text-slate-900 focus:bg-white focus:ring-2 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal" 
             />
+            <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              <span v-if="isPhoneValidForOperator && paymentPhone" class="flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                <Check class="w-3.5 h-3.5" /> {{ paymentMethod === 'orange_money' ? 'Orange' : 'MTN' }}
+              </span>
+            </div>
           </div>
+
+          <!-- Alerte discordance opérateur et bouton bascule -->
+          <div v-if="phoneOperatorMismatch" class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-left space-y-2.5 animate-in fade-in duration-200">
+            <div class="flex items-start gap-2 text-rose-800 text-xs font-bold leading-snug">
+              <AlertCircle class="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+              <span>
+                Ce numéro correspond à <strong>{{ phoneOperator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</strong>, alors que vous avez sélectionné <strong>{{ paymentMethod === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</strong>.
+              </span>
+            </div>
+            <button 
+              type="button" 
+              @click="switchOperatorTo(phoneOperator)"
+              class="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-[11px] rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm uppercase tracking-wider"
+            >
+              <span>Basculer sur {{ phoneOperator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</span>
+              <ArrowRight class="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           <p class="text-[11px] text-slate-500 font-medium leading-relaxed">
             Confirmez votre numéro avant de valider. Votre code secret PIN ne vous sera jamais demandé ici.
           </p>
@@ -667,7 +964,7 @@ const handleSubscribe = async () => {
           <span>{{ parseFloat(totalAmount).toLocaleString() }} XAF</span>
         </div>
         <div class="flex justify-between items-center text-xs opacity-60">
-          <span>Frais de souscription (1%)</span>
+          <span>Frais d'entrée (1%)</span>
           <span>{{ parseFloat(fees).toLocaleString() }} XAF</span>
         </div>
         <div class="pt-4 border-t border-white/10 flex justify-between items-end">
@@ -684,16 +981,19 @@ const handleSubscribe = async () => {
     <div class="fixed bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 z-50">
       <button 
         @click="handleSubscribe"
-        :disabled="submitting || !isMinimumMet"
-        class="w-full bg-primary text-white font-black py-5 rounded-3xl shadow-xl shadow-primary/30 active:scale-95 disabled:bg-slate-200 transition-all flex items-center justify-center gap-3"
+        :disabled="submitting || !isMinimumMet || (!isPhoneValidForOperator && ['orange_money', 'mtn_momo'].includes(paymentMethod))"
+        class="w-full bg-primary text-white font-black py-5 rounded-3xl shadow-xl shadow-primary/30 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none transition-all flex items-center justify-center gap-3"
       >
         <Loader2 v-if="submitting" class="w-6 h-6 animate-spin" />
         <template v-else>
           {{ ['card', 'mobile_money', 'orange_money', 'mtn_momo'].includes(paymentMethod) ? 'Confirmer et payer' : 'Enregistrer la demande' }}
         </template>
       </button>
-      <p v-if="!isMinimumMet" class="text-center text-rose-500 text-[10px] font-bold mt-3 animate-pulse">
+      <p v-if="!isMinimumMet" class="text-center text-rose-500 text-[10px] font-bold mt-2.5 animate-pulse">
         Seuil minimum de {{ Math.max(fund?.min || 0, fund?.vl || 0).toLocaleString() }} XAF non atteint.
+      </p>
+      <p v-else-if="['orange_money', 'mtn_momo'].includes(paymentMethod) && !isPhoneValidForOperator" class="text-center text-rose-500 text-[10px] font-bold mt-2.5">
+        {{ phoneOperatorMismatch ? 'Veuillez corriger le numéro ou basculer d’opérateur.' : 'Numéro ' + (paymentMethod === 'orange_money' ? 'Orange (69x, 64x, 655-659)' : 'MTN (67x, 68x, 650-654)') + ' requis à 9 chiffres.' }}
       </p>
     </div>
 
@@ -800,6 +1100,193 @@ const handleSubscribe = async () => {
             Fermer
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Modal Paiement Mobile Money en direct (USSD Push & Attribution Parts) -->
+    <div v-if="isMobilePendingModalOpen" class="fixed inset-0 z-[10000] flex items-end justify-center p-4 sm:items-center sm:p-6">
+      <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300"></div>
+
+      <div class="relative w-full max-w-md bg-white rounded-[36px] p-6 sm:p-8 shadow-2xl border border-slate-100 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6 max-h-[90vh] overflow-y-auto">
+        
+        <!-- ÉTAT 1 : En attente de validation sur le téléphone -->
+        <template v-if="mobilePaymentStatus === 'waiting'">
+          <div class="relative w-20 h-20 mx-auto flex items-center justify-center">
+            <div :class="paymentMethod === 'orange_money' ? 'bg-orange-500/20' : 'bg-yellow-400/20'" class="absolute inset-0 rounded-full animate-ping"></div>
+            <div :class="paymentMethod === 'orange_money' ? 'bg-orange-500 text-white shadow-orange-500/40' : 'bg-yellow-400 text-slate-900 shadow-yellow-400/40'" class="relative w-20 h-20 rounded-full flex items-center justify-center shadow-xl">
+              <Smartphone class="w-10 h-10 animate-bounce" />
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <span :class="paymentMethod === 'orange_money' ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-yellow-100 text-yellow-900 border-yellow-200'" class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border">
+              {{ paymentMethod === 'orange_money' ? 'Orange Money Cameroun' : 'MTN Mobile Money' }}
+            </span>
+            <h3 class="text-xl font-black text-slate-900">Validation sur votre mobile</h3>
+            <p class="text-xs text-slate-500 font-medium">
+              Une demande de débit de <strong class="text-slate-900 font-black">{{ parseFloat(finalAmount).toLocaleString() }} XAF</strong> a été envoyée vers le <strong class="text-primary font-black">+237 {{ paymentPhone.replace(/\D/g, '') }}</strong>.
+            </p>
+          </div>
+
+          <!-- Carte d'instructions USSD -->
+          <div :class="paymentMethod === 'orange_money' ? 'bg-orange-50 border-orange-200/80' : 'bg-amber-50 border-amber-200/80'" class="p-4 rounded-3xl border text-left space-y-3">
+            <div class="flex items-center gap-2">
+              <Sparkles :class="paymentMethod === 'orange_money' ? 'text-orange-600' : 'text-amber-600'" class="w-4 h-4 shrink-0" />
+              <span class="text-xs font-black uppercase tracking-wider text-slate-800">Instructions de validation</span>
+            </div>
+            <ol class="text-xs space-y-2 text-slate-700 font-semibold pl-1">
+              <li class="flex items-start gap-2">
+                <span class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-[10px] font-black shrink-0 border border-slate-200">1</span>
+                <span>Un pop-up s’affiche sur votre téléphone demandant d’autoriser le débit.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-[10px] font-black shrink-0 border border-slate-200">2</span>
+                <span>Saisissez votre <strong>code secret PIN</strong> sur votre téléphone pour valider.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-[10px] font-black shrink-0 border border-slate-200">3</span>
+                <span>
+                  {{ paymentMethod === 'orange_money' ? 'Si rien ne s’affiche, composez le #150# pour valider manuellement.' : 'Si rien ne s’affiche, composez le *126# pour valider manuellement.' }}
+                </span>
+              </li>
+            </ol>
+          </div>
+
+          <!-- Compte à rebours & Barre -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-[11px] font-bold text-slate-400">
+              <span class="flex items-center gap-1.5"><Clock class="w-3.5 h-3.5 text-primary animate-spin" /> En attente de confirmation...</span>
+              <span class="font-mono text-slate-700 font-black">{{ mobileCountdown }}s</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div 
+                :class="paymentMethod === 'orange_money' ? 'bg-orange-500' : 'bg-yellow-500'" 
+                class="h-full transition-all duration-1000 ease-linear rounded-full"
+                :style="{ width: ((mobileCountdown / MOBILE_PAYMENT_WAIT_SECONDS) * 100) + '%' }"
+              ></div>
+            </div>
+          </div>
+
+          <button 
+            type="button" 
+            @click="closeMobilePendingModal"
+            class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors py-1"
+          >
+            Fermer et suivre plus tard dans mes transactions
+          </button>
+        </template>
+
+        <!-- ÉTAT 2 : SUCCÈS CONFIRMÉ & PARTS ATTRIBUÉES -->
+        <template v-else-if="mobilePaymentStatus === 'success'">
+          <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20 animate-in zoom-in duration-300">
+            <CheckCircle2 class="w-12 h-12" />
+          </div>
+
+          <div class="space-y-1">
+            <span class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Paiement confirmé & Parts créditées
+            </span>
+            <h3 class="text-2xl font-black text-slate-900">Félicitations !</h3>
+            <p class="text-xs text-slate-500 font-medium">
+              Votre investissement a été validé avec succès. Vos parts sont désormais actives.
+            </p>
+          </div>
+
+          <!-- Récapitulatif d'attribution des parts -->
+          <div class="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-3 text-left">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
+              <span class="text-xs font-bold text-slate-400">Fonds souscrit</span>
+              <span class="text-xs font-black text-slate-900">{{ fund?.libelle }}</span>
+            </div>
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
+              <span class="text-xs font-bold text-slate-400">Parts attribuées</span>
+              <span class="text-base font-black text-emerald-600">+{{ parts }} parts</span>
+            </div>
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
+              <span class="text-xs font-bold text-slate-400">Montant total</span>
+              <span class="text-xs font-black text-slate-900">{{ parseFloat(finalAmount).toLocaleString() }} XAF</span>
+            </div>
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
+              <span class="text-xs font-bold text-slate-400">Date de valeur</span>
+              <span class="text-xs font-black text-slate-900">{{ recordedSubscription?.value_date || new Date().toISOString().slice(0, 10) }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-400">Référence</span>
+              <span class="text-xs font-mono font-bold text-slate-700">{{ recordedSubscription?.reference_transaction }}</span>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-2">
+            <button 
+              type="button" 
+              @click="router.push(`/subscriptions/${recordedSubscription?.id}/bulletin`)"
+              class="w-full bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300/90 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm"
+            >
+              <FileText class="w-4 h-4 text-amber-800" />
+              <span>Consulter la fiche de souscription</span>
+            </button>
+            <button 
+              type="button" 
+              @click="goToPortfolio"
+              class="w-full bg-primary hover:bg-primary-dark text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
+            >
+              <span>Consulter mon portefeuille</span>
+              <ArrowRight class="w-4 h-4" />
+            </button>
+            <button 
+              type="button" 
+              @click="goToCatalog"
+              class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-2xl active:scale-95 transition-all text-xs"
+            >
+              Retourner aux fonds
+            </button>
+          </div>
+        </template>
+
+        <!-- ÉTAT 3 : ÉCHEC OU DÉLAI DÉPASSÉ -->
+        <template v-else-if="mobilePaymentStatus === 'failed' || mobilePaymentStatus === 'timeout'">
+          <div class="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-rose-500/20 animate-in zoom-in duration-300">
+            <AlertCircle class="w-12 h-12" />
+          </div>
+
+          <div class="space-y-2">
+            <span v-if="mobileErrorLabel" class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+              {{ mobileErrorLabel }}
+            </span>
+            <h3 class="text-xl font-black text-slate-900">
+              {{ mobilePaymentStatus === 'timeout' ? 'Délai d’attente dépassé' : 'Paiement non abouti' }}
+            </h3>
+            <p class="text-xs text-slate-600 font-medium px-2 leading-relaxed">
+              {{ mobilePaymentMessage || (mobilePaymentStatus === 'timeout' ? 'La confirmation du paiement est toujours en attente après 3 minutes. Vérifiez cette transaction avant de lancer un autre paiement.' : 'La transaction n’a pas abouti. Veuillez vous assurer que votre solde est suffisant et réessayer.') }}
+            </p>
+            <!-- Conseil orienté action -->
+            <div v-if="mobilePaymentAdvice" class="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl text-left text-xs text-amber-900 font-medium flex items-start gap-2">
+              <span class="text-base shrink-0">💡</span>
+              <span class="leading-snug">{{ mobilePaymentAdvice }}</span>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-2">
+            <button type="button" @click="verifyCurrentMobilePayment" :disabled="mobileRetryBusy" class="w-full bg-slate-100 text-slate-700 font-bold py-3.5 rounded-2xl">Vérifier le paiement</button>
+            <button 
+              v-if="mobileCanRetry && mobilePaymentStatus === 'failed'"
+              :disabled="mobileRetryBusy"
+              type="button" 
+              @click="retryMobilePayment"
+              class="w-full bg-primary text-white font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20"
+            >
+              Réessayer le paiement
+            </button>
+            <button 
+              type="button" 
+              @click="closeMobilePendingModal"
+              class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-2xl active:scale-95 transition-all text-xs"
+            >
+              Modifier mes informations
+            </button>
+          </div>
+        </template>
+
       </div>
     </div>
   </div>

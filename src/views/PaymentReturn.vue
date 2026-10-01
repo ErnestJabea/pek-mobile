@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { AlertCircle, CheckCircle2, Clock, Loader2, RefreshCw } from 'lucide-vue-next'
 import api from '../api/api'
+import { isS3pPayment, mobileRetryMode, verifyMobileRetry } from '../services/mobilePaymentStatus'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
@@ -18,6 +19,10 @@ const message = ref(route.query.canceled === '1'
 const attempts = ref(0)
 const redirecting = ref(false)
 const dashboardRedirectSeconds = ref(4)
+const actionAdvice = ref('')
+const canRetry = ref(false)
+const mobilePayment = ref(false)
+const errorLabel = ref('')
 let timer = null
 let dashboardTimer = null
 
@@ -72,6 +77,7 @@ const confirmPayment = (confirmationMessage) => {
 }
 
 const checkStatus = async () => {
+  if (timer) window.clearTimeout(timer)
   const canUseAuthenticatedStatus = authStore.isAuthenticated
     && (validSubscription.value || validProviderReference.value)
 
@@ -93,6 +99,11 @@ const checkStatus = async () => {
     }
     attempts.value += 1
     message.value = response.data.message
+    actionAdvice.value = response.data.action_advice || ''
+    mobilePayment.value = isS3pPayment(response.data)
+    const knownCheckout = validCheckoutSession.value || ['card', 'stripe', 'mobile_money'].includes(response.data.subscription?.moyen_paiement)
+    canRetry.value = mobilePayment.value ? Boolean(mobileRetryMode(response.data)) : knownCheckout && response.data.can_retry !== false
+    errorLabel.value = response.data.payment?.error_label || ''
 
     if (response.data.status === 'paid') {
       confirmPayment(response.data.message)
@@ -108,6 +119,9 @@ const checkStatus = async () => {
       timer = window.setTimeout(checkStatus, 2000)
     }
   } catch (error) {
+    canRetry.value = false
+    actionAdvice.value = ''
+    errorLabel.value = ''
     const terminalError = [404, 409, 422].includes(error.response?.status)
     state.value = terminalError ? 'failed' : 'pending'
     message.value = error.response?.data?.message || 'La vérification est momentanément indisponible.'
@@ -119,12 +133,30 @@ const resumePayment = async () => {
     await router.push({ path: '/login', query: { redirect: route.fullPath } })
     return
   }
-  if (!validSubscription.value) return
+  if (!validSubscription.value || redirecting.value) return
   redirecting.value = true
   try {
+    if (mobilePayment.value) {
+      const { data, mode } = await verifyMobileRetry(api, subscriptionId.value)
+      mobilePayment.value = true
+      canRetry.value = Boolean(mode)
+      if (mode === 'new') {
+        await router.push('/my-subscriptions')
+        return
+      }
+      if (mode === 'resume') await api.post(`/subscriptions/${subscriptionId.value}/payment-session`)
+      attempts.value = 0
+      await checkStatus()
+      return
+    }
     const response = await api.post(`/subscriptions/${subscriptionId.value}/payment-session`)
     if (response.data.payment?.status === 'paid') {
       confirmPayment('Paiement confirmé. Vos parts sont créditées.')
+      return
+    }
+    if (isS3pPayment(response.data)) {
+      mobilePayment.value = true
+      await checkStatus()
       return
     }
     redirectToCheckout(response.data.payment?.checkout_url)
@@ -145,7 +177,7 @@ const openSubscriptions = () => {
 }
 
 onMounted(() => {
-  if (state.value !== 'canceled') checkStatus()
+  checkStatus()
 })
 
 onUnmounted(() => {
@@ -165,10 +197,17 @@ onUnmounted(() => {
         <Clock v-else class="w-10 h-10" />
       </div>
       <div class="space-y-2">
+        <span v-if="errorLabel && state === 'failed'" class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+          {{ errorLabel }}
+        </span>
         <h1 class="text-2xl font-black text-slate-900">
           {{ state === 'paid' ? 'Paiement confirmé !' : state === 'checking' ? 'Confirmation en cours' : state === 'canceled' ? 'Paiement annulé' : state === 'failed' ? 'Paiement non abouti' : 'Paiement en attente' }}
         </h1>
         <p class="text-sm text-slate-500 leading-relaxed">{{ message }}</p>
+        <div v-if="actionAdvice && state === 'failed'" class="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl text-left text-xs text-amber-900 font-medium flex items-start gap-2 max-w-sm mx-auto">
+          <span class="text-base shrink-0">💡</span>
+          <span class="leading-snug">{{ actionAdvice }}</span>
+        </div>
         <p v-if="state === 'paid'" class="text-xs font-bold text-emerald-600">
           {{ authStore.isAuthenticated
             ? `Redirection vers le tableau de bord dans ${dashboardRedirectSeconds} s.`
@@ -178,13 +217,13 @@ onUnmounted(() => {
     </div>
 
     <div class="space-y-3">
-      <button v-if="['canceled', 'failed', 'pending'].includes(state)" @click="resumePayment" :disabled="redirecting"
+      <button v-if="['canceled', 'failed', 'pending'].includes(state) && canRetry" @click="resumePayment" :disabled="redirecting"
         class="w-full bg-primary text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 disabled:bg-slate-300">
         <Loader2 v-if="redirecting" class="w-5 h-5 animate-spin" />
         <RefreshCw v-else class="w-5 h-5" />
-        {{ authStore.isAuthenticated ? 'Reprendre le paiement' : 'Se connecter pour reprendre' }}
+        {{ authStore.isAuthenticated ? (mobilePayment ? 'Continuer après vérification' : 'Reprendre le paiement') : 'Se connecter pour reprendre' }}
       </button>
-      <button v-if="state === 'pending'" @click="checkStatus" class="w-full bg-slate-100 text-slate-700 font-bold py-4 rounded-2xl">
+      <button v-if="state === 'pending' || (mobilePayment && state === 'failed')" @click="checkStatus" class="w-full bg-slate-100 text-slate-700 font-bold py-4 rounded-2xl">
         Vérifier à nouveau
       </button>
       <button v-if="state === 'paid'" @click="goToDashboard" class="w-full bg-primary text-white font-black py-4 rounded-2xl">

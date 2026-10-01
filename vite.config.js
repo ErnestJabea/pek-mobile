@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -6,7 +6,10 @@ process.env.NO_PROXY = '127.0.0.1,localhost,::1'
 process.env.no_proxy = '127.0.0.1,localhost,::1'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), 'VITE_')
+  const apiTarget = env.VITE_API_PROXY_TARGET || 'https://pek-api-v2.koriassetmanagement.com'
+  return {
   plugins: [
     vue(),
     tailwindcss(),
@@ -16,14 +19,14 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://pek-api-v2.ejabbing.com',
+        target: apiTarget,
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
       '/storage': {
-        target: 'https://pek-api-v2.ejabbing.com',
+        target: apiTarget,
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
     },
   },
@@ -32,5 +35,6 @@ export default defineConfig({
   },
   build: {
     emptyOutDir: true,
+  }
   }
 })

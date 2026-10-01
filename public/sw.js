@@ -1,5 +1,5 @@
 // Minimal Service Worker to satisfy PWA installation criteria
-const CACHE_NAME = 'pek-cache-v5';
+const CACHE_NAME = 'pek-cache-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -37,12 +37,12 @@ self.addEventListener('activate', (event) => {
 // Fetch Event (Network first, fallback to cache for offline basic support)
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests and local assets to avoid CORS issues
-  if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
+  if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) {
     return;
   }
 
   const requestUrl = new URL(event.request.url);
-  if (requestUrl.pathname.startsWith('/api/') || requestUrl.pathname.startsWith('/admin/') || requestUrl.pathname.startsWith('/payment/')) {
+  if (/^\/(api|admin|payment)(\/|$)/.test(requestUrl.pathname)) {
     return;
   }
   

@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 *.exe
 
+
+# Generated from locked OCR packages before dev/build
+/public/ocr/
+/.npm-cache.local/

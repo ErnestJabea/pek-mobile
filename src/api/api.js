@@ -25,7 +25,17 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 419)) {
+    if (error.response?.status === 403 && error.response.data?.code === 'PASSWORD_CHANGE_REQUIRED'
+      && window.location.pathname !== '/reset-temp-password') {
+      window.location.href = '/reset-temp-password'
+    }
+    const isSessionExpired = error.response && (
+      error.response.status === 401 ||
+      error.response.status === 419 ||
+      error.response.data?.message === 'Unauthenticated.'
+    )
+
+    if (isSessionExpired) {
       const isLoginRequest = error.config && error.config.url && error.config.url.includes('/login')
       const isLogoutRequest = error.config && error.config.url && error.config.url.includes('/logout')
       
@@ -43,4 +53,3 @@ api.interceptors.response.use(
 
 
 export default api
-

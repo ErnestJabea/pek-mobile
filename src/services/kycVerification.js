@@ -127,9 +127,9 @@ export async function compareFaces(idCardBase64, selfieBase64) {
   const loaded = await loadFaceModels()
   if (!loaded) {
     return {
-      success: true,
-      score: 65,
-      distance: 0.5,
+      success: false,
+      score: 0,
+      distance: null,
       isFallback: true,
       message: "Modèle d'IA non disponible sur ce navigateur. Contrôle manuel délégué."
     }
@@ -334,6 +334,10 @@ export async function verifyIDDocumentOCR(rectoBase64, versoBase64 = null, field
     if (onProgress) onProgress("Initialisation de la reconnaissance de texte (OCR)...")
 
     worker = await createWorker(['fra', 'eng'], 1, {
+      workerPath: '/ocr/worker.min.js',
+      corePath: '/ocr/core',
+      langPath: '/ocr/lang',
+      workerBlobURL: false,
       logger: m => {
         if (onProgress && m.status === 'recognizing text') {
           const pct = Math.round((m.progress || 0) * 100)
@@ -415,7 +419,7 @@ export async function verifyIDDocumentOCR(rectoBase64, versoBase64 = null, field
   } catch (err) {
     console.error('Erreur analyse OCR:', err)
     return {
-      success: true,
+      success: false,
       isFallback: true,
       ocrConfidence: 0,
       nomMatch: false,
