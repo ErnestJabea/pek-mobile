@@ -14,9 +14,12 @@ export const useLanguageStore = defineStore('language', () => {
 
   const isEn = () => currentLang.value === 'en'
 
-  const t = (key) => {
-    const langDict = translations[currentLang.value] || translations.fr
-    return langDict[key] || translations.fr[key] || key
+  const t = (key, defaultText = null) => {
+    const langDict = translations[currentLang.value] || translations.fr || {}
+    const res = langDict[key] ?? translations.fr?.[key]
+    if (res !== undefined && res !== null) return res
+    if (defaultText !== null && defaultText !== undefined) return defaultText
+    return key
   }
 
   return {

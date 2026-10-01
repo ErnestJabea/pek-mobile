@@ -381,57 +381,56 @@ const handleNext = async () => {
           </p>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2 text-left">
-            <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('country_label') }}</label>
-            <div class="relative">
-              <Globe class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-              <select v-model="form.country" @change="handleCountryChange" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-10 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer text-slate-800" required :aria-invalid="validationErrors.country ? 'true' : 'false'" :aria-describedby="validationErrors.country ? 'country-error' : null">
-                <option value="" disabled>{{ languageStore.isEn() ? 'Select' : 'Sélectionner' }}</option>
-                <option v-for="c in countries.slice().sort((a, b) => a.name.localeCompare(b.name))" :key="c.code" :value="c.name">{{ c.name }}</option>
-              </select>
-              <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            </div>
-            <p v-if="validationErrors.country" id="country-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
-              {{ validationErrors.country[0] }}
-            </p>
+        <div class="space-y-2 text-left">
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('country_label') }}</label>
+          <div class="relative">
+            <Globe class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+            <select v-model="form.country" @change="handleCountryChange" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-10 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer text-slate-800" required :aria-invalid="validationErrors.country ? 'true' : 'false'" :aria-describedby="validationErrors.country ? 'country-error' : null">
+              <option value="" disabled>{{ languageStore.isEn() ? 'Select' : 'Sélectionner' }}</option>
+              <option v-for="c in countries.slice().sort((a, b) => a.name.localeCompare(b.name))" :key="c.code" :value="c.name">{{ c.name }}</option>
+            </select>
+            <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
-          <div class="space-y-2 text-left">
-            <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('city_label') }}</label>
-            <div class="relative">
-              <MapPin class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-              <select 
-                :value="isCustomCity ? '__AUTRE__' : form.city" 
-                @change="handleCityChange" 
-                class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-10 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed" 
-                :disabled="!form.country" 
-                required 
-                :aria-invalid="validationErrors.city ? 'true' : 'false'" 
-                :aria-describedby="validationErrors.city ? 'city-error' : null"
-              >
-                <option value="" disabled>
-                  {{ !form.country ? (languageStore.isEn() ? "Select country first" : "Sélectionner le pays d'abord") : (availableCities.length ? (languageStore.isEn() ? "Select city" : "Sélectionner la ville") : (languageStore.isEn() ? "No cities listed" : "Aucune ville répertoriée")) }}
-                </option>
-                <option v-for="city in availableCities" :key="city" :value="city">{{ city }}</option>
-                <option v-if="availableCities.length > 0" value="__AUTRE__">{{ languageStore.isEn() ? 'Other city...' : 'Autre ville...' }}</option>
-              </select>
-              <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            </div>
-            <div v-if="isCustomCity || (form.country && availableCities.length === 0)" class="relative mt-2 animate-in fade-in duration-200">
-              <MapPin class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-              <input 
-                v-model="customCity" 
-                @input="handleCustomCityInput" 
-                type="text" 
-                :placeholder="languageStore.isEn() ? 'Specify your city' : 'Précisez votre ville'" 
-                class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 pl-11 pr-4 focus:bg-white focus:border-primary transition-all text-xs" 
-                required 
-              />
-            </div>
-            <p v-if="validationErrors.city" id="city-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
-              {{ validationErrors.city[0] }}
-            </p>
+          <p v-if="validationErrors.country" id="country-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+            {{ validationErrors.country[0] }}
+          </p>
+        </div>
+
+        <div class="space-y-2 text-left">
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('city_label') }}</label>
+          <div class="relative">
+            <MapPin class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+            <select 
+              :value="isCustomCity ? '__AUTRE__' : form.city" 
+              @change="handleCityChange" 
+              class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-10 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer text-slate-800 disabled:opacity-60 disabled:cursor-not-allowed" 
+              :disabled="!form.country" 
+              required 
+              :aria-invalid="validationErrors.city ? 'true' : 'false'" 
+              :aria-describedby="validationErrors.city ? 'city-error' : null"
+            >
+              <option value="" disabled>
+                {{ !form.country ? (languageStore.isEn() ? "Select country first" : "Sélectionner le pays d'abord") : (availableCities.length ? (languageStore.isEn() ? "Select city" : "Sélectionner la ville") : (languageStore.isEn() ? "No cities listed" : "Aucune ville répertoriée")) }}
+              </option>
+              <option v-for="city in availableCities" :key="city" :value="city">{{ city }}</option>
+              <option v-if="availableCities.length > 0" value="__AUTRE__">{{ languageStore.isEn() ? 'Other city...' : 'Autre ville...' }}</option>
+            </select>
+            <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
+          <div v-if="isCustomCity || (form.country && availableCities.length === 0)" class="relative mt-2 animate-in fade-in duration-200">
+            <MapPin class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+            <input 
+              v-model="customCity" 
+              @input="handleCustomCityInput" 
+              type="text" 
+              :placeholder="languageStore.isEn() ? 'Specify your city' : 'Précisez votre ville'" 
+              class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 pl-11 pr-4 focus:bg-white focus:border-primary transition-all text-xs" 
+              required 
+            />
+          </div>
+          <p v-if="validationErrors.city" id="city-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+            {{ validationErrors.city[0] }}
+          </p>
         </div>
 
         <div class="space-y-2 text-left">
@@ -452,7 +451,7 @@ const handleNext = async () => {
             <span>{{ languageStore.isEn() ? 'Identity Document' : "Pièce d'identification" }}</span>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4">
             <div class="space-y-2">
               <label class="text-xs font-bold text-slate-700 ml-1">
                 {{ languageStore.isEn() ? 'Document Type *' : 'Type de pièce *' }}

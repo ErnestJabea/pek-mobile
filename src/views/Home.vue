@@ -3,8 +3,10 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { ArrowUpRight, Zap, Loader2, AlertCircle, CheckCircle2, X, Plus, Info, Sparkles, ArrowRight, Wallet, TrendingUp, TrendingDown } from 'lucide-vue-next'
 import api from '../api/api'
 import { useLanguageStore } from '../stores/language'
+import { useAppContentStore } from '../stores/appContent'
 
 const languageStore = useLanguageStore()
+const appContentStore = useAppContentStore()
 const stats = ref(null)
 const featuredFunds = ref([])
 const loading = ref(true)
@@ -36,6 +38,30 @@ const fetchData = async () => {
 watch(() => languageStore.currentLang, () => {
   fetchData()
 })
+
+const completeOnboardingBanner = computed(() =>
+  appContentStore.getBanner(
+    'home_banner_complete_onboarding',
+    languageStore.t('complete_onboarding_title'),
+    languageStore.t('complete_onboarding_desc')
+  )
+)
+
+const readyToInvestBanner = computed(() =>
+  appContentStore.getBanner(
+    'home_banner_ready_to_invest',
+    languageStore.t('ready_to_invest_title'),
+    languageStore.t('ready_to_invest_desc')
+  )
+)
+
+const readyToInvestPendingBanner = computed(() =>
+  appContentStore.getBanner(
+    'home_banner_ready_to_invest',
+    languageStore.t('ready_to_invest_title'),
+    languageStore.t('ready_to_invest_pending_desc')
+  )
+)
 
 const selectedProduct = ref(null)
 const selectedPeriod = ref('6S')
@@ -332,7 +358,7 @@ onMounted(() => {
         ⚠️ {{ languageStore.t('rejected_msg') }}
       </p>
       <p v-else class="text-xs text-slate-500 font-semibold leading-relaxed">
-        {{ languageStore.t('welcome_msg') }}
+        {{ appContentStore.t('home_welcome_unverified', 'welcome_msg') }}
       </p>
     </div>
 
@@ -346,13 +372,15 @@ onMounted(() => {
         <div class="flex items-center justify-between">
           <span class="text-[#E8B010] text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5">
             <Wallet class="w-3.5 h-3.5" />
-            Portefeuille 
+            {{ appContentStore.getTitle('home_portfolio_card', 'portfolio_title', languageStore.isEn() ? 'Portfolio' : 'Portefeuille') }}
           </span>
         </div>
 
         <!-- Actif Global -->
         <div>
-          <span class="text-white/70 text-[11px] font-semibold uppercase tracking-wider block">Actif Global</span>
+          <span class="text-white/70 text-[11px] font-semibold uppercase tracking-wider block">
+            {{ appContentStore.t('home_portfolio_card', 'global_assets', languageStore.isEn() ? 'Global Assets' : 'Actif Global') }}
+          </span>
           <div class="text-3xl font-black text-white tracking-tight mt-0.5">
             {{ (stats?.total_balance || stats?.portfolio?.total_valorisation || 0).toLocaleString() }} <span class="text-lg text-[#E8B010] font-bold">XAF</span>
           </div>
@@ -365,7 +393,9 @@ onMounted(() => {
         <div class="grid grid-cols-2 gap-3 pt-0.5">
           <!-- Total Parts -->
           <div class="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span class="text-white/60 text-[10px] font-bold uppercase tracking-wider block">Parts Totales</span>
+            <span class="text-white/60 text-[10px] font-bold uppercase tracking-wider block">
+              {{ appContentStore.getItem('home_portfolio_card')?.metadata?.[languageStore.isEn() ? 'parts_label_en' : 'parts_label_fr'] || (languageStore.isEn() ? 'Total Shares' : 'Parts Totales') }}
+            </span>
             <span class="text-base font-black text-white mt-0.5 block">
               {{ (stats?.total_parts ?? stats?.portfolio?.total_parts ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 4 }) }}
             </span>
@@ -373,7 +403,9 @@ onMounted(() => {
 
           <!-- Plus-value -->
           <div class="bg-white/5 rounded-2xl p-3 border border-white/10">
-            <span class="text-white/60 text-[10px] font-bold uppercase tracking-wider block">Plus-value</span>
+            <span class="text-white/60 text-[10px] font-bold uppercase tracking-wider block">
+              {{ appContentStore.getItem('home_portfolio_card')?.metadata?.[languageStore.isEn() ? 'gain_label_en' : 'gain_label_fr'] || (languageStore.isEn() ? 'Capital Gain' : 'Plus-value') }}
+            </span>
             <div class="flex items-center gap-1 mt-0.5">
               <TrendingUp v-if="(stats?.plus_value ?? stats?.portfolio?.plus_value_totale ?? 0) >= 0" class="w-4 h-4 text-emerald-400 shrink-0" />
               <TrendingDown v-else class="w-4 h-4 text-rose-400 shrink-0" />
@@ -391,14 +423,14 @@ onMounted(() => {
       <section class="bg-[#E8B010] rounded-[32px] p-6 text-slate-950 relative overflow-hidden flex flex-col gap-4 animate-in slide-in-from-bottom duration-500 text-left shadow-xl shadow-[#E8B010]/20 border border-[#E8B010]/30">
         <div class="relative z-10 space-y-2">
           <div class="flex items-center gap-2">
-            <h3 class="text-lg font-black leading-none text-[#1F0A03]">{{ languageStore.t('complete_onboarding_title') }}</h3>
+            <h3 class="text-lg font-black leading-none text-[#1F0A03]">{{ completeOnboardingBanner.title }}</h3>
           </div>
           <p class="text-[#250D04]/90 text-xs font-semibold leading-relaxed">
-            {{ languageStore.t('complete_onboarding_desc') }}
+            {{ completeOnboardingBanner.body }}
           </p>
         </div>
         <router-link to="/onboarding" class="bg-[#1F0A03] text-white text-center font-black py-3.5 rounded-2xl shadow-lg hover:bg-[#3A190C] transition-all text-xs uppercase tracking-wider">
-          {{ languageStore.t('fill_kyc_button') }}
+          {{ completeOnboardingBanner.metadata?.button_text || languageStore.t('fill_kyc_button') }}
         </router-link>
       </section>
 
@@ -409,10 +441,10 @@ onMounted(() => {
             <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-[#E8B010] shrink-0 border border-white/10">
               <Sparkles class="w-4 h-4" />
             </div>
-            <h3 class="text-xl font-black leading-none text-white">{{ languageStore.t('ready_to_invest_title') }}</h3>
+            <h3 class="text-xl font-black leading-none text-white">{{ readyToInvestBanner.title }}</h3>
           </div>
           <p class="text-white/85 text-xs font-medium leading-relaxed pt-1">
-            {{ languageStore.t('ready_to_invest_desc') }}
+            {{ readyToInvestBanner.body }}
           </p>
         </div>
 
@@ -420,7 +452,7 @@ onMounted(() => {
           to="/catalog" 
           class="bg-[#E8B010] hover:bg-[#D49A00] text-[#1F0A03] font-black py-4 px-6 rounded-2xl shadow-xl shadow-[#E8B010]/30 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 active:scale-95 border border-[#FFE082]/40 relative z-10"
         >
-          <span>{{ languageStore.t('discover_funds_button') }}</span>
+          <span>{{ readyToInvestBanner.metadata?.button_text || languageStore.t('discover_funds_button') }}</span>
           <ArrowRight class="w-4 h-4" />
         </router-link>
       </section>
@@ -501,10 +533,10 @@ onMounted(() => {
             <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-[#E8B010] shrink-0 border border-white/10">
               <Sparkles class="w-4 h-4" />
             </div>
-            <h3 class="text-xl font-black leading-none text-white">{{ languageStore.t('ready_to_invest_title') }}</h3>
+            <h3 class="text-xl font-black leading-none text-white">{{ readyToInvestPendingBanner.title }}</h3>
           </div>
           <p class="text-white/85 text-xs font-medium leading-relaxed pt-1">
-            {{ languageStore.t('ready_to_invest_pending_desc') }}
+            {{ readyToInvestPendingBanner.body }}
           </p>
         </div>
 
@@ -512,7 +544,7 @@ onMounted(() => {
           to="/catalog" 
           class="bg-[#E8B010] hover:bg-[#D49A00] text-[#1F0A03] font-black py-4 px-6 rounded-2xl shadow-xl shadow-[#E8B010]/30 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 active:scale-95 border border-[#FFE082]/40 relative z-10"
         >
-          <span>{{ languageStore.t('discover_funds_button') }}</span>
+          <span>{{ readyToInvestPendingBanner.metadata?.button_text || languageStore.t('discover_funds_button') }}</span>
           <ArrowRight class="w-4 h-4" />
         </router-link>
       </section>

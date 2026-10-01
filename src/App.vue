@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import MobileLayout from './layouts/MobileLayout.vue'
 import { Smartphone, MonitorOff, WifiOff } from 'lucide-vue-next'
 import { useAuthStore } from './stores/auth'
+import { useAppContentStore } from './stores/appContent'
 import api from './api/api'
 import { restoreSession } from './services/restoreSession'
 import { QrcodeSvg } from 'qrcode.vue'
@@ -10,6 +11,7 @@ import { QrcodeSvg } from 'qrcode.vue'
 const isDesktop = ref(false)
 const isOffline = ref(!window.navigator.onLine)
 const authStore = useAuthStore()
+const appContentStore = useAppContentStore()
 const showApplePrompt = ref(false)
 const qrValue = ref(window.location.href)
 
@@ -54,6 +56,7 @@ onMounted(() => {
   checkScreenSize()
   detectiOS()
   initUser()
+  appContentStore.fetchContents()
   qrValue.value = window.location.href
   window.addEventListener('resize', checkScreenSize)
   window.addEventListener('online', updateOnlineStatus)

@@ -1,16 +1,20 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronLeft, Wallet, CreditCard, Smartphone, Loader2, CheckCircle2, ArrowRight, AlertCircle, FileText, Download, Building2, Copy, Check, Info, Sparkles, Clock, RefreshCw } from 'lucide-vue-next'
 import api from '../api/api'
 import { mobileRetryMode, verifyMobileRetry } from '../services/mobilePaymentStatus'
 import { useAuthStore } from '../stores/auth'
+import { useLanguageStore } from '../stores/language'
+import { useAppContentStore } from '../stores/appContent'
 import { getFrontendDocumentUrl, downloadDocument } from '../utils/document'
 import BankTransferProofs from '../components/BankTransferProofs.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
+const appContentStore = useAppContentStore()
 
 const fund = ref(null)
 const loading = ref(true)
@@ -53,7 +57,7 @@ const paymentMethod = ref('card')
 const idempotencyKey = ref(null)
 const recordedSubscription = ref(null)
 const paymentPhone = ref('')
-const paymentOptions = ref({ orange_money: false, mtn_momo: false, fee_basis_points: 100, max_investment: 100000000 })
+const paymentOptions = ref({ card: true, stripe: true, orange_money: false, mtn_momo: false, fee_basis_points: 100, max_investment: 100000000 })
 
 // Détection automatique de l'opérateur camerounais
 const phoneOperator = computed(() => {
@@ -100,8 +104,34 @@ const phoneOperatorMismatch = computed(() => {
   return detected !== paymentMethod.value
 })
 
+const phoneInputRef = ref(null)
+
+const focusPhoneInput = async () => {
+  await nextTick()
+  if (phoneInputRef.value) {
+    phoneInputRef.value.focus()
+    phoneInputRef.value.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+  }
+}
+
+const selectPaymentMethod = (method) => {
+  paymentMethod.value = method
+  if (['orange_money', 'mtn_momo'].includes(method)) {
+    focusPhoneInput()
+  }
+}
+
+watch(paymentMethod, (newMethod) => {
+  if (['orange_money', 'mtn_momo'].includes(newMethod)) {
+    focusPhoneInput()
+  }
+})
+
 const switchOperatorTo = (target) => {
-  if (target) paymentMethod.value = target
+  if (target) {
+    paymentMethod.value = target
+    focusPhoneInput()
+  }
 }
 
 // État du modal de paiement Mobile Money en direct
@@ -603,17 +633,14 @@ const handleSubscribe = async () => {
       <button @click="router.back()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 active:scale-95 transition-all">
         <ChevronLeft class="w-6 h-6" />
       </button>
-      <h2 class="text-xl font-bold text-slate-900">Souscription</h2>
+      <h2 class="text-xl font-bold text-slate-900">{{ languageStore.t('subscription_title') }}</h2>
     </header>
 
     <div class="flex-1 px-6 py-8 space-y-8 pb-44">
       <!-- Welcome 1st Subscription Banner -->
-      <div v-if="userSubscriptionsCount === 0" class="bg-amber-50 border-2 border-amber-200/80 p-4 rounded-3xl flex items-start gap-3 text-left">
-        <Sparkles class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        <div class="space-y-1">
-          <p class="text-xs font-black text-amber-900">Première souscription (Accès immédiat)</p>
-          <p class="text-[11px] text-amber-800 font-medium">Vous pouvez effectuer cette 1ère souscription immédiatement avec un montant plafonné à <strong>250 000 FCFA</strong>. Votre dossier d'onboarding devra être complété et validé pour votre 2ème souscription.</p>
-        </div>
+      <div v-if="userSubscriptionsCount === 0" class="bg-amber-50 border-2 border-amber-200/80 p-5 rounded-3xl text-left space-y-1.5 shadow-sm">
+        <p class="text-xs font-black text-amber-900">{{ appContentStore.getTitle('first_sub_banner', 'first_sub_banner_title', languageStore.isEn() ? 'Your first subscription' : 'Votre première souscription') }}</p>
+        <p class="text-[11px] text-amber-800 font-medium leading-relaxed" v-html="appContentStore.t('first_sub_banner', 'first_sub_banner_desc')"></p>
       </div>
 
       <!-- Fund Summary Card -->
@@ -768,7 +795,7 @@ const handleSubscribe = async () => {
               <p :class="paymentMethod === 'card' ? 'text-white/70' : 'text-slate-400'" class="text-[10px] mt-1">Paiement immédiat sur la page sécurisée Stripe.</p>
             </div>
           </button>
-          <button v-for="operator in ['orange_money', 'mtn_momo']" :key="operator" type="button" @click="paymentMethod = operator" :disabled="!paymentOptions[operator]"
+          <button v-for="operator in ['orange_money', 'mtn_momo']" :key="operator" type="button" @click="selectPaymentMethod(operator)" :disabled="!paymentOptions[operator]"
             :class="paymentMethod === operator ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-700'"
             class="p-4 rounded-2xl border-2 flex items-center gap-3 text-left transition-all disabled:opacity-50">
             <Smartphone class="w-5 h-5" />
@@ -804,6 +831,7 @@ const handleSubscribe = async () => {
 
           <div class="relative">
             <input 
+              ref="phoneInputRef"
               v-model="paymentPhone" 
               type="tel" 
               inputmode="tel" 

@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
 import api from '../api/api'
 import LanguageSelector from '../components/LanguageSelector.vue'
+import logoImg from '../assets/logo.png'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -129,19 +130,23 @@ onUnmounted(() => {
   <div class="mobile-container flex flex-col">
     <!-- Header -->
     <header v-if="shouldShowHeader" class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex justify-between items-center">
-      <router-link to="/home" class="flex items-center gap-3">
-        <img src="/logo.png" alt="PEK Logo" class="h-20 max-h-20 w-auto object-contain py-1">
+      <router-link to="/home" custom v-slot="{ href, navigate }">
+        <a :href="href" @click="navigate" class="flex items-center gap-3 cursor-pointer">
+          <img :src="logoImg" @error="$event.target.src = '/logo.png'" alt="PEK Logo" class="h-20 max-h-20 w-auto object-contain py-1">
+        </a>
       </router-link>
       <div class="flex items-center gap-3">
         <LanguageSelector />
-        <router-link to="/notifications" class="relative w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors">
-          <Bell class="w-5 h-5" />
-          <span
-            v-if="authStore.unreadNotificationsCount > 0"
-            class="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in duration-200"
-          >
-            {{ authStore.unreadNotificationsCount }}
-          </span>
+        <router-link to="/notifications" custom v-slot="{ href, navigate }">
+          <a :href="href" @click="navigate" class="relative w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer">
+            <Bell class="w-5 h-5 pointer-events-none" />
+            <span
+              v-if="authStore.unreadNotificationsCount > 0"
+              class="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in duration-200 pointer-events-none"
+            >
+              {{ authStore.unreadNotificationsCount }}
+            </span>
+          </a>
         </router-link>
       </div>
     </header>
@@ -154,48 +159,58 @@ onUnmounted(() => {
     <!-- Bottom Navigation -->
     <nav v-if="shouldShowNav && !isSubscriptionRoute" class="fixed bottom-0 left-0 right-0 max-width-container mx-auto bg-white/95 backdrop-blur-lg border-t border-slate-100 px-4 py-2 pb-4 flex justify-between items-center z-50 shadow-2xl">
       <!-- 1. Accueil -->
-      <router-link to="/home" class="flex-1 flex flex-col items-center gap-1 group" v-slot="{ isActive }">
-        <Home :class="['w-5 h-5 transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
-        <span :class="['text-[10px] font-bold transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">
-          {{ languageStore.t('nav_home') }}
-        </span>
+      <router-link to="/home" custom v-slot="{ href, navigate, isActive }">
+        <a :href="href" @click="navigate" class="flex-1 flex flex-col items-center gap-1 group cursor-pointer select-none">
+          <Home :class="['w-5 h-5 transition-colors pointer-events-none', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
+          <span :class="['text-[10px] font-bold transition-colors pointer-events-none', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">
+            {{ languageStore.t('nav_home') }}
+          </span>
+        </a>
       </router-link>
 
       <!-- 2. Mon portefeuille -->
-      <router-link to="/my-subscriptions" class="flex-1 flex flex-col items-center gap-1 group" v-slot="{ isActive }">
-        <Wallet :class="['w-5 h-5 transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
-        <span :class="['text-[10px] font-bold transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">
-          {{ languageStore.t('nav_portfolio') }}
-        </span>
+      <router-link to="/my-subscriptions" custom v-slot="{ href, navigate, isActive }">
+        <a :href="href" @click="navigate" class="flex-1 flex flex-col items-center gap-1 group cursor-pointer select-none">
+          <Wallet :class="['w-5 h-5 transition-colors pointer-events-none', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
+          <span :class="['text-[10px] font-bold transition-colors pointer-events-none', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">
+            {{ languageStore.t('nav_portfolio') }}
+          </span>
+        </a>
       </router-link>
 
       <!-- 3. Investir (Centre / Main Action CTA Button) -->
-      <router-link to="/catalog" class="flex-1 flex flex-col items-center -mt-5 group" v-slot="{ isActive }">
-        <div :class="[
-          'w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95 border-2 border-white',
-          isActive ? 'bg-[#E8B010] text-[#1F0A03] shadow-[#E8B010]/40' : 'bg-[#482010] text-white shadow-[#482010]/30 group-hover:bg-[#3A190C]'
-        ]">
-          <TrendingUp class="w-6 h-6" />
-        </div>
-        <span :class="['text-[10px] font-black mt-1 transition-colors uppercase tracking-wider', isActive ? 'text-[#D49A00]' : 'text-[#482010]']">
-          {{ languageStore.t('nav_invest') }}
-        </span>
+      <router-link to="/catalog" custom v-slot="{ href, navigate, isActive }">
+        <a :href="href" @click="navigate" class="flex-1 flex flex-col items-center -mt-5 group cursor-pointer select-none">
+          <div :class="[
+            'w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95 border-2 border-white pointer-events-none',
+            isActive ? 'bg-[#E8B010] text-[#1F0A03] shadow-[#E8B010]/40' : 'bg-[#482010] text-white shadow-[#482010]/30 group-hover:bg-[#3A190C]'
+          ]">
+            <TrendingUp class="w-6 h-6" />
+          </div>
+          <span :class="['text-[10px] font-black mt-1 transition-colors uppercase tracking-wider pointer-events-none', isActive ? 'text-[#D49A00]' : 'text-[#482010]']">
+            {{ languageStore.t('nav_invest') }}
+          </span>
+        </a>
       </router-link>
 
       <!-- 4. Historique -->
-      <router-link to="/history" class="flex-1 flex flex-col items-center gap-1 group" v-slot="{ isActive }">
-        <History :class="['w-5 h-5 transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
-        <span :class="['text-[10px] font-bold transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">
-          {{ languageStore.t('nav_history') }}
-        </span>
+      <router-link to="/history" custom v-slot="{ href, navigate, isActive }">
+        <a :href="href" @click="navigate" class="flex-1 flex flex-col items-center gap-1 group cursor-pointer select-none">
+          <History :class="['w-5 h-5 transition-colors pointer-events-none', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
+          <span :class="['text-[10px] font-bold transition-colors pointer-events-none', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">
+            {{ languageStore.t('nav_history') }}
+          </span>
+        </a>
       </router-link>
 
       <!-- 5. Paramètres -->
-      <router-link to="/profile" class="flex-1 flex flex-col items-center gap-1 group" v-slot="{ isActive }">
-        <Settings :class="['w-5 h-5 transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
-        <span :class="['text-[10px] font-bold transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">
-          {{ languageStore.t('nav_settings') }}
-        </span>
+      <router-link to="/profile" custom v-slot="{ href, navigate, isActive }">
+        <a :href="href" @click="navigate" class="flex-1 flex flex-col items-center gap-1 group cursor-pointer select-none">
+          <Settings :class="['w-5 h-5 transition-colors pointer-events-none', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']" />
+          <span :class="['text-[10px] font-bold transition-colors pointer-events-none', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600']">
+            {{ languageStore.t('nav_settings') }}
+          </span>
+        </a>
       </router-link>
     </nav>
   </div>

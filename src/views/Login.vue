@@ -6,6 +6,7 @@ import { useLanguageStore } from '../stores/language'
 import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, ChevronLeft } from 'lucide-vue-next'
 import api from '../api/api'
 import LanguageSelector from '../components/LanguageSelector.vue'
+import logoImg from '../assets/logo.png'
 
 const router = useRouter()
 const route = useRoute()
@@ -119,7 +120,7 @@ const handleResendOtp = async () => {
     </div>
 
     <div class="flex flex-col items-center space-y-6">
-      <img src="/logo.png" alt="PEK Logo" class="h-24 max-w-[200px] w-auto object-contain">
+      <img :src="logoImg" @error="$event.target.src = '/logo.png'" alt="PEK Logo" class="h-24 max-w-[200px] w-auto object-contain">
       <div class="text-center space-y-2">
         <h2 class="text-3xl font-bold text-primary">
           {{ step === 1 ? languageStore.t('welcome_back') : languageStore.t('otp_title') }}

@@ -5,6 +5,7 @@ import { Mail, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-vue-next'
 import { useLanguageStore } from '../stores/language'
 import api from '../api/api'
 import LanguageSelector from '../components/LanguageSelector.vue'
+import logoImg from '../assets/logo.png'
 
 const router = useRouter()
 const languageStore = useLanguageStore()
@@ -42,7 +43,7 @@ const handleSubmit = async () => {
 
     <!-- Header -->
     <div class="flex flex-col items-center space-y-5">
-      <img src="/logo.png" alt="PEK Logo" class="h-16 w-auto object-contain">
+      <img :src="logoImg" @error="$event.target.src = '/logo.png'" alt="PEK Logo" class="h-16 w-auto object-contain">
       <div class="text-center space-y-2">
         <h2 class="text-2xl font-bold text-primary">{{ languageStore.isEn() ? 'Forgot Password' : 'Mot de passe oublié' }}</h2>
         <p class="text-slate-500 text-sm">{{ languageStore.isEn() ? 'Enter your email to reset access to your account.' : 'Entrez votre email pour réinitialiser votre accès.' }}</p>

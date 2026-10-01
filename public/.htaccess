@@ -13,6 +13,16 @@
   RewriteRule . /index.html [L]
 </IfModule>
 
+<IfModule mod_mime.c>
+  AddType image/gif .gif
+  AddType image/png .png
+  AddType image/jpeg .jpg .jpeg
+  AddType image/svg+xml .svg
+  AddType image/webp .webp
+  AddType application/json .json
+  AddType application/javascript .js
+</IfModule>
+
 <IfModule mod_headers.c>
   # Revalidate entry points so an installed PWA receives the deployed API/config.
   <FilesMatch "^(index\.html|sw\.js|manifest.*\.json)$">
@@ -22,5 +32,5 @@
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "no-referrer"
   Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=()"
-  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com https://*.enkap.cm https://*.maviance.info; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://flagcdn.com https://pek-api-v2.ejabbing.com https://pek-api-v2.e-jabbing.com https://pek-api-v2.koriassetmanagement.com; connect-src 'self' https://pek-api-v2.ejabbing.com https://pek-api-v2.e-jabbing.com https://pek-api-v2.koriassetmanagement.com https://api.enkap.cm https://api-evisa.enkap-staging.maviance.info; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests"
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com https://*.enkap.cm https://*.maviance.info; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: https://flagcdn.com https://pek-api-v2.ejabbing.com https://pek-api-v2.e-jabbing.com https://pek-api-v2.koriassetmanagement.com; connect-src 'self' https://pek-api-v2.ejabbing.com https://pek-api-v2.e-jabbing.com https://pek-api-v2.koriassetmanagement.com https://api.enkap.cm https://api-evisa.enkap-staging.maviance.info; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests"
 </IfModule>

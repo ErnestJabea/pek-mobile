@@ -111,6 +111,10 @@ export const translations = {
     details: "Détails",
     loading_space: "Chargement de votre espace...",
     portfolio_value: "Valeur du Portefeuille",
+    portfolio_title: "Portefeuille",
+    global_assets: "Actif Global",
+    total_shares: "Parts Totales",
+    capital_gain: "Plus-value",
 
     // Catalog
     official_documents: "Documents officiels",
@@ -124,6 +128,11 @@ export const translations = {
     low_risk: "Faible",
     moderate_risk: "Modéré",
     high_risk: "Élevé",
+
+    // Subscription
+    subscription_title: "Souscription",
+    first_sub_banner_title: "Votre première souscription",
+    first_sub_banner_desc: "Vous pouvez effectuer votre première souscription immédiatement avec un montant plafonné à <strong>250 000 FCFA</strong>. Votre dossier d'onboarding devra être complété et validé pour votre 2ème souscription.",
   },
   en: {
     // Welcome / Slides
@@ -237,6 +246,10 @@ export const translations = {
     details: "Details",
     loading_space: "Loading your portal...",
     portfolio_value: "Portfolio Value",
+    portfolio_title: "Portfolio",
+    global_assets: "Global Assets",
+    total_shares: "Total Shares",
+    capital_gain: "Capital Gain",
 
     // Catalog
     official_documents: "Official Documents",
@@ -250,5 +263,10 @@ export const translations = {
     low_risk: "Low",
     moderate_risk: "Moderate",
     high_risk: "High",
+
+    // Subscription
+    subscription_title: "Subscription",
+    first_sub_banner_title: "Your first subscription",
+    first_sub_banner_desc: "You can make your first subscription immediately with an amount capped at <strong>250,000 FCFA</strong>. Your onboarding file must be completed and validated for your 2nd subscription.",
   }
 }
