@@ -1,5 +1,5 @@
 // Minimal Service Worker to satisfy PWA installation criteria
-const CACHE_NAME = 'pek-cache-v6';
+const CACHE_NAME = 'pek-cache-v7';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -32,6 +32,13 @@ self.addEventListener('activate', (event) => {
       );
     }).then(() => self.clients.claim())
   );
+});
+
+// Écoute des messages pour forcer l'activation immédiate
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Fetch Event (Network first, fallback to cache for offline basic support)
