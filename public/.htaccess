@@ -1,3 +1,13 @@
+# Disable ModSecurity false positives on payload parsing / multipart
+<IfModule mod_security2.c>
+  SecRuleEngine Off
+  SecRequestBodyAccess Off
+</IfModule>
+<IfModule mod_security.c>
+  SecFilterEngine Off
+  SecFilterScanPOST Off
+</IfModule>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -23,14 +33,20 @@
   AddType application/javascript .js
 </IfModule>
 
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json image/svg+xml
+</IfModule>
+
 <IfModule mod_headers.c>
   # Revalidate entry points so an installed PWA receives the deployed API/config.
-  <FilesMatch "^(index\.html|sw\.js|manifest.*\.json)$">
-    Header set Cache-Control "no-cache, must-revalidate"
+  <FilesMatch "^(index\.html|sw\.js|service-worker\.js|manifest.*\.json)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
   </FilesMatch>
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "no-referrer"
   Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=()"
-  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com https://*.enkap.cm https://*.maviance.info; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: https://flagcdn.com https://pek-api-v2.ejabbing.com https://pek-api-v2.e-jabbing.com https://pek-api-v2.koriassetmanagement.com; connect-src 'self' https://pek-api-v2.ejabbing.com https://pek-api-v2.e-jabbing.com https://pek-api-v2.koriassetmanagement.com https://api.enkap.cm https://api-evisa.enkap-staging.maviance.info; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests"
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com https://*.enkap.cm https://*.maviance.info; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: https://flagcdn.com https://pek-api-v2.ejabbing.com https://pek-api-v2.e-jabbing.com https://pek-api-v2.koriassetmanagement.com; connect-src 'self' https://pek-api-v2.ejabbing.com https://pek-api-v2.e-jabbing.com https://pek-api-v2.koriassetmanagement.com https://api.enkap.cm https://api-evisa.enkap-staging.maviance.info; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests"
 </IfModule>

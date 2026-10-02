@@ -4,8 +4,8 @@
   "description": "Application Mobile d'abonnement PEK",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFF7E6",
-  "theme_color": "#482010",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "orientation": "portrait",
   "scope": "/",
   "icons": [

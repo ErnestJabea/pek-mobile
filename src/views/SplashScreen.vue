@@ -47,16 +47,16 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-primary flex flex-col items-center justify-center z-[100]">
+  <div class="fixed inset-0 bg-white flex flex-col items-center justify-center z-[100]">
     <div class="relative flex items-center justify-center w-52 h-52">
-      <div class="absolute inset-0 bg-accent/15 blur-3xl rounded-full scale-125"></div>
+      <div class="absolute inset-0 bg-accent/10 blur-3xl rounded-full scale-125"></div>
       
       <!-- Static Logo visible immediately (zero network wait time) -->
       <img
         :src="logoPng"
         @error="$event.target.src = '/logo.png'"
         alt="PEK Logo"
-        class="absolute inset-0 w-full h-full object-contain rounded-[2rem] shadow-2xl shadow-cocoa/30 transition-opacity duration-500"
+        class="absolute inset-0 w-full h-full object-contain rounded-[2rem] transition-opacity duration-500"
         :class="{ 'opacity-0': gifLoaded, 'opacity-100 animate-pulse': !gifLoaded }"
       >
 
@@ -67,13 +67,13 @@ onMounted(async () => {
         @error="gifFailed = true"
         v-show="!gifFailed"
         alt="PEK Logo Animé"
-        class="relative z-10 w-full h-full object-contain rounded-[2rem] shadow-2xl shadow-cocoa/30 transition-opacity duration-500"
+        class="relative z-10 w-full h-full object-contain rounded-[2rem] transition-opacity duration-500"
         :class="{ 'opacity-100': gifLoaded, 'opacity-0': !gifLoaded }"
       >
     </div>
 
     <div class="mt-10 text-center space-y-4">
-      <p class="text-accent/90 text-sm font-bold tracking-[0.3em] uppercase">Plan d'Epargne Kori</p>
+      <p class="text-primary text-sm font-extrabold tracking-[0.3em] uppercase">Plan d'Epargne Kori</p>
     </div>
 
     <div class="absolute bottom-12 left-0 right-0 flex justify-center">

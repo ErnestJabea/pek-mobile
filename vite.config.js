@@ -8,7 +8,7 @@ process.env.no_proxy = '127.0.0.1,localhost,::1'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
-  const apiTarget = env.VITE_API_PROXY_TARGET || 'https://pek-api-v2.koriassetmanagement.com'
+  const apiTarget = env.VITE_API_PROXY_TARGET || 'https://pek-api-v3.koriassetmanagement.com'
   return {
   plugins: [
     vue(),
@@ -34,6 +34,7 @@ export default defineConfig(({ mode }) => {
     drop: ['console', 'debugger'],
   },
   build: {
+    cssCodeSplit: false,
     emptyOutDir: true,
   }
   }

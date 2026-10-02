@@ -42,7 +42,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   const requestUrl = new URL(event.request.url);
-  if (/^\/(api|admin|payment)(\/|$)/.test(requestUrl.pathname)) {
+  if (/^\/(api|admin|payment|sanctum|oauth)(\/|$)/.test(requestUrl.pathname)) {
     return;
   }
   
