@@ -353,7 +353,7 @@ const fetchData = async () => {
     paymentOptions.value = optionsRes.data
 
     const subsList = Array.isArray(subsRes.data?.data) ? subsRes.data.data : (Array.isArray(subsRes.data) ? subsRes.data : [])
-    userSubscriptionsCount.value = subsList.filter(s => !['Annulée', 'Rejetée'].includes(s.statut)).length
+    userSubscriptionsCount.value = subsList.filter(s => ['Succès', 'Valide', 'Validée'].includes(s.statut) || !!s.payment_confirmed_at || !!s.funds_received_at).length
     
     // Retirer l'indicatif 237 / +237 par défaut pour n'afficher que le numéro national camerounais
     let initialPhone = (authStore.user?.phone || '').replace(/\D/g, '')
@@ -423,7 +423,7 @@ const handleSubscribe = async () => {
   const onboardingStatus = authStore.user?.onboarding_status
 
   if (userSubscriptionsCount.value === 0) {
-    if (totalAmount.value > 250000) {
+    if (onboardingStatus !== 'validated' && totalAmount.value > 250000) {
       stripeError.value = 'Pour votre première souscription avant la validation de votre onboarding, le montant est plafonné à 250 000 FCFA.'
       showErrorModal.value = true
       return
