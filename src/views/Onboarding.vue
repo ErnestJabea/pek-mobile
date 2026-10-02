@@ -579,29 +579,28 @@ const executeKYCVerification = async () => {
 }
 
 const personnePhysiqueCategories = [
-  'Salarié secteur public',
-  'Salarié secteur privé',
-  'Agent des organismes internationaux',
-  'Profession libérale',
-  'Commerçant / entrepreneur',
-  'Chômeur'
+  'Particulier',
+  'Professionnel',
+  'Institutionnel'
 ]
 
 const personneMoraleCategories = [
-  'Banques',
-  'OPC',
-  'Caisses de dépôt et consignation (CDC)',
-  'Autres institutions financières',
-  'Sociétés de bourse',
-  'Société de gestion d\'OPC',
-  'Entreprises non financières'
+  'Personne Morale',
+  'Institutionnel',
+  'Professionnel',
+  'Entreprises non financières',
+  'Banques / Établissements financiers',
+  'OPC / Sociétés de gestion'
 ]
 
 const availableClientCategories = computed(() => {
-  if (payload.value.nature_client === 'personne_morale') {
-    return personneMoraleCategories
+  const list = payload.value.nature_client === 'personne_morale'
+    ? [...personneMoraleCategories]
+    : [...personnePhysiqueCategories]
+  if (payload.value.categorie_client && !list.includes(payload.value.categorie_client)) {
+    list.unshift(payload.value.categorie_client)
   }
-  return personnePhysiqueCategories
+  return list
 })
 
 const onNatureClientChange = () => {
@@ -619,7 +618,7 @@ const payload = ref({
   // KYC Step
   civ: 'M.',
   nature_client: 'personne_physique',
-  categorie_client: 'Salarié secteur privé',
+  categorie_client: 'Particulier',
   nom: '',
   prenom: '',
   nat: 'Camerounaise',

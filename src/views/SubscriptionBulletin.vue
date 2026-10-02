@@ -181,7 +181,7 @@ onBeforeUnmount(() => {
           </tr>
           <tr>
             <td class="lbl">Catégorie du client*&nbsp;:</td>
-            <td class="val-ligne" colspan="3">{{ (!data?.is_personne_morale || data?.categorie_client?.toLowerCase().includes('particulier') || data?.categorie_client?.toLowerCase().includes('detail')) ? 'Particulier' : (data?.categorie_client || 'Particulier') }}</td>
+            <td class="val-ligne" colspan="3">{{ data?.categorie_client || 'Particulier' }}</td>
           </tr>
           <tr>
             <td class="lbl">Pièce d’identité&nbsp;:</td>
