@@ -1,16 +1,45 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
-import { User, UserCheck, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff } from 'lucide-vue-next'
+import { User, UserCheck, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff, AlertCircle, FileText } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
 import { getCitiesForCountry, getImmediateCitiesForCountry } from '../data/cities.js'
+import RenewIdentityModal from '../components/RenewIdentityModal.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const languageStore = useLanguageStore()
+const showRenewModal = ref(false)
+
+const formattedExpirationDate = computed(() => {
+  const exp = authStore.user?.expiration_piece || authStore.user?.effective_expiration_piece
+  if (!exp) return 'Non renseignée'
+  const parts = exp.split('-')
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+  return exp
+})
+
+onMounted(() => {
+  if (route.query?.renew_id === '1' || route.query?.renew_id === 'true') {
+    showRenewModal.value = true
+  }
+})
+
+const onIdRenewed = (updatedUser) => {
+  if (updatedUser) {
+    authStore.setUser(updatedUser)
+  }
+  message.value = {
+    type: 'success',
+    text: 'Pièce d’identité mise à jour avec succès.'
+  }
+}
 
 const changeLang = (lang) => {
   languageStore.setLanguage(lang)
@@ -455,6 +484,85 @@ const saveProfileCategory = async () => {
         </div>
       </div>
 
+      <!-- Pièce d'identification (KYC) -->
+      <div v-if="!isEditing" class="space-y-4">
+        <div class="flex items-center justify-between ml-1">
+          <h3 class="text-slate-400 text-xs font-black uppercase tracking-widest">Pièce d'identification</h3>
+          <span 
+            v-if="authStore.user?.is_id_expired" 
+            class="text-[10px] text-rose-600 font-black uppercase tracking-wider bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full"
+          >
+            Expirée
+          </span>
+          <span 
+            v-else-if="authStore.user?.is_id_expiring_soon" 
+            class="text-[10px] text-amber-700 font-black uppercase tracking-wider bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full"
+          >
+            Expire bientôt
+          </span>
+          <span 
+            v-else-if="authStore.user?.expiration_piece || authStore.user?.effective_expiration_piece" 
+            class="text-[10px] text-emerald-700 font-black uppercase tracking-wider bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full"
+          >
+            Valide
+          </span>
+        </div>
+
+        <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-4 text-left">
+          <!-- Alerte expiration -->
+          <div 
+            v-if="authStore.user?.is_id_expired" 
+            class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3"
+          >
+            <AlertCircle class="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div class="space-y-0.5">
+              <h5 class="text-xs font-black text-rose-950 uppercase tracking-wide">Document expiré</h5>
+              <p class="text-[11px] text-rose-800 font-medium leading-relaxed">
+                Votre pièce d'identité a expiré le {{ formattedExpirationDate }}. Veuillez la renouveler sans tarder.
+              </p>
+            </div>
+          </div>
+
+          <div 
+            v-else-if="authStore.user?.is_id_expiring_soon" 
+            class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3"
+          >
+            <AlertCircle class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div class="space-y-0.5">
+              <h5 class="text-xs font-black text-amber-950 uppercase tracking-wide">Expiration prochaine</h5>
+              <p class="text-[11px] text-amber-800 font-medium leading-relaxed">
+                Votre pièce d'identité expire dans {{ authStore.user?.id_days_until_expiration }} jours (le {{ formattedExpirationDate }}).
+              </p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="p-3 bg-slate-50 rounded-2xl space-y-1">
+              <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Type de pièce</span>
+              <span class="text-xs font-bold text-slate-800 block truncate">{{ authStore.user?.type_piece || 'CNI' }}</span>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-2xl space-y-1">
+              <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block">N° Document</span>
+              <span class="text-xs font-bold text-slate-800 block truncate">{{ authStore.user?.num_piece || 'Non renseigné' }}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
+            <div>
+              <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Date d'expiration</span>
+              <span class="text-xs font-bold text-slate-800 block">{{ formattedExpirationDate }}</span>
+            </div>
+            <button 
+              type="button" 
+              @click="showRenewModal = true"
+              class="bg-primary/10 hover:bg-primary/20 text-primary font-black text-[11px] px-3.5 py-2 rounded-xl transition-all active:scale-95 uppercase tracking-wider"
+            >
+              Renouveler
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Sécurité & Mot de passe -->
       <div v-if="!isEditing" class="space-y-4">
         <div class="flex items-center justify-between ml-1">
@@ -644,5 +752,8 @@ const saveProfileCategory = async () => {
         </div>
       </div>
     </div>
+
+    <!-- Modal Renouvellement Pièce d'Identité -->
+    <RenewIdentityModal v-model="showRenewModal" @renewed="onIdRenewed" />
   </div>
 </template>

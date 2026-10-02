@@ -2139,6 +2139,8 @@ const submitOnboarding = async () => {
               💡 Vous pouvez compléter ou corriger vos informations et documents tant que votre dossier n'est pas validé.
             </span>
           </div>
+        </div>
+
         <!-- Section complément d'information pour dossier validé ou soumis sans catégorie -->
         <div v-if="serverNeedsCategory || (!authStore.user?.categorie_client && !payload.categorie_client) || missingCategorySuccess" class="w-full bg-white rounded-3xl p-6 space-y-4 border border-amber-200 shadow-lg text-left animate-in fade-in duration-300">
           <div class="flex items-center gap-3">

@@ -5,6 +5,7 @@ import api from '../api/api'
 import { useLanguageStore } from '../stores/language'
 import { useAppContentStore } from '../stores/appContent'
 import { useAuthStore } from '../stores/auth'
+import RenewIdentityModal from '../components/RenewIdentityModal.vue'
 
 const authStore = useAuthStore()
 const languageStore = useLanguageStore()
@@ -14,6 +15,24 @@ const featuredFunds = ref([])
 const loading = ref(true)
 const activeBarIndex = ref(null)
 const showRedeemModal = ref(false)
+
+const showRenewIdModal = ref(false)
+
+const formattedExpirationDate = computed(() => {
+  const exp = authStore.user?.expiration_piece || authStore.user?.effective_expiration_piece
+  if (!exp) return ''
+  const parts = exp.split('-')
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+  return exp
+})
+
+const onIdRenewed = (updatedUser) => {
+  if (updatedUser) {
+    authStore.setUser(updatedUser)
+  }
+}
 
 const showCategoryModal = ref(false)
 const selectedCategoryModal = ref('Particulier')
@@ -578,6 +597,45 @@ onMounted(() => {
     <!-- Case 3: Onboarding VALIDATED (Active account) -->
     <div v-else-if="stats?.onboarding_status === 'validated'" class="space-y-8">
       
+      <!-- ID Document Expiry Banner for Validated Users -->
+      <section v-if="authStore.user?.is_id_expired" class="bg-rose-50 rounded-[28px] p-5 text-slate-900 border border-rose-200 shadow-md text-left flex items-center justify-between gap-4 animate-in fade-in duration-300">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-rose-100 text-rose-700 rounded-xl flex items-center justify-center shrink-0">
+            <AlertCircle class="w-5 h-5 text-rose-600" />
+          </div>
+          <div>
+            <h4 class="text-xs font-black text-rose-950 uppercase tracking-wide">Pièce d'identité expirée</h4>
+            <p class="text-[11px] text-rose-800 font-medium">Votre pièce a expiré le {{ formattedExpirationDate }}. Veuillez la renouveler pour maintenir la conformité de votre compte.</p>
+          </div>
+        </div>
+        <button 
+          type="button"
+          @click="showRenewIdModal = true" 
+          class="bg-rose-600 hover:bg-rose-700 text-white font-black text-[11px] py-2.5 px-4 rounded-xl uppercase tracking-wider shrink-0 shadow-sm active:scale-95 transition-all"
+        >
+          Mettre à jour
+        </button>
+      </section>
+
+      <section v-else-if="authStore.user?.is_id_expiring_soon" class="bg-amber-50 rounded-[28px] p-5 text-slate-900 border border-amber-200 shadow-md text-left flex items-center justify-between gap-4 animate-in fade-in duration-300">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center shrink-0">
+            <AlertCircle class="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <h4 class="text-xs font-black text-amber-950 uppercase tracking-wide">Pièce d'identité à renouveler</h4>
+            <p class="text-[11px] text-amber-800 font-medium">Expire dans {{ authStore.user?.id_days_until_expiration }} jours (le {{ formattedExpirationDate }}). Pensez à la renouveler.</p>
+          </div>
+        </div>
+        <button 
+          type="button"
+          @click="showRenewIdModal = true" 
+          class="bg-amber-600 hover:bg-amber-700 text-white font-black text-[11px] py-2.5 px-4 rounded-xl uppercase tracking-wider shrink-0 shadow-sm active:scale-95 transition-all"
+        >
+          Renouveler
+        </button>
+      </section>
+
       <!-- Missing Category Alert Banner for Validated Users -->
       <section v-if="!authStore.user?.categorie_client" class="bg-amber-50 rounded-[28px] p-5 text-slate-900 border border-amber-200/80 shadow-md text-left flex items-center justify-between gap-4 animate-in fade-in duration-300">
         <div class="flex items-center gap-3">
@@ -905,5 +963,8 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Modal Renouvellement Pièce d'Identité -->
+    <RenewIdentityModal v-model="showRenewIdModal" @renewed="onIdRenewed" />
   </div>
 </template>
