@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { ArrowUpRight, Zap, Loader2, AlertCircle, CheckCircle2, X, Plus, Info, Sparkles, ArrowRight, Wallet, TrendingUp, TrendingDown, UserCheck, ChevronDown } from 'lucide-vue-next'
+import { ArrowUpRight, Zap, Loader2, AlertCircle, CheckCircle2, X, Plus, Info, Sparkles, ArrowRight, Wallet, TrendingUp, TrendingDown, UserCheck, ChevronDown, Gift } from 'lucide-vue-next'
 import api from '../api/api'
 import { useLanguageStore } from '../stores/language'
 import { useAppContentStore } from '../stores/appContent'
@@ -597,6 +597,22 @@ onMounted(() => {
     <!-- Case 3: Onboarding VALIDATED (Active account) -->
     <div v-else-if="stats?.onboarding_status === 'validated'" class="space-y-8">
       
+      <!-- Birthday Celebration Banner -->
+      <section v-if="authStore.user?.is_birthday_today" class="bg-gradient-to-r from-amber-500 via-amber-600 to-[#482010] rounded-[28px] p-5 text-white shadow-xl shadow-amber-900/10 text-left flex items-center justify-between gap-4 animate-in fade-in duration-300 relative overflow-hidden">
+        <div class="flex items-center gap-3 relative z-10">
+          <div class="w-11 h-11 bg-white/20 backdrop-blur-sm text-white rounded-2xl flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
+            <Gift class="w-6 h-6 text-amber-200" />
+          </div>
+          <div>
+            <h4 class="text-xs font-black text-amber-100 uppercase tracking-wide flex items-center gap-1.5">
+              <span>Joyeux Anniversaire !</span>
+              <span class="text-base">🎉</span>
+            </h4>
+            <p class="text-[11px] text-white/90 font-medium">Toute l'équipe PEK vous souhaite une excellente journée d'anniversaire et le plein de réussite dans vos projets.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- ID Document Expiry Banner for Validated Users -->
       <section v-if="authStore.user?.is_id_expired" class="bg-rose-50 rounded-[28px] p-5 text-slate-900 border border-rose-200 shadow-md text-left flex items-center justify-between gap-4 animate-in fade-in duration-300">
         <div class="flex items-center gap-3">

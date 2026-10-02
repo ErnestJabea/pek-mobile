@@ -3,7 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
-import { User, UserCheck, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff, AlertCircle, FileText } from 'lucide-vue-next'
+import { User, UserCheck, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff, AlertCircle, FileText, Calendar } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
 import { getCitiesForCountry, getImmediateCitiesForCountry } from '../data/cities.js'
@@ -23,6 +23,16 @@ const formattedExpirationDate = computed(() => {
     return `${parts[2]}/${parts[1]}/${parts[0]}`
   }
   return exp
+})
+
+const formattedBirthDate = computed(() => {
+  const dob = authStore.user?.dob || authStore.user?.effective_dob
+  if (!dob) return 'Non renseignée'
+  const parts = dob.split('-')
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+  return dob
 })
 
 onMounted(() => {
@@ -438,6 +448,26 @@ const saveProfileCategory = async () => {
               <p v-if="validationErrors.city" id="city-error" role="alert" class="text-rose-500 text-[10px] mt-1 ml-1 font-semibold">
                 {{ validationErrors.city[0] }}
               </p>
+            </div>
+          </div>
+
+          <!-- Date de naissance -->
+          <div class="space-y-1">
+            <div class="flex justify-between items-center ml-1">
+              <label class="text-[10px] text-slate-400 font-black uppercase">Date de naissance</label>
+              <span v-if="authStore.user?.age" class="text-[10px] font-bold text-primary">
+                {{ authStore.user.age }} ans
+              </span>
+            </div>
+            <div class="relative">
+              <Calendar class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+              <input 
+                :value="formattedBirthDate" 
+                disabled 
+                type="text" 
+                class="w-full bg-slate-50 border-2 border-slate-50 text-slate-500 rounded-2xl py-3 pl-11 pr-4 font-bold text-sm transition-all cursor-not-allowed" 
+                placeholder="Non renseignée"
+              >
             </div>
           </div>
 
