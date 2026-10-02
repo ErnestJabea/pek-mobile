@@ -353,7 +353,12 @@ const fetchData = async () => {
     paymentOptions.value = optionsRes.data
 
     const subsList = Array.isArray(subsRes.data?.data) ? subsRes.data.data : (Array.isArray(subsRes.data) ? subsRes.data : [])
-    userSubscriptionsCount.value = subsList.filter(s => ['Succès', 'Valide', 'Validée'].includes(s.statut) || !!s.payment_confirmed_at || !!s.funds_received_at).length
+    userSubscriptionsCount.value = subsList.filter(s => {
+      const st = (s.statut || s.status || '').toLowerCase()
+      return ['succès', 'succes', 'valide', 'validée', 'validee', 'paid', 'success'].includes(st)
+        || !!s.payment_confirmed_at
+        || !!s.funds_received_at
+    }).length
     
     // Retirer l'indicatif 237 / +237 par défaut pour n'afficher que le numéro national camerounais
     let initialPhone = (authStore.user?.phone || '').replace(/\D/g, '')
@@ -1109,7 +1114,7 @@ const handleSubscribe = async () => {
         <div class="space-y-2">
           <h3 class="text-lg font-black text-slate-900">Validation Requise</h3>
           <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
-            Votre dossier KYC et votre contrôle d’identité doivent être validés avant toute souscription.
+            Pour effectuer votre 2ème souscription, votre dossier d'onboarding KYC doit être complété et validé par l'équipe Conformité.
           </p>
         </div>
         
