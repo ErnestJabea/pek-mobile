@@ -3,7 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
-import { User, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff } from 'lucide-vue-next'
+import { User, UserCheck, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
 import { getCitiesForCountry, getImmediateCitiesForCountry } from '../data/cities.js'
@@ -217,6 +217,30 @@ const handleUpdate = async () => {
     loading.value = false
   }
 }
+
+const showProfileCategoryModal = ref(false)
+const selectedProfileCategory = ref('Particulier')
+const savingProfileCategory = ref(false)
+
+const saveProfileCategory = async () => {
+  savingProfileCategory.value = true
+  try {
+    await api.post('/onboarding/missing-info', {
+      categorie_client: selectedProfileCategory.value
+    })
+    authStore.setUser({
+      ...authStore.user,
+      categorie_client: selectedProfileCategory.value,
+      needs_category: false
+    })
+    showProfileCategoryModal.value = false
+    message.value = { type: 'success', text: 'Catégorie enregistrée avec succès !' }
+  } catch (err) {
+    console.error('Erreur categorie profile', err)
+  } finally {
+    savingProfileCategory.value = false
+  }
+}
 </script>
 
 <template>
@@ -399,6 +423,35 @@ const handleUpdate = async () => {
               {{ validationErrors.employer[0] }}
             </p>
           </div>
+
+          <!-- Catégorie du client -->
+          <div class="space-y-1">
+            <div class="flex justify-between items-center ml-1">
+              <label class="text-[10px] text-slate-400 font-black uppercase">Catégorie du client</label>
+              <button 
+                type="button" 
+                @click="showProfileCategoryModal = true" 
+                class="text-[10px] text-primary font-black uppercase tracking-wider hover:underline"
+              >
+                {{ authStore.user?.categorie_client ? 'Modifier' : 'Préciser' }}
+              </button>
+            </div>
+            <div class="flex items-center justify-between bg-slate-50 border-2 border-slate-50 rounded-2xl py-3 px-4">
+              <span class="text-slate-700 font-bold text-sm">{{ authStore.user?.categorie_client || 'Non renseignée' }}</span>
+              <span 
+                v-if="authStore.user?.categorie_client" 
+                class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800"
+              >
+                {{ authStore.user?.categorie_client }}
+              </span>
+              <span 
+                v-else 
+                class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800"
+              >
+                À compléter
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -540,6 +593,56 @@ const handleUpdate = async () => {
       </div>
 
       <p class="text-center text-slate-300 text-[10px] font-black uppercase tracking-widest pt-4">© 2026 PEK - Tous droits reserves</p>
+    </div>
+
+    <!-- Modal Catégorie de client pour le Profil -->
+    <div v-if="showProfileCategoryModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+      <div @click="showProfileCategoryModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+      
+      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+        <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500">
+          <UserCheck class="w-8 h-8" />
+        </div>
+        
+        <div class="space-y-2">
+          <h3 class="text-lg font-black text-slate-900">Catégorie Client</h3>
+          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+            Précisez votre catégorie d'investisseur pour vos attestations et bulletins officiels :
+          </p>
+        </div>
+
+        <div class="relative text-left">
+          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Catégorie réglementaire *</label>
+          <div class="relative">
+            <select v-model="selectedProfileCategory" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+              <option value="Particulier">Particulier (Recommandé)</option>
+              <option value="Professionnel">Professionnel</option>
+              <option value="Institutionnel">Institutionnel</option>
+              <option value="Personne Morale">Personne Morale</option>
+            </select>
+            <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <button 
+            type="button"
+            @click="saveProfileCategory" 
+            :disabled="savingProfileCategory"
+            class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+          >
+            <Loader2 v-if="savingProfileCategory" class="w-4 h-4 animate-spin" />
+            <span>Enregistrer</span>
+          </button>
+          <button 
+            type="button"
+            @click="showProfileCategoryModal = false" 
+            class="w-full py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition-colors"
+          >
+            Annuler
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

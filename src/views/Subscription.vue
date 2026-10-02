@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, Wallet, CreditCard, Smartphone, Loader2, CheckCircle2, ArrowRight, AlertCircle, FileText, Download, Building2, Copy, Check, Info, Sparkles, Clock, RefreshCw } from 'lucide-vue-next'
+import { ChevronLeft, Wallet, CreditCard, Smartphone, Loader2, CheckCircle2, ArrowRight, AlertCircle, FileText, Download, Building2, Copy, Check, Info, Sparkles, Clock, RefreshCw, UserCheck, ChevronDown } from 'lucide-vue-next'
 import api from '../api/api'
 import { mobileRetryMode, verifyMobileRetry } from '../services/mobilePaymentStatus'
 import { useAuthStore } from '../stores/auth'
@@ -23,7 +23,30 @@ const success = ref(false)
 const showErrorModal = ref(false)
 const showOnboardingModal = ref(false)
 const showOnboardingRequiredModal = ref(false)
+const showMissingCategoryModal = ref(false)
+const selectedQuickCategory = ref('Particulier')
+const savingQuickCategory = ref(false)
 const transactionRef = ref('')
+
+const saveQuickCategoryAndSubscribe = async () => {
+  savingQuickCategory.value = true
+  try {
+    await api.post('/onboarding/missing-info', {
+      categorie_client: selectedQuickCategory.value
+    })
+    authStore.setUser({
+      ...authStore.user,
+      categorie_client: selectedQuickCategory.value,
+      needs_category: false
+    })
+    showMissingCategoryModal.value = false
+    handleSubscribe()
+  } catch (err) {
+    console.error('Erreur enregistrement categorie rapide', err)
+  } finally {
+    savingQuickCategory.value = false
+  }
+}
 const downloadingDoc = ref('')
 
 const handleDownload = async (item, type) => {
@@ -438,6 +461,12 @@ const handleSubscribe = async () => {
       showOnboardingRequiredModal.value = true
       return
     }
+  }
+
+  // Sollicitation de la catégorie si elle est manquante (notamment profils validés en arrière-plan)
+  if (!authStore.user?.categorie_client) {
+    showMissingCategoryModal.value = true
+    return
   }
 
   stripeError.value = null
@@ -1131,6 +1160,56 @@ const handleSubscribe = async () => {
             class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider"
           >
             Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Sollicitation Rapide Catégorie Client -->
+    <div v-if="showMissingCategoryModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+      <div @click="showMissingCategoryModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+      
+      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+        <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500">
+          <UserCheck class="w-8 h-8" />
+        </div>
+        
+        <div class="space-y-2">
+          <h3 class="text-lg font-black text-slate-900">Catégorie Client</h3>
+          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+            Veuillez indiquer votre catégorie d'investisseur pour l'édition de votre bulletin de souscription :
+          </p>
+        </div>
+
+        <div class="relative text-left">
+          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Catégorie réglementaire *</label>
+          <div class="relative">
+            <select v-model="selectedQuickCategory" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+              <option value="Particulier">Particulier (Recommandé)</option>
+              <option value="Professionnel">Professionnel</option>
+              <option value="Institutionnel">Institutionnel</option>
+              <option value="Personne Morale">Personne Morale</option>
+            </select>
+            <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <button 
+            type="button"
+            @click="saveQuickCategoryAndSubscribe" 
+            :disabled="savingQuickCategory"
+            class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+          >
+            <Loader2 v-if="savingQuickCategory" class="w-4 h-4 animate-spin" />
+            <span>Valider et Continuer</span>
+          </button>
+          <button 
+            type="button"
+            @click="showMissingCategoryModal = false" 
+            class="w-full py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition-colors"
+          >
+            Annuler
           </button>
         </div>
       </div>

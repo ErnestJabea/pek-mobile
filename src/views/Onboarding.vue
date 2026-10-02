@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronLeft, User, ShieldCheck, HelpCircle, FileText, CheckCircle2, AlertCircle, PenTool, WifiOff, RefreshCw, Loader2, ArrowRight, Camera, Upload, Trash2, X } from 'lucide-vue-next'
+import { ChevronLeft, User, UserCheck, ChevronDown, ShieldCheck, HelpCircle, FileText, CheckCircle2, AlertCircle, PenTool, WifiOff, RefreshCw, Loader2, ArrowRight, Camera, Upload, Trash2, X } from 'lucide-vue-next'
 import api from '../api/api'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
@@ -613,6 +613,34 @@ const onNatureClientChange = () => {
   }
 }
 
+// Support des compléments d'informations pour les dossiers déjà finalisés / validés
+const serverNeedsCategory = ref(false)
+const updatingMissingCategory = ref(false)
+const missingCategoryValue = ref('Particulier')
+const missingCategorySuccess = ref(false)
+
+const submitMissingCategory = async () => {
+  if (!missingCategoryValue.value) return
+  updatingMissingCategory.value = true
+  try {
+    await api.post('/onboarding/missing-info', {
+      categorie_client: missingCategoryValue.value
+    })
+    authStore.setUser({
+      ...authStore.user,
+      categorie_client: missingCategoryValue.value,
+      needs_category: false
+    })
+    payload.value.categorie_client = missingCategoryValue.value
+    serverNeedsCategory.value = false
+    missingCategorySuccess.value = true
+  } catch (err) {
+    console.error('Erreur lors de l\'enregistrement de la categorie', err)
+  } finally {
+    updatingMissingCategory.value = false
+  }
+}
+
 // Payload for all onboarding steps
 const payload = ref({
   // KYC Step
@@ -740,6 +768,11 @@ const initSession = async () => {
             if (payload.value.doc_photo) docFileNames.value.doc_photo = 'Photo récente (enregistrée)'
             if (payload.value.doc_origine_fonds) docFileNames.value.doc_origine_fonds = 'Origine des fonds (enregistré)'
           }
+        }
+        const existingCat = authStore.user?.categorie_client || serverSession?.payload?.categorie_client
+        serverNeedsCategory.value = response.data.needs_category === true || !existingCat
+        if (existingCat) {
+          missingCategoryValue.value = existingCat
         }
       }
     } catch (e) {
@@ -2105,6 +2138,46 @@ const submitOnboarding = async () => {
             <span class="text-[10px] text-[#78655B] font-semibold leading-relaxed">
               💡 Vous pouvez compléter ou corriger vos informations et documents tant que votre dossier n'est pas validé.
             </span>
+          </div>
+        <!-- Section complément d'information pour dossier validé ou soumis sans catégorie -->
+        <div v-if="serverNeedsCategory || (!authStore.user?.categorie_client && !payload.categorie_client) || missingCategorySuccess" class="w-full bg-white rounded-3xl p-6 space-y-4 border border-amber-200 shadow-lg text-left animate-in fade-in duration-300">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shrink-0">
+              <UserCheck class="w-5 h-5" />
+            </div>
+            <div>
+              <h4 class="text-xs font-black uppercase tracking-wider text-slate-900">Complément réglementaire requis</h4>
+              <p class="text-[10px] text-slate-500 font-bold">Catégorie d'investisseur pour vos bulletins de souscription</p>
+            </div>
+          </div>
+
+          <div v-if="missingCategorySuccess" class="bg-emerald-50 text-emerald-800 p-4 rounded-2xl text-xs font-bold flex items-center gap-2 border border-emerald-200">
+            <CheckCircle2 class="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>Votre catégorie a bien été enregistrée : {{ missingCategoryValue }}</span>
+          </div>
+
+          <div v-else class="space-y-3">
+            <p class="text-slate-600 text-xs leading-relaxed font-medium">
+              Votre dossier est déjà validé. Vous n'avez pas besoin de soumettre à nouveau vos pièces. Veuillez simplement préciser votre catégorie de client :
+            </p>
+            <div class="relative">
+              <select v-model="missingCategoryValue" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+                <option value="Particulier">Particulier (Recommandé)</option>
+                <option value="Professionnel">Professionnel</option>
+                <option value="Institutionnel">Institutionnel</option>
+                <option value="Personne Morale">Personne Morale</option>
+              </select>
+              <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+            <button 
+              type="button"
+              @click="submitMissingCategory" 
+              :disabled="updatingMissingCategory"
+              class="w-full bg-primary hover:bg-slate-800 text-white font-black py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-md transition-all flex items-center justify-center gap-2 active:scale-95"
+            >
+              <Loader2 v-if="updatingMissingCategory" class="w-4 h-4 animate-spin" />
+              <span>Enregistrer ma catégorie</span>
+            </button>
           </div>
         </div>
 

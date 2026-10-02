@@ -1,10 +1,12 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { ArrowUpRight, Zap, Loader2, AlertCircle, CheckCircle2, X, Plus, Info, Sparkles, ArrowRight, Wallet, TrendingUp, TrendingDown } from 'lucide-vue-next'
+import { ArrowUpRight, Zap, Loader2, AlertCircle, CheckCircle2, X, Plus, Info, Sparkles, ArrowRight, Wallet, TrendingUp, TrendingDown, UserCheck, ChevronDown } from 'lucide-vue-next'
 import api from '../api/api'
 import { useLanguageStore } from '../stores/language'
 import { useAppContentStore } from '../stores/appContent'
+import { useAuthStore } from '../stores/auth'
 
+const authStore = useAuthStore()
 const languageStore = useLanguageStore()
 const appContentStore = useAppContentStore()
 const stats = ref(null)
@@ -12,6 +14,29 @@ const featuredFunds = ref([])
 const loading = ref(true)
 const activeBarIndex = ref(null)
 const showRedeemModal = ref(false)
+
+const showCategoryModal = ref(false)
+const selectedCategoryModal = ref('Particulier')
+const savingModalCategory = ref(false)
+
+const saveModalCategory = async () => {
+  savingModalCategory.value = true
+  try {
+    await api.post('/onboarding/missing-info', {
+      categorie_client: selectedCategoryModal.value
+    })
+    authStore.setUser({
+      ...authStore.user,
+      categorie_client: selectedCategoryModal.value,
+      needs_category: false
+    })
+    showCategoryModal.value = false
+  } catch (err) {
+    console.error('Erreur enregistrement categorie', err)
+  } finally {
+    savingModalCategory.value = false
+  }
+}
 
 const selectBar = (index) => {
   activeBarIndex.value = index
@@ -553,6 +578,26 @@ onMounted(() => {
     <!-- Case 3: Onboarding VALIDATED (Active account) -->
     <div v-else-if="stats?.onboarding_status === 'validated'" class="space-y-8">
       
+      <!-- Missing Category Alert Banner for Validated Users -->
+      <section v-if="!authStore.user?.categorie_client" class="bg-amber-50 rounded-[28px] p-5 text-slate-900 border border-amber-200/80 shadow-md text-left flex items-center justify-between gap-4 animate-in fade-in duration-300">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center shrink-0">
+            <UserCheck class="w-5 h-5" />
+          </div>
+          <div>
+            <h4 class="text-xs font-black text-amber-950 uppercase tracking-wide">Précision réglementaire</h4>
+            <p class="text-[11px] text-amber-800 font-medium">Veuillez indiquer votre catégorie d'investisseur pour vos bulletins.</p>
+          </div>
+        </div>
+        <button 
+          type="button"
+          @click="showCategoryModal = true" 
+          class="bg-amber-600 hover:bg-amber-700 text-white font-black text-[11px] py-2.5 px-4 rounded-xl uppercase tracking-wider shrink-0 shadow-sm active:scale-95 transition-all"
+        >
+          Renseigner
+        </button>
+      </section>
+
       <!-- Opportunities section -->
       <section class="space-y-4">
         <div class="flex justify-between items-center px-1">
@@ -815,6 +860,48 @@ onMounted(() => {
           >
             {{ languageStore.t('subscribe_now') }}
           </router-link>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Category Modal -->
+    <div v-if="showCategoryModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+      <div @click="showCategoryModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+        <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500">
+          <UserCheck class="w-8 h-8" />
+        </div>
+        <div class="space-y-2">
+          <h3 class="text-lg font-black text-slate-900">Catégorie Client</h3>
+          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+            Précisez votre catégorie d'investisseur pour la conformité de vos bulletins d'investissement :
+          </p>
+        </div>
+        <div class="relative text-left">
+          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Catégorie réglementaire *</label>
+          <div class="relative">
+            <select v-model="selectedCategoryModal" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+              <option value="Particulier">Particulier (Recommandé)</option>
+              <option value="Professionnel">Professionnel</option>
+              <option value="Institutionnel">Institutionnel</option>
+              <option value="Personne Morale">Personne Morale</option>
+            </select>
+            <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <button 
+            type="button"
+            @click="saveModalCategory" 
+            :disabled="savingModalCategory"
+            class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+          >
+            <Loader2 v-if="savingModalCategory" class="w-4 h-4 animate-spin" />
+            <span>Enregistrer</span>
+          </button>
+          <button type="button" @click="showCategoryModal = false" class="w-full py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition-colors">
+            Plus tard
+          </button>
         </div>
       </div>
     </div>
