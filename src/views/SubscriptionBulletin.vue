@@ -134,7 +134,7 @@ onBeforeUnmount(() => {
         <table class="table-header">
           <tr>
             <td class="header-logo">
-              <img :src="data?.logo_base64 || '/logo-kori.png'" alt="KORI Asset Management" class="logo-img" />
+              <img :src="data?.logo_base64 || '/logo-kam.png'" alt="KORI Asset Management" class="logo-img" />
             </td>
             <td class="header-title-box">
               <div class="titre-bulletin">BULLETIN DE SOUSCRIPTION</div>
