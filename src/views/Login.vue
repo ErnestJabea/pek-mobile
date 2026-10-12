@@ -6,6 +6,7 @@ import { useLanguageStore } from '../stores/language'
 import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, ChevronLeft } from 'lucide-vue-next'
 import api from '../api/api'
 import LanguageSelector from '../components/LanguageSelector.vue'
+import MfaConfigModal from '../components/MfaConfigModal.vue'
 import logoImg from '../assets/logo.png'
 
 const router = useRouter()
@@ -16,6 +17,7 @@ const languageStore = useLanguageStore()
 const email = ref('')
 const password = ref('')
 const step = ref(1) // 1 = credentials, 2 = MFA OTP
+const mfaType = ref('email') // 'email' | 'totp'
 const otpCode = ref('')
 const challengeId = ref('')
 const loading = ref(false)
@@ -23,6 +25,13 @@ const error = ref('')
 const validationErrors = ref({})
 const showVerificationLink = ref(false)
 const showPassword = ref(false)
+const showMfaPromptModal = ref(false)
+
+const handleMfaFinished = () => {
+  showMfaPromptModal.value = false
+  const redirectPath = route.query.redirect || '/'
+  router.push(redirectPath)
+}
 
 const clearError = (field) => {
   if (validationErrors.value[field]) {
@@ -50,13 +59,17 @@ const handleLogin = async () => {
       
       if (response.data.requires_mfa) {
         challengeId.value = response.data.challenge_id
+        mfaType.value = response.data.mfa_type || 'email'
         step.value = 2
       } else {
         authStore.setToken(response.data.access_token)
         authStore.setUser(response.data.user)
         
-        const redirectPath = route.query.redirect || '/'
-        router.push(redirectPath)
+        if (response.data.prompt_mfa) {
+          showMfaPromptModal.value = true
+        } else {
+          handleMfaFinished()
+        }
       }
     } else {
       if (!otpCode.value || otpCode.value.trim() === '') {
@@ -99,6 +112,7 @@ const handleLogin = async () => {
 }
 
 const handleResendOtp = async () => {
+  if (mfaType.value === 'totp') return
   loading.value = true
   error.value = ''
   try {
@@ -123,10 +137,16 @@ const handleResendOtp = async () => {
       <img :src="logoImg" @error="$event.target.src = '/logo.png'" alt="PEK Logo" class="h-24 max-w-[200px] w-auto object-contain">
       <div class="text-center space-y-2">
         <h2 class="text-3xl font-bold text-primary">
-          {{ step === 1 ? languageStore.t('welcome_back') : languageStore.t('otp_title') }}
+          {{ step === 1 ? languageStore.t('welcome_back') : (mfaType === 'totp' ? 'Authentification' : languageStore.t('otp_title')) }}
         </h2>
         <p class="text-slate-500 text-sm">
-          {{ step === 1 ? languageStore.t('login_subtitle') : (languageStore.isEn() ? 'Enter the verification code sent to ' : 'Saisissez le code de vérification envoyé à ') + email }}
+          {{ 
+            step === 1 
+              ? languageStore.t('login_subtitle') 
+              : (mfaType === 'totp' 
+                  ? 'Entrez le code à 6 chiffres généré par votre application d\'authentification' 
+                  : ((languageStore.isEn() ? 'Enter the verification code sent to ' : 'Saisissez le code de vérification envoyé à ') + email))
+          }}
         </p>
       </div>
     </div>
@@ -197,7 +217,9 @@ const handleResendOtp = async () => {
 
       <div v-else class="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div class="space-y-2 text-center">
-            <label class="text-sm font-bold text-slate-700">{{ languageStore.t('otp_title') }}</label>
+            <label class="text-sm font-bold text-slate-700">
+              {{ mfaType === 'totp' ? 'Code d\'application (TOTP)' : languageStore.t('otp_title') }}
+            </label>
             <input 
               v-model="otpCode" 
               @blur="clearError('code')" 
@@ -225,6 +247,7 @@ const handleResendOtp = async () => {
           </button>
           
           <button 
+            v-if="mfaType !== 'totp'"
             type="button" 
             @click="handleResendOtp"
             :disabled="loading"
@@ -232,6 +255,9 @@ const handleResendOtp = async () => {
           >
             {{ languageStore.t('resend_code') }}
           </button>
+          <span v-else class="text-[11px] text-slate-400 font-medium">
+            Renouvelé toutes les 30s
+          </span>
         </div>
       </div>
 
@@ -254,5 +280,13 @@ const handleResendOtp = async () => {
         {{ languageStore.t('register_link') }}
       </router-link>
     </p>
+
+    <!-- Modal Choix MFA Initial -->
+    <MfaConfigModal 
+      v-model="showMfaPromptModal" 
+      :is-initial-prompt="true" 
+      @update:model-value="val => { if (!val) handleMfaFinished() }" 
+      @updated="handleMfaFinished" 
+    />
   </div>
 </template>

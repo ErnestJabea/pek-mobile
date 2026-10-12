@@ -3,17 +3,19 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
-import { User, UserCheck, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff, AlertCircle, FileText, Calendar } from 'lucide-vue-next'
+import { User, UserCheck, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff, AlertCircle, FileText, Calendar, Smartphone, ShieldAlert, ShieldOff } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
 import { getCitiesForCountry, getImmediateCitiesForCountry } from '../data/cities.js'
 import RenewIdentityModal from '../components/RenewIdentityModal.vue'
+import MfaConfigModal from '../components/MfaConfigModal.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const languageStore = useLanguageStore()
 const showRenewModal = ref(false)
+const showMfaModal = ref(false)
 
 const formattedExpirationDate = computed(() => {
   const exp = authStore.user?.expiration_piece || authStore.user?.effective_expiration_piece
@@ -410,19 +412,26 @@ const saveProfileCategory = async () => {
               </p>
             </div>
             <div class="space-y-1">
-              <label class="text-[10px] text-slate-400 font-black uppercase ml-1">Ville</label>
+              <div class="flex items-center justify-between ml-1">
+                <label class="text-[10px] text-slate-400 font-black uppercase">Ville</label>
+                <span v-if="isEditing && loadingCities" class="text-[10px] font-bold text-primary flex items-center gap-1 animate-pulse">
+                  <Loader2 class="w-3 h-3 animate-spin text-primary" />
+                  Chargement...
+                </span>
+              </div>
               <div class="relative">
                 <select 
-                  v-if="isEditing && availableCities.length > 0" 
+                  v-if="isEditing && (availableCities.length > 0 || loadingCities)" 
                   :value="isCustomCity ? '__AUTRE__' : editForm.city" 
                   @change="handleCityChange" 
-                  class="w-full border-2 border-primary/20 rounded-2xl py-3 pl-3 pr-8 font-bold text-sm bg-white text-slate-700 transition-all appearance-none cursor-pointer" 
+                  :disabled="loadingCities"
+                  class="w-full border-2 border-primary/20 rounded-2xl py-3 pl-3 pr-8 font-bold text-sm bg-white text-slate-700 transition-all appearance-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed" 
                   :aria-invalid="validationErrors.city ? 'true' : 'false'" 
                   :aria-describedby="validationErrors.city ? 'city-error' : null"
                 >
-                  <option value="" disabled>Sélectionner une ville</option>
+                  <option value="" disabled>{{ loadingCities ? 'Chargement des villes en cours...' : 'Sélectionner une ville' }}</option>
                   <option v-for="c in availableCities" :key="c" :value="c">{{ c }}</option>
-                  <option value="__AUTRE__">Autre ville...</option>
+                  <option v-if="!loadingCities" value="__AUTRE__">Autre ville...</option>
                 </select>
                 <input 
                   v-else 
@@ -435,7 +444,7 @@ const saveProfileCategory = async () => {
                   :aria-invalid="validationErrors.city ? 'true' : 'false'" 
                   :aria-describedby="validationErrors.city ? 'city-error' : null"
                 >
-                <ChevronDown v-if="isEditing && availableCities.length > 0" class="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                <ChevronDown v-if="isEditing && (availableCities.length > 0 || loadingCities)" class="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
               </div>
               <input 
                 v-if="isEditing && (isCustomCity || (editForm.country && availableCities.length === 0))" 
@@ -600,9 +609,62 @@ const saveProfileCategory = async () => {
         </div>
 
         <div class="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm space-y-4">
+          <!-- Double authentification (MFA) -->
+          <div 
+            @click="showMfaModal = true"
+            class="flex items-center justify-between py-1 text-left cursor-pointer group"
+          >
+            <div class="flex items-center gap-3">
+              <div 
+                class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors"
+                :class="authStore.user?.mfa_type === 'totp' ? 'bg-emerald-50 text-emerald-600' : (authStore.user?.mfa_type === 'email' ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-400')"
+              >
+                <component :is="authStore.user?.mfa_type === 'totp' ? Smartphone : (authStore.user?.mfa_type === 'email' ? Mail : ShieldOff)" class="w-5 h-5" />
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="font-bold text-slate-700 text-sm">Double authentification (MFA)</h4>
+                  <span 
+                    v-if="authStore.user?.mfa_type === 'totp'" 
+                    class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800"
+                  >
+                    Application
+                  </span>
+                  <span 
+                    v-else-if="authStore.user?.mfa_type === 'email'" 
+                    class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-primary/15 text-primary"
+                  >
+                    E-mail
+                  </span>
+                  <span 
+                    v-else 
+                    class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500"
+                  >
+                    Désactivé
+                  </span>
+                </div>
+                <p class="text-slate-400 text-[10px]">
+                  {{ 
+                    authStore.user?.mfa_type === 'totp' 
+                      ? 'Sécurisé par Google/Microsoft Authenticator' 
+                      : (authStore.user?.mfa_type === 'email' 
+                          ? 'Sécurisé par code de vérification reçu par e-mail' 
+                          : 'Cliquez pour configurer ou modifier')
+                  }}
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-bold text-primary group-hover:underline">Gérer</span>
+              <ChevronRight class="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </div>
+
+          <div class="border-t border-slate-100"></div>
+
           <button 
             @click="showPasswordForm = !showPasswordForm"
-            class="w-full flex items-center justify-between py-2 text-left"
+            class="w-full flex items-center justify-between py-1 text-left"
           >
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-500">
@@ -785,5 +847,8 @@ const saveProfileCategory = async () => {
 
     <!-- Modal Renouvellement Pièce d'Identité -->
     <RenewIdentityModal v-model="showRenewModal" @renewed="onIdRenewed" />
+
+    <!-- Modal Configuration MFA -->
+    <MfaConfigModal v-model="showMfaModal" />
   </div>
 </template>
