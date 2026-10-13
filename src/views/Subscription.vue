@@ -1,13 +1,14 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, Wallet, CreditCard, Smartphone, Loader2, CheckCircle2, ArrowRight, AlertCircle, FileText, Download, Building2, Copy, Check, Info, Sparkles, Clock, RefreshCw, UserCheck, ChevronDown } from 'lucide-vue-next'
+import { ChevronLeft, Wallet, CreditCard, Smartphone, Loader2, CheckCircle2, ArrowRight, AlertCircle, FileText, Download, Building2, Copy, Check, Info, Sparkles, Clock, RefreshCw, UserCheck, ChevronDown, X } from 'lucide-vue-next'
 import api from '../api/api'
 import { mobileRetryMode, verifyMobileRetry } from '../services/mobilePaymentStatus'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
 import { useAppContentStore } from '../stores/appContent'
 import { getFrontendDocumentUrl, downloadDocument } from '../utils/document'
+import { copyTextToClipboard } from '../utils/clipboard.js'
 import BankTransferProofs from '../components/BankTransferProofs.vue'
 
 const route = useRoute()
@@ -335,26 +336,12 @@ const copiedField = ref(null)
 
 const copyToClipboard = async (text, fieldName) => {
   if (!text) return
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      const textArea = document.createElement('textarea')
-      textArea.value = text
-      textArea.style.position = 'fixed'
-      textArea.style.left = '-999999px'
-      document.body.appendChild(textArea)
-      textArea.focus()
-      textArea.select()
-      document.execCommand('copy')
-      textArea.remove()
-    }
+  const success = await copyTextToClipboard(text)
+  if (success) {
     copiedField.value = fieldName
     setTimeout(() => {
       copiedField.value = null
-    }, 2000)
-  } catch (err) {
-    console.error('Failed to copy: ', err)
+    }, 2500)
   }
 }
 
@@ -530,7 +517,7 @@ const handleSubscribe = async () => {
 <template>
   <div v-if="loading" class="min-h-screen flex flex-col items-center justify-center space-y-4">
     <Loader2 class="w-10 h-10 text-primary animate-spin" />
-    <p class="text-slate-400 font-medium">Initialisation...</p>
+    <p class="text-slate-400 font-medium">{{ languageStore.isEn() ? 'Initializing...' : 'Initialisation...' }}</p>
   </div>
 
   <div v-else-if="success" class="min-h-screen bg-white flex flex-col p-6 animate-in fade-in zoom-in duration-500">
@@ -540,27 +527,27 @@ const handleSubscribe = async () => {
       </div>
       
       <div class="space-y-2">
-        <h2 class="text-2xl font-black text-slate-900">Demande Enregistrée !</h2>
+        <h2 class="text-2xl font-black text-slate-900">{{ languageStore.isEn() ? 'Request Registered!' : 'Demande Enregistrée !' }}</h2>
         <p class="text-slate-500 text-sm leading-relaxed max-w-[280px] mx-auto">
-          Votre demande de souscription a été enregistrée avec succès. Veuillez suivre les instructions de règlement ci-dessous.
+          {{ languageStore.isEn() ? 'Your subscription request has been successfully registered. Please follow the payment instructions below.' : 'Votre demande de souscription a été enregistrée avec succès. Veuillez suivre les instructions de règlement ci-dessous.' }}
         </p>
       </div>
 
       <!-- Instructions Card -->
       <div v-if="recordedSubscription?.mobile_provider" class="w-full rounded-2xl bg-blue-50 p-4 text-sm space-y-3">
-        <p>Validez la demande sur votre téléphone. Le paiement reste en attente tant que sa confirmation n’a pas été reçue.</p>
-        <p v-if="recordedSubscription.mobile_state === 'verification_required'">La réponse du prestataire est à vérifier. Ne recommencez pas le débit.</p>
-        <button @click="router.push('/my-subscriptions?tab=transactions')" class="rounded-xl bg-primary text-white px-4 py-3">Suivre le paiement</button>
+        <p>{{ languageStore.isEn() ? 'Authorize the request on your phone. Payment remains pending until confirmation is received.' : 'Validez la demande sur votre téléphone. Le paiement reste en attente tant que sa confirmation n’a pas été reçue.' }}</p>
+        <p v-if="recordedSubscription.mobile_state === 'verification_required'">{{ languageStore.isEn() ? 'Provider response must be verified. Do not restart the charge.' : 'La réponse du prestataire est à vérifier. Ne recommencez pas le débit.' }}</p>
+        <button @click="router.push('/my-subscriptions?tab=transactions')" class="rounded-xl bg-primary text-white px-4 py-3">{{ languageStore.isEn() ? 'Track payment' : 'Suivre le paiement' }}</button>
       </div>
       <BankTransferProofs v-if="recordedSubscription?.moyen_paiement === 'bank_transfer'" :subscription="recordedSubscription" class="w-full" />
       <div v-if="paymentMethod === 'bank_transfer' && pekDetails" class="w-full bg-slate-50 rounded-3xl p-6 border border-slate-100 text-left animate-in fade-in duration-300 space-y-4">
         <div class="flex items-center justify-between border-b border-slate-200/60 pb-3">
           <div class="flex items-center gap-2">
             <Building2 class="w-5 h-5 text-primary" />
-            <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider">Coordonnées du compte PEK</h4>
+            <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider">{{ languageStore.isEn() ? 'PEK Account Details' : 'Coordonnées du compte PEK' }}</h4>
           </div>
           <span class="text-[9px] font-black px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full uppercase tracking-wider">
-            Virement Bancaire
+            {{ languageStore.t('sub_bank_transfer') }}
           </span>
         </div>
 
@@ -568,12 +555,12 @@ const handleSubscribe = async () => {
         <div class="space-y-2.5">
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="bg-white p-3 rounded-2xl border border-slate-100">
-              <span class="text-[10px] font-bold text-slate-400 uppercase block">Banque</span>
+              <span class="text-[10px] font-bold text-slate-400 uppercase block">{{ languageStore.isEn() ? 'Bank' : 'Banque' }}</span>
               <span class="font-black text-slate-900 block truncate">{{ pekDetails.bank_name || 'Kori Asset Management' }}</span>
             </div>
             <div class="bg-white p-3 rounded-2xl border border-slate-100">
-              <span class="text-[10px] font-bold text-slate-400 uppercase block">Bénéficiaire</span>
-              <span class="font-black text-slate-900 block truncate">{{ pekDetails.beneficiary || 'Bénéficiaire non renseigné' }}</span>
+              <span class="text-[10px] font-bold text-slate-400 uppercase block">{{ languageStore.isEn() ? 'Beneficiary' : 'Bénéficiaire' }}</span>
+              <span class="font-black text-slate-900 block truncate">{{ pekDetails.beneficiary || (languageStore.isEn() ? 'Beneficiary not specified' : 'Bénéficiaire non renseigné') }}</span>
             </div>
           </div>
 
@@ -589,7 +576,7 @@ const handleSubscribe = async () => {
             >
               <Copy v-if="copiedField !== 'iban_success'" class="w-3 h-3 text-slate-400" />
               <Check v-else class="w-3 h-3 text-emerald-600" />
-              <span>{{ copiedField === 'iban_success' ? 'Copié !' : 'Copier' }}</span>
+              <span>{{ copiedField === 'iban_success' ? (languageStore.isEn() ? 'Copied!' : 'Copié !') : (languageStore.isEn() ? 'Copy' : 'Copier') }}</span>
             </button>
           </div>
 
@@ -619,7 +606,7 @@ const handleSubscribe = async () => {
         </div>
 
         <div v-if="pekDetails.bank_instructions" class="flex flex-col">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Consignes de virement</span>
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{{ languageStore.isEn() ? 'Transfer instructions' : 'Consignes de virement' }}</span>
           <div class="text-xs font-bold text-slate-700 leading-relaxed whitespace-pre-line bg-white p-4 rounded-2xl border border-slate-100/50 shadow-sm">
             {{ pekDetails.bank_instructions }}
           </div>
@@ -628,16 +615,16 @@ const handleSubscribe = async () => {
 
       <div class="bg-slate-50 w-full rounded-3xl p-6 space-y-4 border border-slate-100">
         <div class="flex justify-between items-center text-sm">
-          <span class="text-slate-400 font-bold uppercase tracking-tighter">Réf PEK</span>
+          <span class="text-slate-400 font-bold uppercase tracking-tighter">{{ languageStore.isEn() ? 'PEK Ref' : 'Réf PEK' }}</span>
           <span class="text-slate-900 font-black">{{ transactionRef }}</span>
         </div>
 
         <div class="flex justify-between items-center text-sm">
-          <span class="text-slate-400 font-bold uppercase tracking-tighter">Statut</span>
-          <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">En attente</span>
+          <span class="text-slate-400 font-bold uppercase tracking-tighter">{{ languageStore.isEn() ? 'Status' : 'Statut' }}</span>
+          <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">{{ languageStore.t('my_subs_status_pending') }}</span>
         </div>
         <div class="pt-2 border-t border-slate-200 flex justify-between items-center">
-          <span class="text-slate-400 font-bold uppercase tracking-tighter">Montant total</span>
+          <span class="text-slate-400 font-bold uppercase tracking-tighter">{{ languageStore.isEn() ? 'Total amount' : 'Montant total' }}</span>
           <span class="text-primary font-black">{{ parseFloat(finalAmount).toLocaleString() }} XAF</span>
         </div>
       </div>
@@ -647,7 +634,7 @@ const handleSubscribe = async () => {
         <div class="flex items-start gap-3 text-amber-800">
           <AlertCircle class="w-5 h-5 shrink-0 mt-0.5" />
           <div class="text-xs font-bold leading-relaxed">
-            Attention : Votre souscription a bien été enregistrée mais elle ne sera validée que si et seulement si vous renseignez les informations qui vous sont demandées par mail pour finaliser votre dossier d'onboarding.
+            {{ languageStore.isEn() ? 'Warning: Your subscription has been recorded but it will only be validated once you provide the required information requested by email to finalize your onboarding file.' : "Attention : Votre souscription a bien été enregistrée mais elle ne sera validée que si et seulement si vous renseignez les informations qui vous sont demandées par mail pour finaliser votre dossier d'onboarding." }}
           </div>
         </div>
       </div>
@@ -655,7 +642,7 @@ const handleSubscribe = async () => {
 
     <div class="w-full space-y-3 pt-8 pb-4">
       <button @click="router.push('/home')" class="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-95 transition-all">
-        Retour au Dashboard
+        {{ languageStore.isEn() ? 'Back to Dashboard' : 'Retour au Dashboard' }}
         <ArrowRight class="w-4 h-4" />
       </button>
     </div>
@@ -681,26 +668,26 @@ const handleSubscribe = async () => {
       <section class="bg-white rounded-[32px] p-6 shadow-xl shadow-slate-200/50 border border-slate-100">
         <div class="flex justify-between items-start mb-6">
           <div class="space-y-1">
-            <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Sélection</span>
+            <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">{{ languageStore.isEn() ? 'Selection' : 'Sélection' }}</span>
             <h3 class="text-xl font-black text-slate-900">{{ fund.name }}</h3>
           </div>
         </div>
         
         <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
           <div>
-            <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-1">VL Actuelle</span>
+            <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-1">{{ languageStore.t('my_subs_current_nav') }}</span>
             <span class="text-primary font-black">{{ fund.vl.toLocaleString() }} XAF</span>
           </div>
           <div class="text-right">
-            <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-1">Niveau Risque</span>
-            <span class="text-slate-800 font-black text-xs">{{ fund.risk || 'Modéré' }}</span>
+            <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-1">{{ languageStore.t('risk_level') }}</span>
+            <span class="text-slate-800 font-black text-xs">{{ fund.risk || (languageStore.isEn() ? 'Moderate' : 'Modéré') }}</span>
           </div>
         </div>
 
         <!-- Documentation & Plaquettes (Vignettes PDF) -->
         <div v-if="fund.depliant_url || fund.document_information_url" class="mt-4 pt-4 border-t border-slate-50 space-y-2 text-left">
           <div class="flex justify-between items-center">
-            <span class="text-slate-400 text-[10px] block font-black uppercase tracking-wider">Documents réglementaires</span>
+            <span class="text-slate-400 text-[10px] block font-black uppercase tracking-wider">{{ languageStore.isEn() ? 'Regulatory Documents' : 'Documents réglementaires' }}</span>
             <span class="text-[9px] text-slate-400 font-bold uppercase">PDF</span>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -718,8 +705,8 @@ const handleSubscribe = async () => {
                   <FileText v-else class="w-4 h-4" />
                 </div>
                 <div class="min-w-0">
-                  <span class="block text-xs font-black truncate">Dépliant</span>
-                  <span class="block text-[9px] text-slate-400 font-medium truncate">Brochure commerciale</span>
+                  <span class="block text-xs font-black truncate">{{ languageStore.isEn() ? 'Brochure' : 'Dépliant' }}</span>
+                  <span class="block text-[9px] text-slate-400 font-medium truncate">{{ languageStore.isEn() ? 'Commercial brochure' : 'Brochure commerciale' }}</span>
                 </div>
               </div>
               <Download class="w-4 h-4 text-slate-400 group-hover:text-rose-600 shrink-0" />
@@ -739,8 +726,8 @@ const handleSubscribe = async () => {
                   <FileText v-else class="w-4 h-4" />
                 </div>
                 <div class="min-w-0">
-                  <span class="block text-xs font-black truncate">Document Info</span>
-                  <span class="block text-[9px] text-slate-400 font-medium truncate">Prospectus / DICI</span>
+                  <span class="block text-xs font-black truncate">{{ languageStore.isEn() ? 'Info Document' : 'Document Info' }}</span>
+                  <span class="block text-[9px] text-slate-400 font-medium truncate">{{ languageStore.isEn() ? 'Prospectus / KID' : 'Prospectus / DICI' }}</span>
                 </div>
               </div>
               <Download class="w-4 h-4 text-slate-400 group-hover:text-primary shrink-0" />
@@ -761,7 +748,7 @@ const handleSubscribe = async () => {
               inputMode === 'amount' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-800'
             ]"
           >
-            Montant (XAF)
+            {{ languageStore.isEn() ? 'Amount (XAF)' : 'Montant (XAF)' }}
           </button>
           <button 
             @click="inputMode = 'parts'" 
@@ -771,14 +758,14 @@ const handleSubscribe = async () => {
               inputMode === 'parts' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-800'
             ]"
           >
-            Nombre de parts
+            {{ languageStore.t('sub_shares_mode') }}
           </button>
         </div>
 
         <!-- Dynamic Inputs -->
         <!-- Mode Montant -->
         <div v-if="inputMode === 'amount'" class="space-y-2 text-left animate-in fade-in duration-300">
-          <label class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Montant de l'investissement</label>
+          <label class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">{{ languageStore.t('sub_amount_to_invest') }}</label>
           <div class="relative group">
             <input 
               :value="inputAmount"
@@ -792,13 +779,13 @@ const handleSubscribe = async () => {
             <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest">XAF</div>
           </div>
           <span class="text-[10px] text-slate-400 font-bold block px-2">
-            Soit environ <strong class="text-primary">{{ parts }} parts</strong> à acquérir.
+            {{ languageStore.isEn() ? 'Approx. ' : 'Soit environ ' }}<strong class="text-primary">{{ parts }} {{ parts > 1 ? languageStore.t('shares') : languageStore.t('share_singular') }}</strong>{{ languageStore.isEn() ? ' to acquire.' : ' à acquérir.' }}
           </span>
         </div>
 
         <!-- Mode Parts -->
         <div v-else class="space-y-2 text-left animate-in fade-in duration-300">
-          <label class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Nombre de parts souhaité</label>
+          <label class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">{{ languageStore.isEn() ? 'Desired number of shares' : 'Nombre de parts souhaité' }}</label>
           <div class="relative group">
             <input 
               :value="parts"
@@ -808,25 +795,25 @@ const handleSubscribe = async () => {
               placeholder="Ex: 5"
               class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 px-8 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
             >
-            <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest">Parts</div>
+            <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest">{{ languageStore.t('shares') }}</div>
           </div>
           <span class="text-[10px] text-slate-400 font-bold block px-2">
-            Soit un investissement de <strong class="text-primary">{{ parseFloat(totalAmount).toLocaleString() }} XAF</strong>.
+            {{ languageStore.isEn() ? 'Corresponding to an investment of ' : 'Soit un investissement de ' }}<strong class="text-primary">{{ parseFloat(totalAmount).toLocaleString() }} XAF</strong>.
           </span>
         </div>
       </section>
 
       <!-- Payment Methods -->
       <section class="space-y-4">
-        <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Moyens de paiement</h3>
+        <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">{{ languageStore.t('sub_payment_method') }}</h3>
         <div class="grid grid-cols-1 gap-3">
           <button type="button" @click="paymentMethod = 'card'"
             :class="paymentMethod === 'card' ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-700'"
             class="p-4 rounded-2xl border-2 flex items-center gap-3 text-left transition-all">
             <CreditCard class="w-5 h-5" />
             <div>
-              <span class="text-[10px] font-black uppercase tracking-wider">Carte bancaire</span>
-              <p :class="paymentMethod === 'card' ? 'text-white/70' : 'text-slate-400'" class="text-[10px] mt-1">Paiement immédiat sur la page sécurisée Stripe.</p>
+              <span class="text-[10px] font-black uppercase tracking-wider">{{ languageStore.t('sub_credit_card') }}</span>
+              <p :class="paymentMethod === 'card' ? 'text-white/70' : 'text-slate-400'" class="text-[10px] mt-1">{{ languageStore.isEn() ? 'Instant payment on Stripe secure checkout.' : 'Paiement immédiat sur la page sécurisée Stripe.' }}</p>
             </div>
           </button>
           <button v-for="operator in ['orange_money', 'mtn_momo']" :key="operator" type="button" @click="selectPaymentMethod(operator)" :disabled="!paymentOptions[operator]"
@@ -835,7 +822,7 @@ const handleSubscribe = async () => {
             <Smartphone class="w-5 h-5" />
             <div>
               <span class="text-[10px] font-black uppercase tracking-wider">{{ operator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</span>
-              <p class="text-[10px] mt-1">{{ paymentOptions[operator] ? 'Confirmation du paiement sur votre téléphone.' : 'Temporairement indisponible.' }}</p>
+              <p class="text-[10px] mt-1">{{ paymentOptions[operator] ? (languageStore.isEn() ? 'Payment confirmation on your phone.' : 'Confirmation du paiement sur votre téléphone.') : (languageStore.isEn() ? 'Temporarily unavailable.' : 'Temporairement indisponible.') }}</p>
             </div>
           </button>
           <button type="button" @click="paymentMethod = 'bank_transfer'"
@@ -843,8 +830,8 @@ const handleSubscribe = async () => {
             class="p-4 rounded-2xl border-2 flex items-center gap-3 text-left transition-all">
             <Wallet class="w-5 h-5" />
             <div>
-              <span class="text-[10px] font-black uppercase tracking-wider">Virement bancaire</span>
-              <p :class="paymentMethod === 'bank_transfer' ? 'text-white/70' : 'text-slate-400'" class="text-[10px] mt-1">Validation après réception et rapprochement effectif des fonds.</p>
+              <span class="text-[10px] font-black uppercase tracking-wider">{{ languageStore.t('sub_bank_transfer') }}</span>
+              <p :class="paymentMethod === 'bank_transfer' ? 'text-white/70' : 'text-slate-400'" class="text-[10px] mt-1">{{ languageStore.isEn() ? 'Validation after receipt and reconciliation of funds.' : 'Validation après réception et rapprochement effectif des fonds.' }}</p>
             </div>
           </button>
         </div>
@@ -855,7 +842,7 @@ const handleSubscribe = async () => {
             <div class="flex items-center gap-2">
               <Smartphone class="w-4 h-4 text-primary" />
               <span class="text-xs font-black text-slate-800 uppercase tracking-wider">
-                Numéro {{ paymentMethod === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}
+                {{ languageStore.isEn() ? (paymentMethod === 'orange_money' ? 'Orange Money number' : 'MTN Mobile Money number') : (paymentMethod === 'orange_money' ? 'Numéro Orange Money' : 'Numéro MTN Mobile Money') }}
               </span>
             </div>
             <span class="text-[10px] font-bold text-slate-400">
@@ -886,7 +873,10 @@ const handleSubscribe = async () => {
             <div class="flex items-start gap-2 text-rose-800 text-xs font-bold leading-snug">
               <AlertCircle class="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
               <span>
-                Ce numéro correspond à <strong>{{ phoneOperator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</strong>, alors que vous avez sélectionné <strong>{{ paymentMethod === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</strong>.
+                {{ languageStore.isEn() 
+                  ? `This number belongs to ${phoneOperator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money'}, but you selected ${paymentMethod === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money'}.` 
+                  : `Ce numéro correspond à ${phoneOperator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money'}, alors que vous avez sélectionné ${paymentMethod === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money'}.` 
+                }}
               </span>
             </div>
             <button 
@@ -894,31 +884,31 @@ const handleSubscribe = async () => {
               @click="switchOperatorTo(phoneOperator)"
               class="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-[11px] rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm uppercase tracking-wider"
             >
-              <span>Basculer sur {{ phoneOperator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</span>
+              <span>{{ languageStore.isEn() ? `Switch to ${phoneOperator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money'}` : `Basculer sur ${phoneOperator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money'}` }}</span>
               <ArrowRight class="w-3.5 h-3.5" />
             </button>
           </div>
 
           <p class="text-[11px] text-slate-500 font-medium leading-relaxed">
-            Confirmez votre numéro avant de valider. Votre code secret PIN ne vous sera jamais demandé ici.
+            {{ languageStore.isEn() ? 'Confirm your number before validating. Your secret PIN code will never be requested here.' : 'Confirmez votre numéro avant de valider. Votre code secret PIN ne vous sera jamais demandé ici.' }}
           </p>
         </div>
-        <p v-if="paymentMethod === 'bank_transfer'" class="text-xs text-slate-600">Les parts affichées sont une estimation. La date de valeur sera la date de réception des fonds ; les parts seront calculées avec la VL de cette date.</p>
+        <p v-if="paymentMethod === 'bank_transfer'" class="text-xs text-slate-600">{{ languageStore.isEn() ? 'Displayed shares are an estimate. Value date will be the date funds are received; shares will be calculated using that date’s NAV.' : 'Les parts affichées sont une estimation. La date de valeur sera la date de réception des fonds ; les parts seront calculées avec la VL de cette date.' }}</p>
         <div v-if="paymentMethod === 'bank_transfer'" class="mt-4 bg-white rounded-[28px] p-5 border-2 border-primary/20 shadow-lg shadow-primary/5 space-y-4 animate-in fade-in slide-in-from-top-3 duration-300">
           <div class="flex items-center gap-2.5 border-b border-slate-100 pb-3">
             <div class="w-9 h-9 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <Building2 class="w-5 h-5" />
             </div>
             <div class="text-left">
-              <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider">Coordonnées du compte PEK</h4>
-              <p class="text-[10px] text-slate-400 font-semibold">À utiliser pour votre virement</p>
+              <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider">{{ languageStore.isEn() ? 'PEK Account Details' : 'Coordonnées du compte PEK' }}</h4>
+              <p class="text-[10px] text-slate-400 font-semibold">{{ languageStore.isEn() ? 'To use for your bank transfer' : 'À utiliser pour votre virement' }}</p>
             </div>
           </div>
 
           <!-- Sélecteur de Banque -->
           <div v-if="bankAccounts.length > 1" class="space-y-2 text-left pt-1">
             <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
-              Choisir la banque pour le virement
+              {{ languageStore.isEn() ? 'Select bank for transfer' : 'Choisir la banque pour le virement' }}
             </label>
             <div class="grid grid-cols-2 gap-2">
               <button
@@ -941,12 +931,12 @@ const handleSubscribe = async () => {
             <!-- Banque & Bénéficiaire -->
             <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
               <div>
-                <span class="text-[10px] font-bold text-slate-400 uppercase block">Banque</span>
+                <span class="text-[10px] font-bold text-slate-400 uppercase block">{{ languageStore.isEn() ? 'Bank' : 'Banque' }}</span>
                 <span class="font-black text-slate-900 text-xs block truncate">{{ selectedBank.bank_name }}</span>
               </div>
               <div>
-                <span class="text-[10px] font-bold text-slate-400 uppercase block">Bénéficiaire</span>
-                <span class="font-black text-slate-900 text-xs block truncate">{{ selectedBank.beneficiary || 'Bénéficiaire non renseigné' }}</span>
+                <span class="text-[10px] font-bold text-slate-400 uppercase block">{{ languageStore.isEn() ? 'Beneficiary' : 'Bénéficiaire' }}</span>
+                <span class="font-black text-slate-900 text-xs block truncate">{{ selectedBank.beneficiary || (languageStore.isEn() ? 'Beneficiary not specified' : 'Bénéficiaire non renseigné') }}</span>
               </div>
             </div>
 
@@ -963,7 +953,7 @@ const handleSubscribe = async () => {
               >
                 <Copy v-if="copiedField !== 'iban'" class="w-3 h-3 text-slate-400" />
                 <Check v-else class="w-3 h-3 text-emerald-600" />
-                <span>{{ copiedField === 'iban' ? 'Copié !' : 'Copier' }}</span>
+                <span>{{ copiedField === 'iban' ? (languageStore.isEn() ? 'Copied!' : 'Copié !') : (languageStore.isEn() ? 'Copy' : 'Copier') }}</span>
               </button>
             </div>
 
@@ -978,7 +968,7 @@ const handleSubscribe = async () => {
                   type="button" 
                   @click="copyToClipboard(selectedBank.rib, 'rib')"
                   class="p-1.5 text-slate-400 hover:text-primary transition-colors shrink-0"
-                  title="Copier RIB"
+                  :title="languageStore.isEn() ? 'Copy RIB' : 'Copier RIB'"
                 >
                   <Check v-if="copiedField === 'rib'" class="w-3.5 h-3.5 text-emerald-600" />
                   <Copy v-else class="w-3.5 h-3.5" />
@@ -994,7 +984,7 @@ const handleSubscribe = async () => {
                   type="button" 
                   @click="copyToClipboard(selectedBank.swift, 'swift')"
                   class="p-1.5 text-slate-400 hover:text-primary transition-colors shrink-0"
-                  title="Copier SWIFT"
+                  :title="languageStore.isEn() ? 'Copy SWIFT' : 'Copier SWIFT'"
                 >
                   <Check v-if="copiedField === 'swift'" class="w-3.5 h-3.5 text-emerald-600" />
                   <Copy v-else class="w-3.5 h-3.5" />
@@ -1006,7 +996,7 @@ const handleSubscribe = async () => {
             <div v-if="selectedBank.bank_instructions" class="bg-amber-50/80 border border-amber-200/80 p-3.5 rounded-2xl text-[11px] text-amber-950 font-medium leading-relaxed flex items-start gap-2.5">
               <Info class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div class="space-y-1">
-                <span class="font-black block text-amber-950 text-xs">Instructions de virement :</span>
+                <span class="font-black block text-amber-950 text-xs">{{ languageStore.isEn() ? 'Transfer instructions:' : 'Instructions de virement :' }}</span>
                 <p class="whitespace-pre-line text-[11px] text-amber-900 leading-normal">{{ selectedBank.bank_instructions }}</p>
               </div>
             </div>
@@ -1014,7 +1004,7 @@ const handleSubscribe = async () => {
 
           <div v-else class="text-center py-4 text-slate-400 text-xs font-medium flex items-center justify-center gap-2">
             <Loader2 class="w-4 h-4 animate-spin text-primary" />
-            <span>Chargement des coordonnées bancaires...</span>
+            <span>{{ languageStore.isEn() ? 'Loading bank details...' : 'Chargement des coordonnées bancaires...' }}</span>
           </div>
         </div>
       </section>
@@ -1022,19 +1012,19 @@ const handleSubscribe = async () => {
       <!-- Summary -->
       <section class="bg-slate-900 rounded-[32px] p-6 text-white space-y-4 shadow-2xl shadow-slate-900/40">
         <div class="flex justify-between items-center text-xs opacity-60">
-          <span>Sous-total</span>
+          <span>{{ languageStore.isEn() ? 'Subtotal' : 'Sous-total' }}</span>
           <span>{{ parseFloat(totalAmount).toLocaleString() }} XAF</span>
         </div>
         <div class="flex justify-between items-center text-xs opacity-60">
-          <span>Frais d'entrée (1%)</span>
+          <span>{{ languageStore.t('sub_entry_fees') }}</span>
           <span>{{ parseFloat(fees).toLocaleString() }} XAF</span>
         </div>
         <div class="pt-4 border-t border-white/10 flex justify-between items-end">
           <div class="space-y-1">
-             <span class="text-white/40 text-[10px] font-black uppercase tracking-widest">Total à payer</span>
+             <span class="text-white/40 text-[10px] font-black uppercase tracking-widest">{{ languageStore.t('sub_total_to_pay') }}</span>
              <div class="text-2xl font-black text-white leading-none">{{ parseFloat(finalAmount).toLocaleString() }} XAF</div>
           </div>
-          <div class="bg-accent text-primary px-3 py-1 rounded-full text-[10px] font-black uppercase">Sécurisé</div>
+          <div class="bg-accent text-primary px-3 py-1 rounded-full text-[10px] font-black uppercase">{{ languageStore.isEn() ? 'Secure' : 'Sécurisé' }}</div>
         </div>
       </section>
     </div>
@@ -1048,359 +1038,414 @@ const handleSubscribe = async () => {
       >
         <Loader2 v-if="submitting" class="w-6 h-6 animate-spin" />
         <template v-else>
-          {{ ['card', 'mobile_money', 'orange_money', 'mtn_momo'].includes(paymentMethod) ? 'Confirmer et payer' : 'Enregistrer la demande' }}
+          {{ ['card', 'mobile_money', 'orange_money', 'mtn_momo'].includes(paymentMethod) ? (languageStore.isEn() ? 'Confirm and Pay' : 'Confirmer et payer') : (languageStore.isEn() ? 'Submit Request' : 'Enregistrer la demande') }}
         </template>
       </button>
       <p v-if="!isMinimumMet" class="text-center text-rose-500 text-[10px] font-bold mt-2.5 animate-pulse">
-        Seuil minimum de {{ Math.max(fund?.min || 0, fund?.vl || 0).toLocaleString() }} XAF non atteint.
+        {{ languageStore.isEn() ? `Minimum threshold of ${Math.max(fund?.min || 0, fund?.vl || 0).toLocaleString()} XAF not reached.` : `Seuil minimum de ${Math.max(fund?.min || 0, fund?.vl || 0).toLocaleString()} XAF non atteint.` }}
       </p>
       <p v-else-if="['orange_money', 'mtn_momo'].includes(paymentMethod) && !isPhoneValidForOperator" class="text-center text-rose-500 text-[10px] font-bold mt-2.5">
-        {{ phoneOperatorMismatch ? 'Veuillez corriger le numéro ou basculer d’opérateur.' : 'Numéro ' + (paymentMethod === 'orange_money' ? 'Orange (69x, 64x, 655-659)' : 'MTN (67x, 68x, 650-654)') + ' requis à 9 chiffres.' }}
+        {{ phoneOperatorMismatch ? (languageStore.isEn() ? 'Please correct the number or switch operator.' : 'Veuillez corriger le numéro ou basculer d’opérateur.') : (languageStore.isEn() ? 'Valid 9-digit ' + (paymentMethod === 'orange_money' ? 'Orange (69x, 64x, 655-659)' : 'MTN (67x, 68x, 650-654)') + ' number required.' : 'Numéro ' + (paymentMethod === 'orange_money' ? 'Orange (69x, 64x, 655-659)' : 'MTN (67x, 68x, 650-654)') + ' requis à 9 chiffres.') }}
       </p>
     </div>
 
     <!-- Premium Error Modal Window -->
-    <div v-if="showErrorModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
-      <!-- Backdrop with glassmorphism blur -->
-      <div @click="showErrorModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
-      
-      <!-- Modal card -->
-      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
-        <!-- Floating Red Alert Icon -->
-        <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-500">
-          <AlertCircle class="w-8 h-8" />
-        </div>
+    <Teleport to="body">
+      <div v-if="showErrorModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+        <!-- Backdrop with glassmorphism blur -->
+        <div @click="showErrorModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
         
-        <!-- Text details -->
-        <div class="space-y-2">
-          <h3 class="text-lg font-black text-slate-900">Demande non enregistrée</h3>
-          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
-            {{ stripeError }}
-          </p>
-        </div>
-        
-        <!-- Primary Action Button -->
-        <button 
-          @click="showErrorModal = false" 
-          class="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider"
-        >
-          Réessayer
-        </button>
-      </div>
-    </div>
-
-    <!-- Premium Onboarding Reminder Modal Window -->
-    <div v-if="showOnboardingModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
-      <!-- Backdrop with glassmorphism blur -->
-      <div @click="showOnboardingModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
-      
-      <!-- Modal card -->
-      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
-        <!-- Floating Yellow Onboarding Icon -->
-        <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500">
-          <AlertCircle class="w-8 h-8" />
-        </div>
-        
-        <!-- Text details -->
-        <div class="space-y-2">
-          <h3 class="text-lg font-black text-slate-900">Onboarding Requis</h3>
-          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
-            Pour pouvoir souscrire à nos produits d'investissement, vous devez au préalable compléter votre dossier d'onboarding réglementaire.
-          </p>
-        </div>
-        
-        <!-- Actions -->
-        <div class="space-y-2">
-          <button 
-            @click="router.push('/onboarding')" 
-            class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20"
-          >
-            Remplir mon onboarding
-          </button>
-          <button 
-            @click="showOnboardingModal = false" 
-            class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider"
-          >
-            Plus tard
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Premium Onboarding Required Modal Window -->
-    <div v-if="showOnboardingRequiredModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
-      <!-- Backdrop with glassmorphism blur -->
-      <div @click="showOnboardingRequiredModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
-      
-      <!-- Modal card -->
-      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
-        <!-- Floating Red Icon -->
-        <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-500">
-          <AlertCircle class="w-8 h-8" />
-        </div>
-        
-        <!-- Text details -->
-        <div class="space-y-2">
-          <h3 class="text-lg font-black text-slate-900">Validation Requise</h3>
-          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
-            Pour effectuer votre 2ème souscription, votre dossier d'onboarding KYC doit être complété et validé par l'équipe Conformité.
-          </p>
-        </div>
-        
-        <!-- Actions -->
-        <div class="space-y-2">
-          <button 
-            @click="router.push('/onboarding')" 
-            class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20"
-          >
-            Compléter mon onboarding
-          </button>
-          <button 
-            @click="showOnboardingRequiredModal = false" 
-            class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider"
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal Sollicitation Rapide Catégorie Client -->
-    <div v-if="showMissingCategoryModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
-      <div @click="showMissingCategoryModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
-      
-      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
-        <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500">
-          <UserCheck class="w-8 h-8" />
-        </div>
-        
-        <div class="space-y-2">
-          <h3 class="text-lg font-black text-slate-900">Catégorie Client</h3>
-          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
-            Veuillez indiquer votre catégorie d'investisseur pour l'édition de votre bulletin de souscription :
-          </p>
-        </div>
-
-        <div class="relative text-left">
-          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Catégorie réglementaire *</label>
-          <div class="relative">
-            <select v-model="selectedQuickCategory" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
-              <option value="Particulier">Particulier (Recommandé)</option>
-              <option value="Professionnel">Professionnel</option>
-              <option value="Institutionnel">Institutionnel</option>
-              <option value="Personne Morale">Personne Morale</option>
-            </select>
-            <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
-        </div>
-
-        <div class="space-y-2">
-          <button 
-            type="button"
-            @click="saveQuickCategoryAndSubscribe" 
-            :disabled="savingQuickCategory"
-            class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
-          >
-            <Loader2 v-if="savingQuickCategory" class="w-4 h-4 animate-spin" />
-            <span>Valider et Continuer</span>
-          </button>
-          <button 
-            type="button"
-            @click="showMissingCategoryModal = false" 
-            class="w-full py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition-colors"
-          >
-            Annuler
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal Paiement Mobile Money en direct (USSD Push & Attribution Parts) -->
-    <div v-if="isMobilePendingModalOpen" class="fixed inset-0 z-[10000] flex items-end justify-center p-4 sm:items-center sm:p-6">
-      <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300"></div>
-
-      <div class="relative w-full max-w-md bg-white rounded-[36px] p-6 sm:p-8 shadow-2xl border border-slate-100 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6 max-h-[90vh] overflow-y-auto">
-        
-        <!-- ÉTAT 1 : En attente de validation sur le téléphone -->
-        <template v-if="mobilePaymentStatus === 'waiting'">
-          <div class="relative w-20 h-20 mx-auto flex items-center justify-center">
-            <div :class="paymentMethod === 'orange_money' ? 'bg-orange-500/20' : 'bg-yellow-400/20'" class="absolute inset-0 rounded-full animate-ping"></div>
-            <div :class="paymentMethod === 'orange_money' ? 'bg-orange-500 text-white shadow-orange-500/40' : 'bg-yellow-400 text-slate-900 shadow-yellow-400/40'" class="relative w-20 h-20 rounded-full flex items-center justify-center shadow-xl">
-              <Smartphone class="w-10 h-10 animate-bounce" />
-            </div>
-          </div>
-
-          <div class="space-y-1">
-            <span :class="paymentMethod === 'orange_money' ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-yellow-100 text-yellow-900 border-yellow-200'" class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border">
-              {{ paymentMethod === 'orange_money' ? 'Orange Money Cameroun' : 'MTN Mobile Money' }}
-            </span>
-            <h3 class="text-xl font-black text-slate-900">Validation sur votre mobile</h3>
-            <p class="text-xs text-slate-500 font-medium">
-              Une demande de débit de <strong class="text-slate-900 font-black">{{ parseFloat(finalAmount).toLocaleString() }} XAF</strong> a été envoyée vers le <strong class="text-primary font-black">+237 {{ paymentPhone.replace(/\D/g, '') }}</strong>.
-            </p>
-          </div>
-
-          <!-- Carte d'instructions USSD -->
-          <div :class="paymentMethod === 'orange_money' ? 'bg-orange-50 border-orange-200/80' : 'bg-amber-50 border-amber-200/80'" class="p-4 rounded-3xl border text-left space-y-3">
-            <div class="flex items-center gap-2">
-              <Sparkles :class="paymentMethod === 'orange_money' ? 'text-orange-600' : 'text-amber-600'" class="w-4 h-4 shrink-0" />
-              <span class="text-xs font-black uppercase tracking-wider text-slate-800">Instructions de validation</span>
-            </div>
-            <ol class="text-xs space-y-2 text-slate-700 font-semibold pl-1">
-              <li class="flex items-start gap-2">
-                <span class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-[10px] font-black shrink-0 border border-slate-200">1</span>
-                <span>Un pop-up s’affiche sur votre téléphone demandant d’autoriser le débit.</span>
-              </li>
-              <li class="flex items-start gap-2">
-                <span class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-[10px] font-black shrink-0 border border-slate-200">2</span>
-                <span>Saisissez votre <strong>code secret PIN</strong> sur votre téléphone pour valider.</span>
-              </li>
-              <li class="flex items-start gap-2">
-                <span class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-[10px] font-black shrink-0 border border-slate-200">3</span>
-                <span>
-                  {{ paymentMethod === 'orange_money' ? 'Si rien ne s’affiche, composez le #150# pour valider manuellement.' : 'Si rien ne s’affiche, composez le *126# pour valider manuellement.' }}
-                </span>
-              </li>
-            </ol>
-          </div>
-
-          <!-- Compte à rebours & Barre -->
-          <div class="space-y-2">
-            <div class="flex items-center justify-between text-[11px] font-bold text-slate-400">
-              <span class="flex items-center gap-1.5"><Clock class="w-3.5 h-3.5 text-primary animate-spin" /> En attente de confirmation...</span>
-              <span class="font-mono text-slate-700 font-black">{{ mobileCountdown }}s</span>
-            </div>
-            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-              <div 
-                :class="paymentMethod === 'orange_money' ? 'bg-orange-500' : 'bg-yellow-500'" 
-                class="h-full transition-all duration-1000 ease-linear rounded-full"
-                :style="{ width: ((mobileCountdown / MOBILE_PAYMENT_WAIT_SECONDS) * 100) + '%' }"
-              ></div>
-            </div>
-          </div>
-
+        <!-- Modal card -->
+        <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
           <button 
             type="button" 
-            @click="closeMobilePendingModal"
-            class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors py-1"
+            @click="showErrorModal = false" 
+            class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+            :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
           >
-            Fermer et suivre plus tard dans mes transactions
+            <X class="w-4 h-4" />
           </button>
-        </template>
 
-        <!-- ÉTAT 2 : SUCCÈS CONFIRMÉ & PARTS ATTRIBUÉES -->
-        <template v-else-if="mobilePaymentStatus === 'success'">
-          <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20 animate-in zoom-in duration-300">
-            <CheckCircle2 class="w-12 h-12" />
+          <!-- Floating Red Alert Icon -->
+          <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-500">
+            <AlertCircle class="w-8 h-8" />
           </div>
+          
+          <!-- Text details -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-black text-slate-900">{{ languageStore.isEn() ? 'Request not recorded' : 'Demande non enregistrée' }}</h3>
+            <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+              {{ stripeError }}
+            </p>
+          </div>
+          
+          <!-- Primary Action Button -->
+          <button 
+            @click="showErrorModal = false" 
+            class="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider cursor-pointer"
+          >
+            {{ languageStore.isEn() ? 'Retry' : 'Réessayer' }}
+          </button>
+        </div>
+      </div>
+    </Teleport>
 
-          <div class="space-y-1">
-            <span class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-              Paiement confirmé & Parts créditées
-            </span>
-            <h3 class="text-2xl font-black text-slate-900">Félicitations !</h3>
-            <p class="text-xs text-slate-500 font-medium">
-              Votre investissement a été validé avec succès. Vos parts sont désormais actives.
+    <!-- Premium Onboarding Reminder Modal Window -->
+    <Teleport to="body">
+      <div v-if="showOnboardingModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+        <!-- Backdrop with glassmorphism blur -->
+        <div @click="showOnboardingModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+        
+        <!-- Modal card -->
+        <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+          <button 
+            type="button" 
+            @click="showOnboardingModal = false" 
+            class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+            :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+          >
+            <X class="w-4 h-4" />
+          </button>
+
+          <!-- Floating Yellow Onboarding Icon -->
+          <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500">
+            <AlertCircle class="w-8 h-8" />
+          </div>
+          
+          <!-- Text details -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-black text-slate-900">{{ languageStore.isEn() ? 'Onboarding Required' : 'Onboarding Requis' }}</h3>
+            <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+              {{ languageStore.isEn() ? 'In order to subscribe to our investment products, you must first complete your regulatory onboarding file.' : 'Pour pouvoir souscrire à nos produits d\'investissement, vous devez au préalable compléter votre dossier d\'onboarding réglementaire.' }}
+            </p>
+          </div>
+          
+          <!-- Actions -->
+          <div class="space-y-2">
+            <button 
+              @click="router.push('/onboarding')" 
+              class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 cursor-pointer"
+            >
+              {{ languageStore.isEn() ? 'Complete my onboarding' : 'Remplir mon onboarding' }}
+            </button>
+            <button 
+              @click="showOnboardingModal = false" 
+              class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider cursor-pointer"
+            >
+              {{ languageStore.isEn() ? 'Later' : 'Plus tard' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Premium Onboarding Required Modal Window -->
+    <Teleport to="body">
+      <div v-if="showOnboardingRequiredModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+        <!-- Backdrop with glassmorphism blur -->
+        <div @click="showOnboardingRequiredModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+        
+        <!-- Modal card -->
+        <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+          <button 
+            type="button" 
+            @click="showOnboardingRequiredModal = false" 
+            class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+            :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+          >
+            <X class="w-4 h-4" />
+          </button>
+
+          <!-- Floating Red Icon -->
+          <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-500">
+            <AlertCircle class="w-8 h-8" />
+          </div>
+          
+          <!-- Text details -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-black text-slate-900">{{ languageStore.isEn() ? 'Validation Required' : 'Validation Requise' }}</h3>
+            <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+              {{ languageStore.isEn() ? 'To complete your 2nd subscription, your KYC onboarding file must be completed and approved by the Compliance team.' : 'Pour effectuer votre 2ème souscription, votre dossier d\'onboarding KYC doit être complété et validé par l\'équipe Conformité.' }}
+            </p>
+          </div>
+          
+          <!-- Actions -->
+          <div class="space-y-2">
+            <button 
+              @click="router.push('/onboarding')" 
+              class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 cursor-pointer"
+            >
+              {{ languageStore.isEn() ? 'Complete my onboarding' : 'Compléter mon onboarding' }}
+            </button>
+            <button 
+              @click="showOnboardingRequiredModal = false" 
+              class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider cursor-pointer"
+            >
+              {{ languageStore.isEn() ? 'Close' : 'Fermer' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modal Sollicitation Rapide Catégorie Client -->
+    <Teleport to="body">
+      <div v-if="showMissingCategoryModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+        <div @click="showMissingCategoryModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+        
+        <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+          <button 
+            type="button" 
+            @click="showMissingCategoryModal = false" 
+            class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+            :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+          >
+            <X class="w-4 h-4" />
+          </button>
+
+          <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500">
+            <UserCheck class="w-7 h-7" />
+          </div>
+          
+          <div class="space-y-2">
+            <h3 class="text-lg font-black text-slate-900">{{ languageStore.isEn() ? 'Client Category' : 'Catégorie Client' }}</h3>
+            <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+              {{ languageStore.isEn() ? 'Please indicate your investor category for issuing your subscription bulletin:' : 'Veuillez indiquer votre catégorie d\'investisseur pour l\'édition de votre bulletin de souscription :' }}
             </p>
           </div>
 
-          <!-- Récapitulatif d'attribution des parts -->
-          <div class="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-3 text-left">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
-              <span class="text-xs font-bold text-slate-400">Fonds souscrit</span>
-              <span class="text-xs font-black text-slate-900">{{ fund?.libelle }}</span>
+          <div class="relative text-left">
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">{{ languageStore.isEn() ? 'Regulatory category *' : 'Catégorie réglementaire *' }}</label>
+            <div class="relative">
+              <select v-model="selectedQuickCategory" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+                <option value="Particulier">{{ languageStore.isEn() ? 'Individual (Recommended)' : 'Particulier (Recommandé)' }}</option>
+                <option value="Professionnel">{{ languageStore.isEn() ? 'Professional' : 'Professionnel' }}</option>
+                <option value="Institutionnel">{{ languageStore.isEn() ? 'Institutional' : 'Institutionnel' }}</option>
+                <option value="Personne Morale">{{ languageStore.isEn() ? 'Corporate entity' : 'Personne Morale' }}</option>
+              </select>
+              <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
-            <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
-              <span class="text-xs font-bold text-slate-400">Parts attribuées</span>
-              <span class="text-base font-black text-emerald-600">+{{ parts }} parts</span>
-            </div>
-            <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
-              <span class="text-xs font-bold text-slate-400">Montant total</span>
-              <span class="text-xs font-black text-slate-900">{{ parseFloat(finalAmount).toLocaleString() }} XAF</span>
-            </div>
-            <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
-              <span class="text-xs font-bold text-slate-400">Date de valeur</span>
-              <span class="text-xs font-black text-slate-900">{{ recordedSubscription?.value_date || new Date().toISOString().slice(0, 10) }}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-slate-400">Référence</span>
-              <span class="text-xs font-mono font-bold text-slate-700">{{ recordedSubscription?.reference_transaction }}</span>
-            </div>
-          </div>
-
-          <div class="space-y-2 pt-2">
-            <button 
-              type="button" 
-              @click="router.push(`/subscriptions/${recordedSubscription?.id}/bulletin`)"
-              class="w-full bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300/90 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm"
-            >
-              <FileText class="w-4 h-4 text-amber-800" />
-              <span>Consulter la fiche de souscription</span>
-            </button>
-            <button 
-              type="button" 
-              @click="goToPortfolio"
-              class="w-full bg-primary hover:bg-primary-dark text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
-            >
-              <span>Consulter mon portefeuille</span>
-              <ArrowRight class="w-4 h-4" />
-            </button>
-            <button 
-              type="button" 
-              @click="goToCatalog"
-              class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-2xl active:scale-95 transition-all text-xs"
-            >
-              Retourner aux fonds
-            </button>
-          </div>
-        </template>
-
-        <!-- ÉTAT 3 : ÉCHEC OU DÉLAI DÉPASSÉ -->
-        <template v-else-if="mobilePaymentStatus === 'failed' || mobilePaymentStatus === 'timeout'">
-          <div class="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-rose-500/20 animate-in zoom-in duration-300">
-            <AlertCircle class="w-12 h-12" />
           </div>
 
           <div class="space-y-2">
-            <span v-if="mobileErrorLabel" class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
-              {{ mobileErrorLabel }}
-            </span>
-            <h3 class="text-xl font-black text-slate-900">
-              {{ mobilePaymentStatus === 'timeout' ? 'Délai d’attente dépassé' : 'Paiement non abouti' }}
-            </h3>
-            <p class="text-xs text-slate-600 font-medium px-2 leading-relaxed">
-              {{ mobilePaymentMessage || (mobilePaymentStatus === 'timeout' ? 'La confirmation du paiement est toujours en attente après 3 minutes. Vérifiez cette transaction avant de lancer un autre paiement.' : 'La transaction n’a pas abouti. Veuillez vous assurer que votre solde est suffisant et réessayer.') }}
-            </p>
-            <!-- Conseil orienté action -->
-            <div v-if="mobilePaymentAdvice" class="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl text-left text-xs text-amber-900 font-medium flex items-start gap-2">
-              <span class="text-base shrink-0">💡</span>
-              <span class="leading-snug">{{ mobilePaymentAdvice }}</span>
-            </div>
-          </div>
-
-          <div class="space-y-2 pt-2">
-            <button type="button" @click="verifyCurrentMobilePayment" :disabled="mobileRetryBusy" class="w-full bg-slate-100 text-slate-700 font-bold py-3.5 rounded-2xl">Vérifier le paiement</button>
             <button 
-              v-if="mobileCanRetry && mobilePaymentStatus === 'failed'"
-              :disabled="mobileRetryBusy"
-              type="button" 
-              @click="retryMobilePayment"
-              class="w-full bg-primary text-white font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20"
+              type="button"
+              @click="saveQuickCategoryAndSubscribe" 
+              :disabled="savingQuickCategory"
+              class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              Réessayer le paiement
+              <Loader2 v-if="savingQuickCategory" class="w-4 h-4 animate-spin" />
+              <span>{{ languageStore.isEn() ? 'Confirm and Continue' : 'Valider et Continuer' }}</span>
             </button>
+            <button 
+              type="button" 
+              @click="showMissingCategoryModal = false" 
+              class="w-full py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition-colors cursor-pointer"
+            >
+              {{ languageStore.isEn() ? 'Cancel' : 'Annuler' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modal Paiement Mobile Money en direct (USSD Push & Attribution Parts) -->
+    <Teleport to="body">
+      <div v-if="isMobilePendingModalOpen" class="fixed inset-0 z-[10000] flex items-end justify-center p-4 sm:items-center sm:p-6">
+        <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300"></div>
+
+        <div class="relative w-full max-w-md bg-white rounded-[36px] p-6 sm:p-8 shadow-2xl border border-slate-100 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6 max-h-[90vh] overflow-y-auto">
+          <button 
+            type="button" 
+            @click="closeMobilePendingModal" 
+            class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+            :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+          >
+            <X class="w-4 h-4" />
+          </button>
+          
+          <!-- ÉTAT 1 : En attente de validation sur le téléphone -->
+          <template v-if="mobilePaymentStatus === 'waiting'">
+            <div class="relative w-20 h-20 mx-auto flex items-center justify-center">
+              <div :class="paymentMethod === 'orange_money' ? 'bg-orange-500/20' : 'bg-yellow-400/20'" class="absolute inset-0 rounded-full animate-ping"></div>
+              <div :class="paymentMethod === 'orange_money' ? 'bg-orange-500 text-white shadow-orange-500/40' : 'bg-yellow-400 text-slate-900 shadow-yellow-400/40'" class="relative w-20 h-20 rounded-full flex items-center justify-center shadow-xl">
+                <Smartphone class="w-10 h-10 animate-bounce" />
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <span :class="paymentMethod === 'orange_money' ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-yellow-100 text-yellow-900 border-yellow-200'" class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border">
+                {{ paymentMethod === 'orange_money' ? 'Orange Money Cameroun' : 'MTN Mobile Money' }}
+              </span>
+              <h3 class="text-xl font-black text-slate-900">{{ languageStore.isEn() ? 'Validation on your mobile' : 'Validation sur votre mobile' }}</h3>
+              <p class="text-xs text-slate-500 font-medium">
+                {{ languageStore.isEn() ? 'A debit request of ' : 'Une demande de débit de ' }}<strong class="text-slate-900 font-black">{{ parseFloat(finalAmount).toLocaleString() }} XAF</strong>{{ languageStore.isEn() ? ' has been sent to ' : ' a été envoyée vers le ' }}<strong class="text-primary font-black">+237 {{ paymentPhone.replace(/\D/g, '') }}</strong>.
+              </p>
+            </div>
+
+            <!-- Carte d'instructions USSD -->
+            <div :class="paymentMethod === 'orange_money' ? 'bg-orange-50 border-orange-200/80' : 'bg-amber-50 border-amber-200/80'" class="p-4 rounded-3xl border text-left space-y-3">
+              <div class="flex items-center gap-2">
+                <Sparkles :class="paymentMethod === 'orange_money' ? 'text-orange-600' : 'text-amber-600'" class="w-4 h-4 shrink-0" />
+                <span class="text-xs font-black uppercase tracking-wider text-slate-800">{{ languageStore.isEn() ? 'Validation instructions' : 'Instructions de validation' }}</span>
+              </div>
+              <ol class="text-xs space-y-2 text-slate-700 font-semibold pl-1">
+                <li class="flex items-start gap-2">
+                  <span class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-[10px] font-black shrink-0 border border-slate-200">1</span>
+                  <span>{{ languageStore.isEn() ? 'A prompt appears on your phone requesting debit authorization.' : 'Un pop-up s’affiche sur votre téléphone demandant d’autoriser le débit.' }}</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-[10px] font-black shrink-0 border border-slate-200">2</span>
+                  <span v-if="languageStore.isEn()">Enter your <strong>secret PIN code</strong> on your phone to approve.</span>
+                  <span v-else>Saisissez votre <strong>code secret PIN</strong> sur votre téléphone pour valider.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-5 h-5 rounded-full bg-white text-slate-800 flex items-center justify-center text-[10px] font-black shrink-0 border border-slate-200">3</span>
+                  <span>
+                    {{ paymentMethod === 'orange_money' ? (languageStore.isEn() ? 'If nothing appears, dial #150# to approve manually.' : 'Si rien ne s’affiche, composez le #150# pour valider manuellement.') : (languageStore.isEn() ? 'If nothing appears, dial *126# to approve manually.' : 'Si rien ne s’affiche, composez le *126# pour valider manuellement.') }}
+                  </span>
+                </li>
+              </ol>
+            </div>
+
+            <!-- Compte à rebours & Barre -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                <span class="flex items-center gap-1.5"><Clock class="w-3.5 h-3.5 text-primary animate-spin" /> {{ languageStore.isEn() ? 'Awaiting confirmation...' : 'En attente de confirmation...' }}</span>
+                <span class="font-mono text-slate-700 font-black">{{ mobileCountdown }}s</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  :class="paymentMethod === 'orange_money' ? 'bg-orange-500' : 'bg-yellow-500'" 
+                  class="h-full transition-all duration-1000 ease-linear rounded-full"
+                  :style="{ width: ((mobileCountdown / MOBILE_PAYMENT_WAIT_SECONDS) * 100) + '%' }"
+                ></div>
+              </div>
+            </div>
+
             <button 
               type="button" 
               @click="closeMobilePendingModal"
-              class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-2xl active:scale-95 transition-all text-xs"
+              class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors py-1 cursor-pointer"
             >
-              Modifier mes informations
+              {{ languageStore.isEn() ? 'Close and track later in my transactions' : 'Fermer et suivre plus tard dans mes transactions' }}
             </button>
-          </div>
-        </template>
+          </template>
 
+          <!-- ÉTAT 2 : SUCCÈS CONFIRMÉ & PARTS ATTRIBUÉES -->
+          <template v-else-if="mobilePaymentStatus === 'success'">
+            <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20 animate-in zoom-in duration-300">
+              <CheckCircle2 class="w-12 h-12" />
+            </div>
+
+            <div class="space-y-1">
+              <span class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                {{ languageStore.isEn() ? 'Payment confirmed & Shares credited' : 'Paiement confirmé & Parts créditées' }}
+              </span>
+              <h3 class="text-2xl font-black text-slate-900">{{ languageStore.isEn() ? 'Congratulations!' : 'Félicitations !' }}</h3>
+              <p class="text-xs text-slate-500 font-medium">
+                {{ languageStore.isEn() ? 'Your investment has been successfully confirmed. Your shares are now active.' : 'Votre investissement a été validé avec succès. Vos parts sont désormais actives.' }}
+              </p>
+            </div>
+
+            <!-- Récapitulatif d'attribution des parts -->
+            <div class="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-3 text-left">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
+                <span class="text-xs font-bold text-slate-400">{{ languageStore.isEn() ? 'Subscribed fund' : 'Fonds souscrit' }}</span>
+                <span class="text-xs font-black text-slate-900">{{ fund?.libelle }}</span>
+              </div>
+              <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
+                <span class="text-xs font-bold text-slate-400">{{ languageStore.isEn() ? 'Allocated units' : 'Parts attribuées' }}</span>
+                <span class="text-base font-black text-emerald-600">+{{ parts }} {{ languageStore.isEn() ? 'units' : 'parts' }}</span>
+              </div>
+              <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
+                <span class="text-xs font-bold text-slate-400">{{ languageStore.isEn() ? 'Total amount' : 'Montant total' }}</span>
+                <span class="text-xs font-black text-slate-900">{{ parseFloat(finalAmount).toLocaleString() }} XAF</span>
+              </div>
+              <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
+                <span class="text-xs font-bold text-slate-400">{{ languageStore.isEn() ? 'Value date' : 'Date de valeur' }}</span>
+                <span class="text-xs font-black text-slate-900">{{ recordedSubscription?.value_date || new Date().toISOString().slice(0, 10) }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400">{{ languageStore.isEn() ? 'Reference' : 'Référence' }}</span>
+                <span class="text-xs font-mono font-bold text-slate-700">{{ recordedSubscription?.reference_transaction }}</span>
+              </div>
+            </div>
+
+            <div class="space-y-2 pt-2">
+              <button 
+                type="button" 
+                @click="router.push(`/subscriptions/${recordedSubscription?.id}/bulletin`)"
+                class="w-full bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300/90 font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+              >
+                <FileText class="w-4 h-4 text-amber-800" />
+                <span>{{ languageStore.isEn() ? 'View subscription bulletin' : 'Consulter la fiche de souscription' }}</span>
+              </button>
+              <button 
+                type="button" 
+                @click="goToPortfolio"
+                class="w-full bg-primary hover:bg-primary-dark text-white font-black py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-xl shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>{{ languageStore.isEn() ? 'View my portfolio' : 'Consulter mon portefeuille' }}</span>
+                <ArrowRight class="w-4 h-4" />
+              </button>
+              <button 
+                type="button" 
+                @click="goToCatalog"
+                class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-2xl active:scale-95 transition-all text-xs cursor-pointer"
+              >
+                {{ languageStore.isEn() ? 'Back to funds' : 'Retourner aux fonds' }}
+              </button>
+            </div>
+          </template>
+
+          <!-- ÉTAT 3 : ÉCHEC OU DÉLAI DÉPASSÉ -->
+          <template v-else-if="mobilePaymentStatus === 'failed' || mobilePaymentStatus === 'timeout'">
+            <div class="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-rose-500/20 animate-in zoom-in duration-300">
+              <AlertCircle class="w-12 h-12" />
+            </div>
+
+            <div class="space-y-2">
+              <span v-if="mobileErrorLabel" class="inline-block text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                {{ mobileErrorLabel }}
+              </span>
+              <h3 class="text-xl font-black text-slate-900">
+                {{ mobilePaymentStatus === 'timeout' ? (languageStore.isEn() ? 'Waiting time exceeded' : 'Délai d’attente dépassé') : (languageStore.isEn() ? 'Payment incomplete' : 'Paiement non abouti') }}
+              </h3>
+              <p class="text-xs text-slate-600 font-medium px-2 leading-relaxed">
+                {{ mobilePaymentMessage || (mobilePaymentStatus === 'timeout' ? (languageStore.isEn() ? 'Payment confirmation is still pending after 3 minutes. Please verify this transaction before initiating another payment.' : 'La confirmation du paiement est toujours en attente après 3 minutes. Vérifiez cette transaction avant de lancer un autre paiement.') : (languageStore.isEn() ? 'The transaction could not be completed. Please ensure you have sufficient balance and try again.' : 'La transaction n’a pas abouti. Veuillez vous assurer que votre solde est suffisant et réessayer.')) }}
+              </p>
+              <!-- Conseil orienté action -->
+              <div v-if="mobilePaymentAdvice" class="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl text-left text-xs text-amber-900 font-medium flex items-start gap-2">
+                <span class="text-base shrink-0">💡</span>
+                <span class="leading-snug">{{ mobilePaymentAdvice }}</span>
+              </div>
+            </div>
+
+            <div class="space-y-2 pt-2">
+              <button type="button" @click="verifyCurrentMobilePayment" :disabled="mobileRetryBusy" class="w-full bg-slate-100 text-slate-700 font-bold py-3.5 rounded-2xl cursor-pointer">{{ languageStore.isEn() ? 'Verify payment' : 'Vérifier le paiement' }}</button>
+              <button 
+                v-if="mobileCanRetry && mobilePaymentStatus === 'failed'"
+                :disabled="mobileRetryBusy"
+                type="button" 
+                @click="retryMobilePayment"
+                class="w-full bg-primary text-white font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 cursor-pointer"
+              >
+                {{ languageStore.isEn() ? 'Retry payment' : 'Réessayer le paiement' }}
+              </button>
+              <button 
+                type="button" 
+                @click="closeMobilePendingModal"
+                class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-2xl active:scale-95 transition-all text-xs cursor-pointer"
+              >
+                {{ languageStore.isEn() ? 'Modify my information' : 'Modifier mes informations' }}
+              </button>
+            </div>
+          </template>
+
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 

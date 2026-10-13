@@ -10,6 +10,14 @@ import { getCitiesForCountry, getImmediateCitiesForCountry } from '../data/citie
 import LanguageSelector from '../components/LanguageSelector.vue'
 import PasswordCriteria from '../components/PasswordCriteria.vue'
 import MfaConfigModal from '../components/MfaConfigModal.vue'
+import {
+  getMinExpirationDate,
+  getValidExpirationYears,
+  getValidExpirationMonths,
+  getValidExpirationDays,
+  isExpirationDateValid,
+  getExpirationErrorMessage,
+} from '../utils/idExpiration'
 
 const router = useRouter()
 const route = useRoute()
@@ -37,76 +45,49 @@ const expDay = ref('')
 const expMonth = ref('')
 const expYear = ref('')
 
-const frenchMonths = [
-  { value: '1', label: 'Janvier' },
-  { value: '2', label: 'Février' },
-  { value: '3', label: 'Mars' },
-  { value: '4', label: 'Avril' },
-  { value: '5', label: 'Mai' },
-  { value: '6', label: 'Juin' },
-  { value: '7', label: 'Juillet' },
-  { value: '8', label: 'Août' },
-  { value: '9', label: 'Septembre' },
-  { value: '10', label: 'Octobre' },
-  { value: '11', label: 'Novembre' },
-  { value: '12', label: 'Décembre' }
-]
+// Années d'expiration: minimum 1 mois de validité requis
+const expYearsList = computed(() => {
+  return getValidExpirationYears()
+})
 
 const monthsList = computed(() => {
-  if (languageStore.isEn()) {
-    return [
-      { value: '1', label: 'January' },
-      { value: '2', label: 'February' },
-      { value: '3', label: 'March' },
-      { value: '4', label: 'April' },
-      { value: '5', label: 'May' },
-      { value: '6', label: 'June' },
-      { value: '7', label: 'July' },
-      { value: '8', label: 'August' },
-      { value: '9', label: 'September' },
-      { value: '10', label: 'October' },
-      { value: '11', label: 'November' },
-      { value: '12', label: 'December' }
-    ]
-  }
-  return frenchMonths
+  return getValidExpirationMonths(expYear.value, languageStore.isEn())
 })
-
-const currentYear = new Date().getFullYear()
-
-// Années d'expiration: année courante à année courante + 30 (comme dans Onboarding KYC)
-const expYearsList = computed(() => {
-  const years = []
-  for (let y = currentYear; y <= currentYear + 30; y++) {
-    years.push(String(y))
-  }
-  return years
-})
-
-const getDaysInMonth = (month, year) => {
-  if (!month) return 31
-  const m = parseInt(month)
-  const y = parseInt(year) || 2026
-  return new Date(y, m, 0).getDate()
-}
 
 const expDaysList = computed(() => {
-  const maxDay = getDaysInMonth(expMonth.value, expYear.value)
-  return Array.from({ length: maxDay }, (_, i) => String(i + 1))
+  return getValidExpirationDays(expYear.value, expMonth.value)
 })
 
 const updateExpPayload = () => {
   if (expDay.value && expMonth.value && expYear.value) {
     form.value.expiration_piece = `${expYear.value}-${String(expMonth.value).padStart(2, '0')}-${String(expDay.value).padStart(2, '0')}`
-    clearError('expiration_piece')
+    if (!isExpirationDateValid(form.value.expiration_piece)) {
+      validationErrors.value.expiration_piece = [getExpirationErrorMessage(languageStore.isEn())]
+    } else {
+      clearError('expiration_piece')
+    }
   } else {
     form.value.expiration_piece = ''
   }
 }
 
-watch([expMonth, expYear], () => {
-  if (expDay.value && expDaysList.value.length < parseInt(expDay.value)) {
-    expDay.value = String(expDaysList.value.length)
+// Watchers avec auto-clamping pour l'expiration
+watch(expYear, (newYear) => {
+  if (newYear && expMonth.value) {
+    const validMonthValues = monthsList.value.map(m => m.value)
+    if (!validMonthValues.includes(expMonth.value)) {
+      expMonth.value = validMonthValues[0] || ''
+    }
+  }
+  updateExpPayload()
+})
+
+watch(expMonth, (newMonth) => {
+  if (newMonth && expDay.value) {
+    const validDays = expDaysList.value
+    if (!validDays.includes(expDay.value)) {
+      expDay.value = validDays[0] || ''
+    }
   }
   updateExpPayload()
 })
@@ -223,7 +204,7 @@ const handleResendOtp = async () => {
     challengeId.value = response.data.challenge_id
     // Optionnel: afficher un message de succès (toast ou autre)
   } catch (err) {
-    error.value = err.response?.data?.message || 'Erreur lors de l\'envoi du code'
+    error.value = err.response?.data?.message || (languageStore.isEn() ? 'Error sending code' : 'Erreur lors de l\'envoi du code')
   } finally {
     loading.value = false
   }
@@ -237,19 +218,19 @@ const handleNext = async () => {
   if (step.value === 1) {
     // Frontend validation for registration required fields
     if (!form.value.first_name || form.value.first_name.trim() === '') {
-      validationErrors.value.first_name = ['Le prénom est obligatoire.']
+      validationErrors.value.first_name = [languageStore.isEn() ? 'First name is required.' : 'Le prénom est obligatoire.']
     }
     if (!form.value.last_name || form.value.last_name.trim() === '') {
-      validationErrors.value.last_name = ['Le nom est obligatoire.']
+      validationErrors.value.last_name = [languageStore.isEn() ? 'Last name is required.' : 'Le nom est obligatoire.']
     }
     if (!form.value.email || form.value.email.trim() === '') {
-      validationErrors.value.email = ['L\'adresse e-mail est obligatoire.']
+      validationErrors.value.email = [languageStore.isEn() ? 'Email address is required.' : 'L\'adresse e-mail est obligatoire.']
     }
     if (!form.value.country || form.value.country.trim() === '') {
-      validationErrors.value.country = ['Le pays de résidence est obligatoire.']
+      validationErrors.value.country = [languageStore.isEn() ? 'Country of residence is required.' : 'Le pays de résidence est obligatoire.']
     }
     if (!form.value.city || form.value.city.trim() === '') {
-      validationErrors.value.city = ['La ville est obligatoire.']
+      validationErrors.value.city = [languageStore.isEn() ? 'City is required.' : 'La ville est obligatoire.']
     }
     if (!form.value.type_piece) {
       validationErrors.value.type_piece = [languageStore.isEn() ? 'Document type is required.' : 'Le type de pièce d\'identification est obligatoire.']
@@ -259,13 +240,8 @@ const handleNext = async () => {
     }
     if (!form.value.expiration_piece) {
       validationErrors.value.expiration_piece = [languageStore.isEn() ? 'Expiration date is required.' : 'La date d\'expiration de la pièce est obligatoire.']
-    } else {
-      const expDate = new Date(form.value.expiration_piece)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      if (expDate <= today) {
-        validationErrors.value.expiration_piece = [languageStore.isEn() ? 'Expiration date must be in the future.' : 'La date d\'expiration doit être supérieure à la date du jour.']
-      }
+    } else if (!isExpirationDateValid(form.value.expiration_piece)) {
+      validationErrors.value.expiration_piece = [getExpirationErrorMessage(languageStore.isEn())]
     }
     if (!form.value.password || form.value.password.trim() === '') {
       validationErrors.value.password = [languageStore.isEn() ? 'Password is required.' : 'Le mot de passe est obligatoire.']
@@ -290,8 +266,8 @@ const handleNext = async () => {
   } else {
     // Frontend validation for OTP code field
     if (!form.value.otp || form.value.otp.trim() === '') {
-      validationErrors.value.code = ['Le code de vérification est obligatoire.']
-      error.value = 'Veuillez saisir le code de vérification.'
+      validationErrors.value.code = [languageStore.isEn() ? 'Verification code is required.' : 'Le code de vérification est obligatoire.']
+      error.value = languageStore.isEn() ? 'Please enter the verification code.' : 'Veuillez saisir le code de vérification.'
       loading.value = false
       return
     }
@@ -332,7 +308,7 @@ const handleNext = async () => {
         }
       }
     } else {
-      error.value = err.response?.data?.message || 'Une erreur est survenue'
+      error.value = err.response?.data?.message || (languageStore.isEn() ? 'An error occurred' : 'Une erreur est survenue')
     }
   } finally {
     loading.value = false
@@ -473,9 +449,9 @@ const handleNext = async () => {
               </label>
               <div class="relative">
                 <select v-model="form.type_piece" @change="clearError('type_piece')" class="w-full bg-white border-2 border-slate-100 rounded-2xl py-3 px-4 focus:border-primary transition-all appearance-none text-xs font-bold text-slate-800 cursor-pointer">
-                  <option value="CNI">Carte Nationale d'Identité (CNI)</option>
-                  <option value="Passeport">Passeport</option>
-                  <option value="Carte de séjour">Carte de séjour</option>
+                  <option value="CNI">{{ languageStore.isEn() ? 'National Identity Card (CNI)' : 'Carte Nationale d\'Identité (CNI)' }}</option>
+                  <option value="Passeport">{{ languageStore.isEn() ? 'Passport' : 'Passeport' }}</option>
+                  <option value="Carte de séjour">{{ languageStore.isEn() ? 'Residence permit' : 'Carte de séjour' }}</option>
                 </select>
                 <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>

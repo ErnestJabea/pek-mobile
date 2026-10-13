@@ -7,6 +7,14 @@ import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
 
 import LanguageSelector from '../components/LanguageSelector.vue'
+import {
+  getMinExpirationDate,
+  getValidExpirationYears,
+  getValidExpirationMonths,
+  getValidExpirationDays,
+  isExpirationDateValid,
+  getExpirationErrorMessage,
+} from '../utils/idExpiration'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -613,6 +621,69 @@ const onNatureClientChange = () => {
   }
 }
 
+const formatCategory = (cat) => {
+  if (!cat) return ''
+  if (!languageStore.isEn()) return cat
+  switch (cat) {
+    case 'Salarié secteur public': return 'Public Sector Employee'
+    case 'Salarié secteur privé': return 'Private Sector Employee'
+    case 'Agent des organismes internationaux': return 'International Organization Official'
+    case 'Profession libérale': return 'Self-Employed / Liberal Professional'
+    case 'Commerçant / entrepreneur': return 'Trader / Entrepreneur'
+    case 'Chômeur': return 'Unemployed'
+    case 'Particulier': return 'Individual (Recommended)'
+    case 'Professionnel': return 'Professional'
+    case 'Institutionnel': return 'Institutional'
+    case 'Personne Morale': return 'Corporate Entity'
+    case 'Banques': return 'Banks'
+    case 'OPC': return 'UCITS / Investment Funds'
+    case 'Caisses de dépôt et consignation (CDC)': return 'Deposit and Consignment Funds (CDC)'
+    case 'Autres institutions financières': return 'Other Financial Institutions'
+    case 'Sociétés de bourse': return 'Brokerage Firms'
+    case "Société de gestion d'OPC": return 'Asset Management Company'
+    case 'Entreprises non financières': return 'Non-Financial Corporates'
+    case 'Banques / Établissements financiers': return 'Banks / Financial Institutions'
+    case 'OPC / Sociétés de gestion': return 'UCITS / Asset Managers'
+    default: return cat
+  }
+}
+
+const formatSector = (sec) => {
+  if (!sec) return ''
+  if (!languageStore.isEn()) return sec
+  switch (sec) {
+    case 'Commerce & Distribution': return 'Commerce & Distribution'
+    case 'Banque, Finance & Assurance': return 'Banking, Finance & Insurance'
+    case 'Technologies, IT & Digital': return 'Technology, IT & Digital'
+    case 'Santé, Médical & Pharmacie': return 'Healthcare & Pharmaceuticals'
+    case 'BTP, Immobilier & Construction': return 'Construction & Real Estate'
+    case 'Éducation, Recherche & Formation': return 'Education & Research'
+    case 'Fonction Publique & Administration': return 'Public Service & Administration'
+    case 'Transport, Logistique & Fret': return 'Transport, Logistics & Freight'
+    case 'Agriculture & Agro-industrie': return 'Agriculture & Agribusiness'
+    case 'Industrie, Énergie & Mines': return 'Industry, Energy & Mining'
+    case 'Services, Hôtellerie & Restauration': return 'Services & Hospitality'
+    case 'Autre': return 'Other'
+    default: return sec
+  }
+}
+
+const formatIncomeSourceLabel = (key) => {
+  if (!languageStore.isEn()) {
+    const found = availableIncomeSources.find(s => s.key === key)
+    return found ? found.label : ''
+  }
+  switch (key) {
+    case 'src_salaire': return 'Salary'
+    case 'src_pro_liberal': return 'Liberal Prof. / Fees'
+    case 'src_foncier': return 'Rental / Property Income'
+    case 'src_dividendes': return 'Dividends / Investments'
+    case 'src_heritage': return 'Inheritance / Donation'
+    case 'src_autre_check': return 'Other source'
+    default: return ''
+  }
+}
+
 // Support des compléments d'informations pour les dossiers déjà finalisés / validés
 const serverNeedsCategory = ref(false)
 const updatingMissingCategory = ref(false)
@@ -943,6 +1014,11 @@ const localScore = computed(() => {
 
 const localProfile = computed(() => {
   const s = localScore.value
+  if (languageStore.isEn()) {
+    if (s <= 10) return 'Conservative'
+    if (s <= 19) return 'Moderate'
+    return 'Dynamic'
+  }
   if (s <= 10) return 'Prudent'
   if (s <= 19) return 'Modéré'
   return 'Dynamique'
@@ -965,21 +1041,21 @@ const minExpirationDate = computed(() => {
   return `${year}-${month}-${day}`
 })
 
-// French months array
-const frenchMonths = [
-  { value: '1', label: 'Janvier' },
-  { value: '2', label: 'Février' },
-  { value: '3', label: 'Mars' },
-  { value: '4', label: 'Avril' },
-  { value: '5', label: 'Mai' },
-  { value: '6', label: 'Juin' },
-  { value: '7', label: 'Juillet' },
-  { value: '8', label: 'Août' },
-  { value: '9', label: 'Septembre' },
-  { value: '10', label: 'Octobre' },
-  { value: '11', label: 'Novembre' },
-  { value: '12', label: 'Décembre' }
-]
+// French / English months array
+const frenchMonths = computed(() => [
+  { value: '1', label: languageStore.isEn() ? 'January' : 'Janvier' },
+  { value: '2', label: languageStore.isEn() ? 'February' : 'Février' },
+  { value: '3', label: languageStore.isEn() ? 'March' : 'Mars' },
+  { value: '4', label: languageStore.isEn() ? 'April' : 'Avril' },
+  { value: '5', label: languageStore.isEn() ? 'May' : 'Mai' },
+  { value: '6', label: languageStore.isEn() ? 'June' : 'Juin' },
+  { value: '7', label: languageStore.isEn() ? 'July' : 'Juillet' },
+  { value: '8', label: languageStore.isEn() ? 'August' : 'Août' },
+  { value: '9', label: languageStore.isEn() ? 'September' : 'Septembre' },
+  { value: '10', label: languageStore.isEn() ? 'October' : 'Octobre' },
+  { value: '11', label: languageStore.isEn() ? 'November' : 'Novembre' },
+  { value: '12', label: languageStore.isEn() ? 'December' : 'Décembre' }
+])
 
 // Date of birth states
 const dobDay = ref('')
@@ -1003,13 +1079,13 @@ const dobYearsList = computed(() => {
   return years
 })
 
-// Expiration years: current year to current year + 30
+// Expiration years: valid year to valid year + 30
 const expYearsList = computed(() => {
-  const years = []
-  for (let y = currentYear; y <= currentYear + 30; y++) {
-    years.push(String(y))
-  }
-  return years
+  return getValidExpirationYears()
+})
+
+const expMonthsList = computed(() => {
+  return getValidExpirationMonths(expYear.value, languageStore.isEn())
 })
 
 // Helper to get days in month
@@ -1027,8 +1103,7 @@ const dobDaysList = computed(() => {
 })
 
 const expDaysList = computed(() => {
-  const maxDay = getDaysInMonth(expMonth.value, expYear.value)
-  return Array.from({ length: maxDay }, (_, i) => String(i + 1))
+  return getValidExpirationDays(expYear.value, expMonth.value)
 })
 
 // Update payload helper functions
@@ -1044,7 +1119,11 @@ const updateDobPayload = () => {
 const updateExpPayload = () => {
   if (expDay.value && expMonth.value && expYear.value) {
     payload.value.expiration_piece = `${expYear.value}-${String(expMonth.value).padStart(2, '0')}-${String(expDay.value).padStart(2, '0')}`
-    clearError('expiration_piece')
+    if (!isExpirationDateValid(payload.value.expiration_piece)) {
+      validationErrors.value.expiration_piece = getExpirationErrorMessage(languageStore.isEn())
+    } else {
+      clearError('expiration_piece')
+    }
   } else {
     payload.value.expiration_piece = ''
   }
@@ -1061,13 +1140,27 @@ watch(dobDay, () => {
   updateDobPayload()
 })
 
-// Watchers for Expiration changes
-watch([expMonth, expYear], () => {
-  if (expDay.value && expDaysList.value.length < parseInt(expDay.value)) {
-    expDay.value = String(expDaysList.value.length)
+// Watchers for Expiration changes with auto-clamping
+watch(expYear, (newYear) => {
+  if (newYear && expMonth.value) {
+    const validMonthValues = expMonthsList.value.map(m => m.value)
+    if (!validMonthValues.includes(expMonth.value)) {
+      expMonth.value = validMonthValues[0] || ''
+    }
   }
   updateExpPayload()
 })
+
+watch(expMonth, (newMonth) => {
+  if (newMonth && expDay.value) {
+    const validDays = expDaysList.value
+    if (!validDays.includes(expDay.value)) {
+      expDay.value = validDays[0] || ''
+    }
+  }
+  updateExpPayload()
+})
+
 watch(expDay, () => {
   updateExpPayload()
 })
@@ -1117,14 +1210,11 @@ const nextStep = async () => {
       validationErrors.value.num_piece = "Le numéro de pièce est obligatoire."
     }
     if (!payload.value.expiration_piece) {
-      validationErrors.value.expiration_piece = "La date d'expiration de la pièce est obligatoire."
-    } else {
-      const expDate = new Date(payload.value.expiration_piece)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      if (expDate <= today) {
-        validationErrors.value.expiration_piece = "La date d'expiration doit être supérieure à la date du jour."
-      }
+      validationErrors.value.expiration_piece = languageStore.isEn()
+        ? "Document expiration date is required."
+        : "La date d'expiration de la pièce est obligatoire."
+    } else if (!isExpirationDateValid(payload.value.expiration_piece)) {
+      validationErrors.value.expiration_piece = getExpirationErrorMessage(languageStore.isEn())
     }
 
     // Les pièces justificatives KYC sont facultatives pour fluidifier l'onboarding
@@ -1441,7 +1531,7 @@ const submitOnboarding = async () => {
 <template>
   <div v-if="loading" class="min-h-screen flex flex-col items-center justify-center space-y-4">
     <Loader2 class="w-10 h-10 text-primary animate-spin" />
-    <p class="text-slate-400 font-medium">Récupération de votre dossier...</p>
+    <p class="text-slate-400 font-medium">{{ languageStore.isEn() ? 'Retrieving your file...' : 'Récupération de votre dossier...' }}</p>
   </div>
 
   <div v-else class="min-h-screen flex flex-col bg-slate-50">
@@ -1463,7 +1553,7 @@ const submitOnboarding = async () => {
       <!-- Progress Bar -->
       <div v-if="currentStep !== 'completed'" class="mt-6 space-y-2">
         <div class="flex justify-between items-center text-xs font-bold text-slate-400">
-          <span class="uppercase">Progression</span>
+          <span class="uppercase">{{ languageStore.isEn() ? 'Progress' : 'Progression' }}</span>
           <span>{{ progressPercentage }}%</span>
         </div>
         <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
@@ -1474,7 +1564,7 @@ const submitOnboarding = async () => {
       <!-- Low connectivity warning header -->
       <div v-if="offlineMode || syncError" class="mt-3 flex items-center gap-2 bg-amber-50 text-amber-800 p-2.5 rounded-xl border border-amber-200/50 text-[10px] font-bold">
         <WifiOff class="w-3.5 h-3.5 text-amber-600" />
-        <span>{{ syncError || "Mode hors-ligne : saisies sécurisées localement." }}</span>
+        <span>{{ syncError || (languageStore.isEn() ? 'Offline mode: inputs secured locally.' : 'Mode hors-ligne : saisies sécurisées localement.') }}</span>
       </div>
     </header>
 
@@ -1484,18 +1574,18 @@ const submitOnboarding = async () => {
       <!-- STEP 1: KYC FORM -->
       <div v-if="currentStep === 'kyc'" class="space-y-6 animate-in fade-in duration-300">
         <div class="space-y-1">
-          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Étape 1 sur {{ identityRequired ? 5 : 4 }}</span>
-          <h3 class="text-xl font-black text-slate-900">Identité & KYC</h3>
-          <p class="text-slate-500 text-xs font-medium">Complétez vos informations réglementaires d'identité.</p>
+          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">{{ languageStore.isEn() ? 'Step 1 of ' + (identityRequired ? 5 : 4) : 'Étape 1 sur ' + (identityRequired ? 5 : 4) }}</span>
+          <h3 class="text-xl font-black text-slate-900">{{ languageStore.isEn() ? 'Identity & KYC' : 'Identité & KYC' }}</h3>
+          <p class="text-slate-500 text-xs font-medium">{{ languageStore.isEn() ? 'Complete your regulatory identity details.' : 'Complétez vos informations réglementaires d\'identité.' }}</p>
         </div>
 
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
           <!-- Civilité -->
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Civilité *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Civility *' : 'Civilité *' }}</label>
             <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
-              <button type="button" @click="payload.civ = 'M.'; clearError('civ')" :class="payload.civ === 'M.' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Monsieur</button>
-              <button type="button" @click="payload.civ = 'Mme'; clearError('civ')" :class="payload.civ === 'Mme' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Madame</button>
+              <button type="button" @click="payload.civ = 'M.'; clearError('civ')" :class="payload.civ === 'M.' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Mr.' : 'Monsieur' }}</button>
+              <button type="button" @click="payload.civ = 'Mme'; clearError('civ')" :class="payload.civ === 'Mme' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Mrs./Ms.' : 'Madame' }}</button>
             </div>
             <p v-if="validationErrors.civ" id="civ-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.civ }}
@@ -1504,10 +1594,10 @@ const submitOnboarding = async () => {
 
           <!-- Nature du client (Personne Physique vs Personne Morale) -->
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Nature du client *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Client Nature *' : 'Nature du client *' }}</label>
             <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
-              <button type="button" @click="payload.nature_client = 'personne_physique'; onNatureClientChange()" :class="payload.nature_client === 'personne_physique' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-black uppercase transition-all">Personne Physique</button>
-              <button type="button" @click="payload.nature_client = 'personne_morale'; onNatureClientChange()" :class="payload.nature_client === 'personne_morale' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-black uppercase transition-all">Personne Morale</button>
+              <button type="button" @click="payload.nature_client = 'personne_physique'; onNatureClientChange()" :class="payload.nature_client === 'personne_physique' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Natural Person' : 'Personne Physique' }}</button>
+              <button type="button" @click="payload.nature_client = 'personne_morale'; onNatureClientChange()" :class="payload.nature_client === 'personne_morale' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Corporate Entity' : 'Personne Morale' }}</button>
             </div>
             <p v-if="validationErrors.nature_client" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.nature_client }}
@@ -1516,10 +1606,10 @@ const submitOnboarding = async () => {
 
           <!-- Catégorie du client -->
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Catégorie du client *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Client Category *' : 'Catégorie du client *' }}</label>
             <div class="relative">
               <select v-model="payload.categorie_client" @change="clearError('categorie_client')" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
-                <option v-for="cat in availableClientCategories" :key="cat" :value="cat">{{ cat }}</option>
+                <option v-for="cat in availableClientCategories" :key="cat" :value="cat">{{ formatCategory(cat) }}</option>
               </select>
               <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
@@ -1531,14 +1621,14 @@ const submitOnboarding = async () => {
           <!-- Nom et Prénom -->
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Nom *</label>
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Last Name *' : 'Nom *' }}</label>
               <input v-model="payload.nom" @blur="clearError('nom')" @input="clearError('nom')" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.nom ? 'true' : 'false'" :aria-describedby="validationErrors.nom ? 'nom-error' : null">
               <p v-if="validationErrors.nom" id="nom-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
                 {{ validationErrors.nom }}
               </p>
             </div>
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Prénom *</label>
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'First Name *' : 'Prénom *' }}</label>
               <input v-model="payload.prenom" @blur="clearError('prenom')" @input="clearError('prenom')" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.prenom ? 'true' : 'false'" :aria-describedby="validationErrors.prenom ? 'prenom-error' : null">
               <p v-if="validationErrors.prenom" id="prenom-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
                 {{ validationErrors.prenom }}
@@ -1548,12 +1638,12 @@ const submitOnboarding = async () => {
 
           <!-- Situation Matrimoniale -->
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Situation Matrimoniale *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Marital Status *' : 'Situation Matrimoniale *' }}</label>
             <select v-model="payload.situation_mat" @change="clearError('situation_mat')" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.situation_mat ? 'true' : 'false'" :aria-describedby="validationErrors.situation_mat ? 'situation_mat-error' : null">
-              <option>Célibataire</option>
-              <option>Marié(e)</option>
-              <option>Divorcé(e)</option>
-              <option>Veuf(ve)</option>
+              <option value="Célibataire">{{ languageStore.isEn() ? 'Single' : 'Célibataire' }}</option>
+              <option value="Marié(e)">{{ languageStore.isEn() ? 'Married' : 'Marié(e)' }}</option>
+              <option value="Divorcé(e)">{{ languageStore.isEn() ? 'Divorced' : 'Divorcé(e)' }}</option>
+              <option value="Veuf(ve)">{{ languageStore.isEn() ? 'Widowed' : 'Veuf(ve)' }}</option>
             </select>
             <p v-if="validationErrors.situation_mat" id="situation_mat-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.situation_mat }}
@@ -1563,21 +1653,21 @@ const submitOnboarding = async () => {
           <!-- Date de naissance et Lieu -->
           <div class="space-y-4">
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Date de Naissance *</label>
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Date of Birth *' : 'Date de Naissance *' }}</label>
               <div class="grid grid-cols-3 gap-2">
                 <!-- Jour -->
                 <select v-model="dobDay" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
-                  <option value="" disabled>Jour</option>
+                  <option value="" disabled>{{ languageStore.isEn() ? 'Day' : 'Jour' }}</option>
                   <option v-for="d in dobDaysList" :key="d" :value="d">{{ String(d).padStart(2, '0') }}</option>
                 </select>
                 <!-- Mois -->
                 <select v-model="dobMonth" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
-                  <option value="" disabled>Mois</option>
+                  <option value="" disabled>{{ languageStore.isEn() ? 'Month' : 'Mois' }}</option>
                   <option v-for="m in frenchMonths" :key="m.value" :value="m.value">{{ m.label }}</option>
                 </select>
                 <!-- Année -->
                 <select v-model="dobYear" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
-                  <option value="" disabled>Année</option>
+                  <option value="" disabled>{{ languageStore.isEn() ? 'Year' : 'Année' }}</option>
                   <option v-for="y in dobYearsList" :key="y" :value="y">{{ y }}</option>
                 </select>
               </div>
@@ -1587,7 +1677,7 @@ const submitOnboarding = async () => {
             </div>
             
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Lieu Naissance *</label>
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Place of Birth *' : 'Lieu Naissance *' }}</label>
               <input v-model="payload.lieu_naiss" @blur="clearError('lieu_naiss')" @input="clearError('lieu_naiss')" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.lieu_naiss ? 'true' : 'false'" :aria-describedby="validationErrors.lieu_naiss ? 'lieu_naiss-error' : null">
               <p v-if="validationErrors.lieu_naiss" id="lieu_naiss-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
                 {{ validationErrors.lieu_naiss }}
@@ -1598,26 +1688,26 @@ const submitOnboarding = async () => {
           <!-- Nationalité & Résidence -->
           <div class="space-y-4 text-left">
             <div class="space-y-2">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Nationalité *</label>
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Nationality *' : 'Nationalité *' }}</label>
               <select v-model="selectedNationality" @change="onNationalityChange(); clearError('nat')" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.nat ? 'true' : 'false'" :aria-describedby="validationErrors.nat ? 'nat-error' : null">
-                <option value="Camerounaise">Camerounaise</option>
-                <option value="Gabonaise">Gabonaise</option>
-                <option value="Congolaise">Congolaise</option>
-                <option value="Tchadienne">Tchadienne</option>
-                <option value="Centrafricaine">Centrafricaine</option>
-                <option value="Équato-guinéenne">Équato-guinéenne</option>
-                <option value="Ivoirienne">Ivoirienne</option>
-                <option value="Sénégalaise">Sénégalaise</option>
-                <option value="Béninoise">Béninoise</option>
-                <option value="Togolaise">Togolaise</option>
-                <option value="Malienne">Malienne</option>
-                <option value="Burkinabè">Burkinabè</option>
-                <option value="Nigériane">Nigériane</option>
-                <option value="Française">Française</option>
-                <option value="Belge">Belge</option>
-                <option value="Canadienne">Canadienne</option>
-                <option value="Américaine">Américaine</option>
-                <option value="Autre">Autre (Saisir manuellement)</option>
+                <option value="Camerounaise">{{ languageStore.isEn() ? 'Cameroonian' : 'Camerounaise' }}</option>
+                <option value="Gabonaise">{{ languageStore.isEn() ? 'Gabonese' : 'Gabonaise' }}</option>
+                <option value="Congolaise">{{ languageStore.isEn() ? 'Congolese' : 'Congolaise' }}</option>
+                <option value="Tchadienne">{{ languageStore.isEn() ? 'Chadian' : 'Tchadienne' }}</option>
+                <option value="Centrafricaine">{{ languageStore.isEn() ? 'Central African' : 'Centrafricaine' }}</option>
+                <option value="Équato-guinéenne">{{ languageStore.isEn() ? 'Equatorial Guinean' : 'Équato-guinéenne' }}</option>
+                <option value="Ivoirienne">{{ languageStore.isEn() ? 'Ivorian' : 'Ivoirienne' }}</option>
+                <option value="Sénégalaise">{{ languageStore.isEn() ? 'Senegalese' : 'Sénégalaise' }}</option>
+                <option value="Béninoise">{{ languageStore.isEn() ? 'Beninese' : 'Béninoise' }}</option>
+                <option value="Togolaise">{{ languageStore.isEn() ? 'Togolese' : 'Togolaise' }}</option>
+                <option value="Malienne">{{ languageStore.isEn() ? 'Malian' : 'Malienne' }}</option>
+                <option value="Burkinabè">{{ languageStore.isEn() ? 'Burkinabe' : 'Burkinabè' }}</option>
+                <option value="Nigériane">{{ languageStore.isEn() ? 'Nigerian' : 'Nigériane' }}</option>
+                <option value="Française">{{ languageStore.isEn() ? 'French' : 'Française' }}</option>
+                <option value="Belge">{{ languageStore.isEn() ? 'Belgian' : 'Belge' }}</option>
+                <option value="Canadienne">{{ languageStore.isEn() ? 'Canadian' : 'Canadienne' }}</option>
+                <option value="Américaine">{{ languageStore.isEn() ? 'American' : 'Américaine' }}</option>
+                <option value="Autre">{{ languageStore.isEn() ? 'Other (Enter manually)' : 'Autre (Saisir manuellement)' }}</option>
               </select>
               <p v-if="validationErrors.nat" id="nat-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
                 {{ validationErrors.nat }}
@@ -1625,14 +1715,14 @@ const submitOnboarding = async () => {
             </div>
             
             <div v-if="selectedNationality === 'Autre'" class="space-y-2 animate-in fade-in duration-300">
-              <label class="text-[10px] font-black text-slate-400 uppercase pl-1">Précisez votre nationalité *</label>
-              <input v-model="otherNationality" @input="onOtherNationalityInput(); clearError('nat')" type="text" placeholder="Ex: Italienne" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all">
+              <label class="text-[10px] font-black text-slate-400 uppercase pl-1">{{ languageStore.isEn() ? 'Specify your nationality *' : 'Précisez votre nationalité *' }}</label>
+              <input v-model="otherNationality" @input="onOtherNationalityInput(); clearError('nat')" type="text" :placeholder="languageStore.isEn() ? 'Ex: Italian' : 'Ex: Italienne'" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all">
             </div>
           </div>
 
           <!-- Contact (Tel, Email) -->
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Téléphone *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Phone *' : 'Téléphone *' }}</label>
             <input v-model="payload.tel" @blur="clearError('tel')" @input="clearError('tel')" type="tel" placeholder="Ex: 699009900" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.tel ? 'true' : 'false'" :aria-describedby="validationErrors.tel ? 'tel-error' : null">
             <p v-if="validationErrors.tel" id="tel-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.tel }}
@@ -1640,7 +1730,7 @@ const submitOnboarding = async () => {
           </div>
 
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">E-mail de contact *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Contact Email *' : 'E-mail de contact *' }}</label>
             <input v-model="payload.email" @blur="clearError('email')" @input="clearError('email')" type="email" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.email ? 'true' : 'false'" :aria-describedby="validationErrors.email ? 'email-error' : null">
             <p v-if="validationErrors.email" id="email-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.email }}
@@ -1649,8 +1739,8 @@ const submitOnboarding = async () => {
 
           <!-- Adresse physique -->
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Adresse de résidence *</label>
-            <input v-model="payload.adresse" @blur="clearError('adresse')" @input="clearError('adresse')" type="text" placeholder="Quartier, Ville" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.adresse ? 'true' : 'false'" :aria-describedby="validationErrors.adresse ? 'adresse-error' : null">
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Residential Address *' : 'Adresse de résidence *' }}</label>
+            <input v-model="payload.adresse" @blur="clearError('adresse')" @input="clearError('adresse')" type="text" :placeholder="languageStore.isEn() ? 'Neighborhood, City' : 'Quartier, Ville'" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.adresse ? 'true' : 'false'" :aria-describedby="validationErrors.adresse ? 'adresse-error' : null">
             <p v-if="validationErrors.adresse" id="adresse-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.adresse }}
             </p>
@@ -1658,16 +1748,16 @@ const submitOnboarding = async () => {
         </div>
 
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
-          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">Documents Officiels</h4>
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">{{ languageStore.isEn() ? 'Official Documents' : 'Documents Officiels' }}</h4>
           
           <!-- Pièce d'identité -->
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Type de pièce *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Document Type *' : 'Type de pièce *' }}</label>
             <select v-model="payload.piece" @change="onPieceTypeChange" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.piece ? 'true' : 'false'" :aria-describedby="validationErrors.piece ? 'piece-error' : null">
-              <option value="CNI">Carte Nationale d'Identité (CNI)</option>
-              <option value="Passeport">Passeport</option>
-              <option value="Carte Résident">Carte de Résident / Titre de Séjour</option>
-              <option value="Permis de Conduire">Permis de Conduire</option>
+              <option value="CNI">{{ languageStore.isEn() ? 'National Identity Card (CNI)' : 'Carte Nationale d\'Identité (CNI)' }}</option>
+              <option value="Passeport">{{ languageStore.isEn() ? 'Passport' : 'Passeport' }}</option>
+              <option value="Carte Résident">{{ languageStore.isEn() ? 'Residence Permit / Card' : 'Carte de Résident / Titre de Séjour' }}</option>
+              <option value="Permis de Conduire">{{ languageStore.isEn() ? 'Driver License' : 'Permis de Conduire' }}</option>
             </select>
             <p v-if="validationErrors.piece" id="piece-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.piece }}
@@ -1675,7 +1765,7 @@ const submitOnboarding = async () => {
           </div>
 
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Numéro de pièce *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Document Number *' : 'Numéro de pièce *' }}</label>
             <input v-model="payload.num_piece" @blur="clearError('num_piece')" @input="clearError('num_piece')" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.num_piece ? 'true' : 'false'" :aria-describedby="validationErrors.num_piece ? 'num_piece-error' : null">
             <p v-if="validationErrors.num_piece" id="num_piece-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.num_piece }}
@@ -1683,21 +1773,21 @@ const submitOnboarding = async () => {
           </div>
 
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Date d'expiration de la pièce *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Document Expiration Date *' : 'Date d\'expiration de la pièce *' }}</label>
             <div class="grid grid-cols-3 gap-2">
               <!-- Jour -->
               <select v-model="expDay" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
-                <option value="" disabled>Jour</option>
+                <option value="" disabled>{{ languageStore.isEn() ? 'Day' : 'Jour' }}</option>
                 <option v-for="d in expDaysList" :key="d" :value="d">{{ String(d).padStart(2, '0') }}</option>
               </select>
               <!-- Mois -->
               <select v-model="expMonth" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
-                <option value="" disabled>Mois</option>
-                <option v-for="m in frenchMonths" :key="m.value" :value="m.value">{{ m.label }}</option>
+                <option value="" disabled>{{ languageStore.isEn() ? 'Month' : 'Mois' }}</option>
+                <option v-for="m in expMonthsList" :key="m.value" :value="m.value">{{ m.label }}</option>
               </select>
               <!-- Année -->
               <select v-model="expYear" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
-                <option value="" disabled>Année</option>
+                <option value="" disabled>{{ languageStore.isEn() ? 'Year' : 'Année' }}</option>
                 <option v-for="y in expYearsList" :key="y" :value="y">{{ y }}</option>
               </select>
             </div>
@@ -1708,15 +1798,15 @@ const submitOnboarding = async () => {
         </div>
 
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
-          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">Profession</h4>
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">{{ languageStore.isEn() ? 'Occupation' : 'Profession' }}</h4>
           
           <div class="space-y-4">
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Profession (Optionnel)</label>
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Profession (Optional)' : 'Profession (Optionnel)' }}</label>
               <input v-model="payload.profession" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all">
             </div>
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Employeur (Optionnel)</label>
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Employer (Optional)' : 'Employeur (Optionnel)' }}</label>
               <input v-model="payload.employeur" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all">
             </div>
           </div>
@@ -1726,9 +1816,9 @@ const submitOnboarding = async () => {
       <!-- STRICT IDENTITY VERIFICATION -->
       <div v-else-if="currentStep === 'identity'" class="space-y-6 animate-in fade-in duration-300">
         <div class="space-y-1">
-          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Étape 2 sur 5</span>
-          <h3 class="text-xl font-black text-slate-900">Vérification stricte de l’identité</h3>
-          <p class="text-slate-500 text-xs font-medium">Contrôle du document, correspondance faciale et détection de présence réelle.</p>
+          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">{{ languageStore.isEn() ? 'Step 2 of 5' : 'Étape 2 sur 5' }}</span>
+          <h3 class="text-xl font-black text-slate-900">{{ languageStore.isEn() ? 'Strict Identity Verification' : 'Vérification stricte de l’identité' }}</h3>
+          <p class="text-slate-500 text-xs font-medium">{{ languageStore.isEn() ? 'Document check, facial matching and liveness detection.' : 'Contrôle du document, correspondance faciale et détection de présence réelle.' }}</p>
         </div>
 
         <section class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5 text-left">
@@ -1737,29 +1827,29 @@ const submitOnboarding = async () => {
           </div>
 
           <div class="space-y-2">
-            <h4 class="font-black text-slate-900">Contrôle sécurisé par un prestataire spécialisé</h4>
+            <h4 class="font-black text-slate-900">{{ languageStore.isEn() ? 'Secure verification by specialized partner' : 'Contrôle sécurisé par un prestataire spécialisé' }}</h4>
             <p class="text-xs text-slate-500 leading-relaxed">
-              Les images de votre pièce et de votre visage sont capturées dans la session sécurisée du prestataire. PEK ne les place ni dans le navigateur, ni dans une URL publique, ni dans ses e-mails.
+              {{ languageStore.isEn() ? 'Your ID document and facial images are captured in the partner’s secure session. PEK does not store them in the browser, public URLs, or emails.' : 'Les images de votre pièce et de votre visage sont capturées dans la session sécurisée du prestataire. PEK ne les place ni dans le navigateur, ni dans une URL publique, ni dans ses e-mails.' }}
             </p>
           </div>
 
           <div class="bg-slate-50 rounded-2xl p-4 text-[11px] text-slate-600 leading-relaxed space-y-2">
-            <p>• Les clés du prestataire restent exclusivement sur le serveur PEK.</p>
-            <p>• PEK conserve seulement une référence opaque, le statut final et des indicateurs de contrôle.</p>
-            <p>• Toute modification ultérieure de vos données d’identité invalide le contrôle et impose une nouvelle vérification.</p>
+            <p>{{ languageStore.isEn() ? '• Partner keys remain exclusively on the PEK server.' : '• Les clés du prestataire restent exclusivement sur le serveur PEK.' }}</p>
+            <p>{{ languageStore.isEn() ? '• PEK only stores an opaque reference, final status and control flags.' : '• PEK conserve seulement une référence opaque, le statut final et des indicateurs de contrôle.' }}</p>
+            <p>{{ languageStore.isEn() ? '• Any subsequent changes to your identity data will invalidate verification and require re-checking.' : '• Toute modification ultérieure de vos données d’identité invalide le contrôle et impose une nouvelle vérification.' }}</p>
           </div>
 
           <div v-if="identityVerification?.verified" class="bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl p-4 text-xs font-bold flex items-center gap-3">
             <CheckCircle2 class="w-5 h-5 shrink-0" />
-            Identité vérifiée et liée aux informations de ce dossier.
+            {{ languageStore.isEn() ? 'Identity verified and linked to this file.' : 'Identité vérifiée et liée aux informations de ce dossier.' }}
           </div>
           <div v-else-if="identityVerification?.status === 'reviewing' || identityVerification?.status === 'pending'" class="bg-amber-50 border border-amber-100 text-amber-700 rounded-2xl p-4 text-xs font-bold flex items-center gap-3">
             <Loader2 class="w-5 h-5 shrink-0 animate-spin" />
-            Vérification reçue, examen en cours. Actualisez le statut dans quelques instants.
+            {{ languageStore.isEn() ? 'Verification received, review in progress. Refresh status in a few moments.' : 'Vérification reçue, examen en cours. Actualisez le statut dans quelques instants.' }}
           </div>
           <div v-else-if="identityVerification && ['denied', 'suspected', 'expired', 'error'].includes(identityVerification.status)" class="bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl p-4 text-xs font-bold flex items-center gap-3">
             <AlertCircle class="w-5 h-5 shrink-0" />
-            Le contrôle n’a pas été approuvé. Vous pouvez lancer une nouvelle session.
+            {{ languageStore.isEn() ? 'Verification was not approved. You can start a new session.' : 'Le contrôle n’a pas été approuvé. Vous pouvez lancer une nouvelle session.' }}
           </div>
 
           <button
@@ -1771,7 +1861,7 @@ const submitOnboarding = async () => {
           >
             <Loader2 v-if="identityLoading" class="w-5 h-5 animate-spin" />
             <ShieldCheck v-else class="w-5 h-5" />
-            Démarrer le contrôle d’identité
+            {{ languageStore.isEn() ? 'Start Identity Verification' : 'Démarrer le contrôle d’identité' }}
           </button>
 
           <button
@@ -1781,7 +1871,7 @@ const submitOnboarding = async () => {
             class="w-full bg-slate-100 text-slate-700 font-black py-4 rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <RefreshCw :class="identityLoading ? 'animate-spin' : ''" class="w-4 h-4" />
-            Actualiser le statut
+            {{ languageStore.isEn() ? 'Refresh Status' : 'Actualiser le statut' }}
           </button>
         </section>
       </div>
@@ -1789,15 +1879,15 @@ const submitOnboarding = async () => {
       <!-- RISK PROFILER -->
       <div v-else-if="currentStep === 'risk'" class="space-y-6 animate-in fade-in duration-300">
         <div class="space-y-1">
-          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Étape {{ identityRequired ? 3 : 2 }} sur {{ identityRequired ? 5 : 4 }}</span>
-          <h3 class="text-xl font-black text-slate-900">Profil d'Investissement</h3>
-          <p class="text-slate-500 text-xs font-medium">Déterminez vos objectifs et évaluez votre tolérance au risque.</p>
+          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">{{ languageStore.isEn() ? 'Step ' + (identityRequired ? 3 : 2) + ' of ' + (identityRequired ? 5 : 4) : 'Étape ' + (identityRequired ? 3 : 2) + ' sur ' + (identityRequired ? 5 : 4) }}</span>
+          <h3 class="text-xl font-black text-slate-900">{{ languageStore.isEn() ? 'Investor Profile' : 'Profil d\'Investissement' }}</h3>
+          <p class="text-slate-500 text-xs font-medium">{{ languageStore.isEn() ? 'Determine your goals and assess your risk tolerance.' : 'Déterminez vos objectifs et évaluez votre tolérance au risque.' }}</p>
         </div>
 
         <!-- Dynamic Live Score Card -->
         <div class="bg-primary text-white p-6 rounded-[32px] shadow-lg shadow-primary/15 space-y-3 text-left">
           <div class="space-y-1">
-            <span class="text-white/70 text-[10px] font-black uppercase tracking-widest">Profil Estimé localement</span>
+            <span class="text-white/70 text-[10px] font-black uppercase tracking-widest">{{ languageStore.isEn() ? 'Locally Estimated Profile' : 'Profil Estimé localement' }}</span>
             <h4 class="text-2xl font-black text-white leading-none">{{ localProfile }}</h4>
           </div>
         </div>
@@ -1807,88 +1897,88 @@ const submitOnboarding = async () => {
           
           <!-- Q1: Revenus -->
           <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4">
-            <h4 class="text-sm font-black text-slate-900 leading-tight">1. Quelle est votre tranche de revenus annuels ?</h4>
+            <h4 class="text-sm font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? '1. What is your annual income bracket?' : '1. Quelle est votre tranche de revenus annuels ?' }}</h4>
             <div class="space-y-2">
-              <button type="button" @click="payload.tranche_revenus = 'moins_500k'; payload.revenus_annuels = 'moins_5m'" :class="payload.tranche_revenus === 'moins_500k' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Moins de 500 000 FCFA</button>
-              <button type="button" @click="payload.tranche_revenus = '500k_1_5m'; payload.revenus_annuels = '5m_15m'" :class="payload.tranche_revenus === '500k_1_5m' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">De 500 000 à 1 500 000 FCFA</button>
-              <button type="button" @click="payload.tranche_revenus = 'plus_1_5m'; payload.revenus_annuels = 'plus_15m'" :class="payload.tranche_revenus === 'plus_1_5m' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Plus de 1 500 000 FCFA</button>
+              <button type="button" @click="payload.tranche_revenus = 'moins_500k'; payload.revenus_annuels = 'moins_5m'" :class="payload.tranche_revenus === 'moins_500k' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Under 500,000 FCFA' : 'Moins de 500 000 FCFA' }}</button>
+              <button type="button" @click="payload.tranche_revenus = '500k_1_5m'; payload.revenus_annuels = '5m_15m'" :class="payload.tranche_revenus === '500k_1_5m' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? '500,000 to 1,500,000 FCFA' : 'De 500 000 à 1 500 000 FCFA' }}</button>
+              <button type="button" @click="payload.tranche_revenus = 'plus_1_5m'; payload.revenus_annuels = 'plus_15m'" :class="payload.tranche_revenus === 'plus_1_5m' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Over 1,500,000 FCFA' : 'Plus de 1 500 000 FCFA' }}</button>
             </div>
           </div>
 
           <!-- Q2: Epargne régulière -->
           <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4">
-            <h4 class="text-sm font-black text-slate-900 leading-tight">2. Avez-vous une capacité d'épargne résiduelle régulière ?</h4>
+            <h4 class="text-sm font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? '2. Do you have a regular residual savings capacity?' : '2. Avez-vous une capacité d\'épargne résiduelle régulière ?' }}</h4>
             <div class="grid grid-cols-2 gap-3">
-              <button type="button" @click="payload.epargne_possible = 'Oui'" :class="payload.epargne_possible === 'Oui' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">Oui</button>
-              <button type="button" @click="payload.epargne_possible = 'Non'" :class="payload.epargne_possible === 'Non' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">Non</button>
+              <button type="button" @click="payload.epargne_possible = 'Oui'" :class="payload.epargne_possible === 'Oui' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">{{ languageStore.isEn() ? 'Yes' : 'Oui' }}</button>
+              <button type="button" @click="payload.epargne_possible = 'Non'" :class="payload.epargne_possible === 'Non' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">{{ languageStore.isEn() ? 'No' : 'Non' }}</button>
             </div>
           </div>
 
           <!-- Q3: Niveau de risque accepté -->
           <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4">
-            <h4 class="text-sm font-black text-slate-900 leading-tight">3. Quel niveau de risque acceptez-vous sur vos placements ?</h4>
+            <h4 class="text-sm font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? '3. What level of risk do you accept on your investments?' : '3. Quel niveau de risque acceptez-vous sur vos placements ?' }}</h4>
             <div class="space-y-2">
-              <button type="button" @click="payload.niveau_risque = 'faible'" :class="payload.niveau_risque === 'faible' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Faible (préservation prioritaire)</button>
-              <button type="button" @click="payload.niveau_risque = 'moyen'" :class="payload.niveau_risque === 'moyen' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Moyen (équilibre rendement/fluctuation)</button>
-              <button type="button" @click="payload.niveau_risque = 'max'" :class="payload.niveau_risque === 'max' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Maximum (recherche de croissance à tout prix)</button>
+              <button type="button" @click="payload.niveau_risque = 'faible'" :class="payload.niveau_risque === 'faible' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Low (preservation priority)' : 'Faible (préservation prioritaire)' }}</button>
+              <button type="button" @click="payload.niveau_risque = 'moyen'" :class="payload.niveau_risque === 'moyen' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Medium (balanced yield/fluctuation)' : 'Moyen (équilibre rendement/fluctuation)' }}</button>
+              <button type="button" @click="payload.niveau_risque = 'max'" :class="payload.niveau_risque === 'max' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Maximum (seeking maximum growth)' : 'Maximum (recherche de croissance à tout prix)' }}</button>
             </div>
           </div>
 
           <!-- Q4: Conscience risque -->
           <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4">
-            <h4 class="text-sm font-black text-slate-900 leading-tight">4. Êtes-vous conscient qu'un rendement potentiel élevé s'accompagne d'un risque élevé de perte en capital ?</h4>
+            <h4 class="text-sm font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? '4. Are you aware that a high potential return comes with a high risk of capital loss?' : '4. Êtes-vous conscient qu\'un rendement potentiel élevé s\'accompagne d\'un risque élevé de perte en capital ?' }}</h4>
             <div class="grid grid-cols-2 gap-3">
-              <button type="button" @click="payload.conscience_risque = 'Oui'" :class="payload.conscience_risque === 'Oui' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">Oui</button>
-              <button type="button" @click="payload.conscience_risque = 'Non'" :class="payload.conscience_risque === 'Non' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">Non</button>
+              <button type="button" @click="payload.conscience_risque = 'Oui'" :class="payload.conscience_risque === 'Oui' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">{{ languageStore.isEn() ? 'Yes' : 'Oui' }}</button>
+              <button type="button" @click="payload.conscience_risque = 'Non'" :class="payload.conscience_risque === 'Non' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">{{ languageStore.isEn() ? 'No' : 'Non' }}</button>
             </div>
           </div>
 
           <!-- Q5: Objectif investissement -->
           <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4">
-            <h4 class="text-sm font-black text-slate-900 leading-tight">5. Quel est votre objectif principal d'investissement ?</h4>
+            <h4 class="text-sm font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? '5. What is your main investment objective?' : '5. Quel est votre objectif principal d\'investissement ?' }}</h4>
             <div class="space-y-2">
-              <button type="button" @click="payload.objectif_invest = 'securite'" :class="payload.objectif_invest === 'securite' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Sécuriser une épargne de précaution</button>
-              <button type="button" @click="payload.objectif_invest = 'equilibre'" :class="payload.objectif_invest === 'equilibre' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Équilibrer mon patrimoine entre sécurité et croissance</button>
-              <button type="button" @click="payload.objectif_invest = 'croissance'" :class="payload.objectif_invest === 'croissance' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Faire fructifier mon capital à long terme</button>
+              <button type="button" @click="payload.objectif_invest = 'securite'" :class="payload.objectif_invest === 'securite' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Secure precautionary emergency savings' : 'Sécuriser une épargne de précaution' }}</button>
+              <button type="button" @click="payload.objectif_invest = 'equilibre'" :class="payload.objectif_invest === 'equilibre' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Balance wealth between security and growth' : 'Équilibrer mon patrimoine entre sécurité et croissance' }}</button>
+              <button type="button" @click="payload.objectif_invest = 'croissance'" :class="payload.objectif_invest === 'croissance' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Grow my capital over the long term' : 'Faire fructifier mon capital à long terme' }}</button>
             </div>
           </div>
 
           <!-- Q6: Horizon de placement -->
           <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4">
-            <h4 class="text-sm font-black text-slate-900 leading-tight">6. Quelle est la durée (horizon) de votre placement ?</h4>
+            <h4 class="text-sm font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? '6. What is the horizon / duration of your investment?' : '6. Quelle est la durée (horizon) de votre placement ?' }}</h4>
             <div class="space-y-2">
-              <button type="button" @click="payload.horizon_terme = 'court_terme'" :class="payload.horizon_terme === 'court_terme' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Court terme - Moins de 2 ans</button>
-              <button type="button" @click="payload.horizon_terme = 'moyen_terme'" :class="payload.horizon_terme === 'moyen_terme' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Moyen terme - De 2 à 5 ans</button>
-              <button type="button" @click="payload.horizon_terme = 'long_terme'" :class="payload.horizon_terme === 'long_terme' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Long terme - Plus de 5 ans</button>
+              <button type="button" @click="payload.horizon_terme = 'court_terme'" :class="payload.horizon_terme === 'court_terme' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Short term - Under 2 years' : 'Court terme - Moins de 2 ans' }}</button>
+              <button type="button" @click="payload.horizon_terme = 'moyen_terme'" :class="payload.horizon_terme === 'moyen_terme' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Medium term - 2 to 5 years' : 'Moyen terme - De 2 à 5 ans' }}</button>
+              <button type="button" @click="payload.horizon_terme = 'long_terme'" :class="payload.horizon_terme === 'long_terme' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Long term - Over 5 years' : 'Long terme - Plus de 5 ans' }}</button>
             </div>
           </div>
 
           <!-- Q7: Performance ciblée -->
           <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4">
-            <h4 class="text-sm font-black text-slate-900 leading-tight">7. Quelle performance ciblez-vous, sachant les risques induits ?</h4>
+            <h4 class="text-sm font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? '7. What return do you target, given the associated risks?' : '7. Quelle performance ciblez-vous, sachant les risques induits ?' }}</h4>
             <div class="space-y-2">
-              <button type="button" @click="payload.niveau_perf = '1'" :class="payload.niveau_perf === '1' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Rendement régulier, risque de perte nul/très faible</button>
-              <button type="button" @click="payload.niveau_perf = 'moderee'" :class="payload.niveau_perf === 'moderee' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Rendement équilibré, fluctuations légères acceptées</button>
-              <button type="button" @click="payload.niveau_perf = 'elevee'" :class="payload.niveau_perf === 'elevee' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Forte appréciation, fortes fluctuations acceptées</button>
+              <button type="button" @click="payload.niveau_perf = '1'" :class="payload.niveau_perf === '1' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Steady return, zero / very low loss risk' : 'Rendement régulier, risque de perte nul/très faible' }}</button>
+              <button type="button" @click="payload.niveau_perf = 'moderee'" :class="payload.niveau_perf === 'moderee' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Balanced return, slight fluctuations accepted' : 'Rendement équilibré, fluctuations légères acceptées' }}</button>
+              <button type="button" @click="payload.niveau_perf = 'elevee'" :class="payload.niveau_perf === 'elevee' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'High growth, large fluctuations accepted' : 'Forte appréciation, fortes fluctuations acceptées' }}</button>
             </div>
           </div>
 
           <!-- Q8: Connaissance des marchés -->
           <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4">
-            <h4 class="text-sm font-black text-slate-900 leading-tight">8. Comment évaluez-vous votre connaissance des marchés financiers ?</h4>
+            <h4 class="text-sm font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? '8. How would you rate your knowledge of financial markets?' : '8. Comment évaluez-vous votre connaissance des marchés financiers ?' }}</h4>
             <div class="space-y-2">
-              <button type="button" @click="payload.connaissance_marche = 'nulle'" :class="payload.connaissance_marche === 'nulle' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Faible ou inexistante</button>
-              <button type="button" @click="payload.connaissance_marche = 'moyenne'" :class="payload.connaissance_marche === 'moyenne' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Moyenne - Je connais le concept des fonds d'investissement</button>
-              <button type="button" @click="payload.connaissance_marche = 'excellente'" :class="payload.connaissance_marche === 'excellente' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">Excellente - J'achète activement des valeurs mobilières</button>
+              <button type="button" @click="payload.connaissance_marche = 'nulle'" :class="payload.connaissance_marche === 'nulle' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Low or none' : 'Faible ou inexistante' }}</button>
+              <button type="button" @click="payload.connaissance_marche = 'moyenne'" :class="payload.connaissance_marche === 'moyenne' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Average - I know the concept of investment funds' : 'Moyenne - Je connais le concept des fonds d\'investissement' }}</button>
+              <button type="button" @click="payload.connaissance_marche = 'excellente'" :class="payload.connaissance_marche === 'excellente' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="w-full text-left p-4 rounded-2xl border-2 font-bold text-xs transition-all">{{ languageStore.isEn() ? 'Excellent - I actively trade securities' : 'Excellente - J\'achète activement des valeurs mobilières' }}</button>
             </div>
           </div>
 
           <!-- Q9: Investissements antérieurs -->
           <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4">
-            <h4 class="text-sm font-black text-slate-900 leading-tight">9. Avez-vous déjà réalisé des investissements financiers dans le passé ?</h4>
+            <h4 class="text-sm font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? '9. Have you previously made financial investments?' : '9. Avez-vous déjà réalisé des investissements financiers dans le passé ?' }}</h4>
             <div class="grid grid-cols-2 gap-3">
-              <button type="button" @click="payload.invest_anterieurs = 'Oui'" :class="payload.invest_anterieurs === 'Oui' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">Oui</button>
-              <button type="button" @click="payload.invest_anterieurs = 'Non'" :class="payload.invest_anterieurs === 'Non' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">Non</button>
+              <button type="button" @click="payload.invest_anterieurs = 'Oui'" :class="payload.invest_anterieurs === 'Oui' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">{{ languageStore.isEn() ? 'Yes' : 'Oui' }}</button>
+              <button type="button" @click="payload.invest_anterieurs = 'Non'" :class="payload.invest_anterieurs === 'Non' ? 'border-primary bg-primary text-white' : 'border-slate-100 bg-slate-50 text-slate-600'" class="p-4 rounded-2xl border-2 font-bold text-xs text-center transition-all">{{ languageStore.isEn() ? 'No' : 'Non' }}</button>
             </div>
           </div>
 
@@ -1898,24 +1988,24 @@ const submitOnboarding = async () => {
       <!-- STEP 3: LAB/FT COMPLIANCE -->
       <div v-else-if="currentStep === 'labft'" class="space-y-6 animate-in fade-in duration-300">
         <div class="space-y-1">
-          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Étape {{ identityRequired ? 4 : 3 }} sur {{ identityRequired ? 5 : 4 }}</span>
-          <h3 class="text-xl font-black text-slate-900">Conformité LAB-FT</h3>
-          <p class="text-slate-500 text-xs font-medium">Déclarations réglementaires de conformité COBAC.</p>
+          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">{{ languageStore.isEn() ? 'Step ' + (identityRequired ? 4 : 3) + ' of ' + (identityRequired ? 5 : 4) : 'Étape ' + (identityRequired ? 4 : 3) + ' sur ' + (identityRequired ? 5 : 4) }}</span>
+          <h3 class="text-xl font-black text-slate-900">{{ languageStore.isEn() ? 'AML/CFT Compliance' : 'Conformité LAB-FT' }}</h3>
+          <p class="text-slate-500 text-xs font-medium">{{ languageStore.isEn() ? 'Regulatory declarations for COBAC compliance.' : 'Déclarations réglementaires de conformité COBAC.' }}</p>
         </div>
 
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
-          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">Profil Économique</h4>
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">{{ languageStore.isEn() ? 'Economic Profile' : 'Profil Économique' }}</h4>
           
           <!-- Secteur d'Activité -->
           <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Secteur d'Activité *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Activity Sector *' : 'Secteur d\'Activité *' }}</label>
             <select v-model="selectedSecteur" @change="onSecteurChange" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.secteur ? 'true' : 'false'" :aria-describedby="validationErrors.secteur ? 'secteur-error' : null">
-              <option value="" disabled>Sélectionnez votre secteur d'activité</option>
-              <option v-for="sec in popularSectors" :key="sec" :value="sec">{{ sec }}</option>
+              <option value="" disabled>{{ languageStore.isEn() ? 'Select your activity sector' : 'Sélectionnez votre secteur d\'activité' }}</option>
+              <option v-for="sec in popularSectors" :key="sec" :value="sec">{{ formatSector(sec) }}</option>
             </select>
             
             <div v-if="selectedSecteur === 'Autre'" class="mt-2 animate-in fade-in duration-200">
-              <input v-model="customSecteur" @input="onCustomSecteurInput" type="text" placeholder="Précisez votre secteur d'activité..." class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all">
+              <input v-model="customSecteur" @input="onCustomSecteurInput" type="text" :placeholder="languageStore.isEn() ? 'Specify your activity sector...' : 'Précisez votre secteur d\'activité...'" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all">
             </div>
             
             <p v-if="validationErrors.secteur" id="secteur-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
@@ -1926,8 +2016,8 @@ const submitOnboarding = async () => {
           <!-- Sources de revenus -->
           <div class="space-y-3 text-left">
             <div class="flex items-center justify-between pl-1">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Sources des Revenus *</label>
-              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sélection multiple</span>
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest">{{ languageStore.isEn() ? 'Income Sources *' : 'Sources des Revenus *' }}</label>
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{{ languageStore.isEn() ? 'Multiple selection' : 'Sélection multiple' }}</span>
             </div>
             
             <div class="grid grid-cols-2 gap-2.5">
@@ -1939,14 +2029,14 @@ const submitOnboarding = async () => {
                 :class="payload[item.key] ? 'border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20' : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200'"
                 class="p-3.5 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between gap-2"
               >
-                <span class="leading-tight">{{ item.label }}</span>
+                <span class="leading-tight">{{ formatIncomeSourceLabel(item.key) || item.label }}</span>
                 <span v-if="payload[item.key]" class="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center text-[10px] shrink-0 font-black">✓</span>
                 <span v-else class="w-4 h-4 rounded-full border border-slate-300 shrink-0"></span>
               </button>
             </div>
             
             <div v-if="payload.src_autre_check" class="mt-2 space-y-1 animate-in fade-in duration-200">
-              <input v-model="payload.src_autre" @input="syncOrigineFonds" type="text" placeholder="Précisez la source de revenu..." class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all">
+              <input v-model="payload.src_autre" @input="syncOrigineFonds" type="text" :placeholder="languageStore.isEn() ? 'Specify income source...' : 'Précisez la source de revenu...'" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all">
             </div>
 
             <p v-if="validationErrors.sources_revenu" id="sources_revenu-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
@@ -1957,17 +2047,17 @@ const submitOnboarding = async () => {
           <!-- Origine des fonds à investir (Déduite automatiquement) -->
           <div v-if="payload.origine_fonds || isEditingOrigine" class="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-2 text-left animate-in fade-in duration-200">
             <div class="flex items-center justify-between">
-              <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Origine des fonds à investir :</span>
+              <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">{{ languageStore.isEn() ? 'Origin of funds to invest:' : 'Origine des fonds à investir :' }}</span>
               <button type="button" @click="toggleEditOrigine" class="text-[11px] font-black text-primary hover:underline">
-                {{ isEditingOrigine ? 'Terminé' : 'Personnaliser' }}
+                {{ isEditingOrigine ? (languageStore.isEn() ? 'Done' : 'Terminé') : (languageStore.isEn() ? 'Customize' : 'Personnaliser') }}
               </button>
             </div>
             <p v-if="!isEditingOrigine" class="text-xs font-bold text-slate-800 leading-snug">
               {{ payload.origine_fonds }}
             </p>
             <div v-else class="space-y-1.5 pt-1">
-              <input v-model="payload.origine_fonds" @input="clearError('origine_fonds')" type="text" placeholder="Ex: Épargne salariale..." class="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-900 focus:border-primary outline-none">
-              <p class="text-[10px] text-slate-400 font-medium">Déduit automatiquement d'après vos sources sélectionnées ci-dessus.</p>
+              <input v-model="payload.origine_fonds" @input="clearError('origine_fonds')" type="text" :placeholder="languageStore.isEn() ? 'Ex: Salary savings...' : 'Ex: Épargne salariale...'" class="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-900 focus:border-primary outline-none">
+              <p class="text-[10px] text-slate-400 font-medium">{{ languageStore.isEn() ? 'Automatically deduced from your selected sources above.' : 'Déduit automatiquement d\'après vos sources sélectionnées ci-dessus.' }}</p>
             </div>
             <p v-if="validationErrors.origine_fonds" id="origine_fonds-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.origine_fonds }}
@@ -1979,18 +2069,18 @@ const submitOnboarding = async () => {
 
         <!-- LAB-FT Specific Risk Indicators -->
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
-          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">Déclarations de Risques</h4>
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">{{ languageStore.isEn() ? 'Risk Declarations' : 'Déclarations de Risques' }}</h4>
           
           <!-- PPE -->
           <div class="space-y-3 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Êtes-vous une Personne Politiquement Exposée (PPE) ? *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Are you a Politically Exposed Person (PEP)? *' : 'Êtes-vous une Personne Politiquement Exposée (PPE) ? *' }}</label>
             <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
-              <button type="button" @click="payload.ppe = 'Oui'; clearError('ppe')" :class="payload.ppe === 'Oui' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Oui</button>
-              <button type="button" @click="payload.ppe = 'Non'; clearError('ppe')" :class="payload.ppe === 'Non' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Non</button>
+              <button type="button" @click="payload.ppe = 'Oui'; clearError('ppe')" :class="payload.ppe === 'Oui' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Yes' : 'Oui' }}</button>
+              <button type="button" @click="payload.ppe = 'Non'; clearError('ppe')" :class="payload.ppe === 'Non' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'No' : 'Non' }}</button>
             </div>
             
             <div v-if="payload.ppe === 'Oui'" class="mt-2 space-y-2 animate-in slide-in-from-top-2 duration-300">
-              <label class="text-[10px] font-black text-slate-400 uppercase pl-1">Précisez votre fonction publique / mandat *</label>
+              <label class="text-[10px] font-black text-slate-400 uppercase pl-1">{{ languageStore.isEn() ? 'Specify your public office / mandate *' : 'Précisez votre fonction publique / mandat *' }}</label>
               <input v-model="payload.ppe_detail" @blur="clearError('ppe')" @input="clearError('ppe')" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.ppe ? 'true' : 'false'" :aria-describedby="validationErrors.ppe ? 'ppe-error' : null">
               <p v-if="validationErrors.ppe" id="ppe-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
                 {{ validationErrors.ppe }}
@@ -2000,44 +2090,44 @@ const submitOnboarding = async () => {
 
           <!-- Pays à risque -->
           <div class="space-y-3 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Votre compte bancaire ou résidence est-il situé dans un pays sous sanctions ou à haut risque ? *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Is your bank account or residence located in a high-risk or sanctioned country? *' : 'Votre compte bancaire ou résidence est-il situé dans un pays sous sanctions ou à haut risque ? *' }}</label>
             <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
-              <button type="button" @click="payload.pays_risque = 'Oui'" :class="payload.pays_risque === 'Oui' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Oui</button>
-              <button type="button" @click="payload.pays_risque = 'Non'" :class="payload.pays_risque === 'Non' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Non</button>
+              <button type="button" @click="payload.pays_risque = 'Oui'" :class="payload.pays_risque === 'Oui' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Yes' : 'Oui' }}</button>
+              <button type="button" @click="payload.pays_risque = 'Non'" :class="payload.pays_risque === 'Non' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'No' : 'Non' }}</button>
             </div>
           </div>
 
           <!-- Secteur sensible -->
           <div class="space-y-3 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Vos fonds proviennent-ils d'un secteur sensible (ex: armement, minier, jeux d'argent) ? *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Do your funds come from a sensitive sector (e.g. weaponry, mining, gambling)? *' : 'Vos fonds proviennent-ils d\'un secteur sensible (ex: armement, minier, jeux d\'argent) ? *' }}</label>
             <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
-              <button type="button" @click="payload.secteur_sensible = 'Oui'" :class="payload.secteur_sensible === 'Oui' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Oui</button>
-              <button type="button" @click="payload.secteur_sensible = 'Non'" :class="payload.secteur_sensible === 'Non' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Non</button>
+              <button type="button" @click="payload.secteur_sensible = 'Oui'" :class="payload.secteur_sensible === 'Oui' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Yes' : 'Oui' }}</button>
+              <button type="button" @click="payload.secteur_sensible = 'Non'" :class="payload.secteur_sensible === 'Non' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'No' : 'Non' }}</button>
             </div>
           </div>
 
           <!-- Condamnation -->
           <div class="space-y-3 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Avez-vous fait l'objet d'une condamnation passée liée au blanchiment ou au terrorisme ? *</label>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Have you been subject to a past conviction related to money laundering or terrorism? *' : 'Avez-vous fait l\'objet d\'une condamnation passée liée au blanchiment ou au terrorisme ? *' }}</label>
             <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
-              <button type="button" @click="payload.condamnation = 'Oui'" :class="payload.condamnation === 'Oui' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Oui</button>
-              <button type="button" @click="payload.condamnation = 'Non'" :class="payload.condamnation === 'Non' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">Non</button>
+              <button type="button" @click="payload.condamnation = 'Oui'" :class="payload.condamnation === 'Oui' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Yes' : 'Oui' }}</button>
+              <button type="button" @click="payload.condamnation = 'Non'" :class="payload.condamnation === 'Non' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'No' : 'Non' }}</button>
             </div>
           </div>
         </div>
 
         <!-- Consentements -->
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4 text-left">
-          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">Consentements réglementaires</h4>
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">{{ languageStore.isEn() ? 'Regulatory Consents' : 'Consentements réglementaires' }}</h4>
           
           <label class="flex items-start gap-3 text-xs font-bold text-slate-700 leading-normal">
             <input v-model="payload.ack_lecture" type="checkbox" @change="clearError('consent')" class="w-4 h-4 text-primary rounded border-slate-300 mt-0.5">
-            <span>Je declare avoir pris connaissance des règlements généraux et conditions de Kori Asset Management. *</span>
+            <span>{{ languageStore.isEn() ? 'I declare having read the general regulations and conditions of Kori Asset Management. *' : 'Je declare avoir pris connaissance des règlements généraux et conditions de Kori Asset Management. *' }}</span>
           </label>
 
           <label class="flex items-start gap-3 text-xs font-bold text-slate-700 leading-normal">
             <input v-model="payload.ack_donnees" type="checkbox" @change="clearError('consent')" class="w-4 h-4 text-primary rounded border-slate-300 mt-0.5">
-            <span>J'autorise le traitement informatique sécurisé de mes données dans le cadre de la conformité LAB-FT. *</span>
+            <span>{{ languageStore.isEn() ? 'I authorize the secure electronic processing of my data for AML/CFT compliance. *' : 'J\'autorise le traitement informatique sécurisé de mes données dans le cadre de la conformité LAB-FT. *' }}</span>
           </label>
           <p v-if="validationErrors.consent" id="consent-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
             {{ validationErrors.consent }}
@@ -2048,23 +2138,23 @@ const submitOnboarding = async () => {
       <!-- STEP 4: ELECTRONIC SIGNATURE -->
       <div v-else-if="currentStep === 'signature'" class="space-y-6 animate-in fade-in duration-300">
         <div class="space-y-1">
-          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Étape {{ identityRequired ? 5 : 4 }} sur {{ identityRequired ? 5 : 4 }}</span>
-          <h3 class="text-xl font-black text-slate-900">Signature Électronique</h3>
-          <p class="text-slate-500 text-xs font-medium">Dessinez votre signature dans le cadre ci-dessous pour finaliser.</p>
+          <span class="text-primary text-[10px] font-black uppercase tracking-[0.2em]">{{ languageStore.isEn() ? 'Step ' + (identityRequired ? 5 : 4) + ' of ' + (identityRequired ? 5 : 4) : 'Étape ' + (identityRequired ? 5 : 4) + ' sur ' + (identityRequired ? 5 : 4) }}</span>
+          <h3 class="text-xl font-black text-slate-900">{{ languageStore.isEn() ? 'Electronic Signature' : 'Signature Électronique' }}</h3>
+          <p class="text-slate-500 text-xs font-medium">{{ languageStore.isEn() ? 'Draw your signature in the box below to finalize.' : 'Dessinez votre signature dans le cadre ci-dessous pour finaliser.' }}</p>
         </div>
 
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4 text-left">
          
 
           <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Tracé de signature *</label>
-            <button type="button" @click="clearSignature" class="text-[10px] font-black text-rose-500 uppercase hover:text-rose-600 transition-colors">Effacer</button>
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Signature trace *' : 'Tracé de signature *' }}</label>
+            <button type="button" @click="clearSignature" class="text-[10px] font-black text-rose-500 uppercase hover:text-rose-600 transition-colors">{{ languageStore.isEn() ? 'Clear' : 'Effacer' }}</button>
           </div>
 
           <div class="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden relative" style="height: 152px;">
             <canvas ref="canvasRef" class="w-full h-full block cursor-crosshair"></canvas>
             <div v-if="!hasSigned" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-300 text-xs font-bold select-none">
-              Signez ici avec votre doigt ou stylet
+              {{ languageStore.isEn() ? 'Sign here with your finger or stylus' : 'Signez ici avec votre doigt ou stylet' }}
             </div>
           </div> 
           <!-- Legal confirmation statement checkbox -->
@@ -2072,9 +2162,7 @@ const submitOnboarding = async () => {
             <label class="flex items-start gap-3 cursor-pointer select-none">
               <input v-model="signatureConfirmed" type="checkbox" class="w-5 h-5 text-primary rounded border-slate-300 mt-0.5 focus:ring-primary">
               <span class="text-slate-700 text-xs font-bold leading-normal">
-                <!-- Je, soussigné(e) <span class="text-primary font-black">{{ payload.prenom }} {{ payload.nom }}</span>, certifie sur l'honneur l'exactitude de toutes les informations fournies dans ce dossier d'onboarding. 
-                Je déclare accepter expressément les règlements du PEK et reconnais de manière irrévocable que la signature électronique ci-dessous constituera la preuve de mon engagement contractuel et aura la même valeur juridique qu'une signature manuscrite. -->
-                Je déclare avoir pris connaissance du document d'information et du règlement de gestion du fonds commun de placement KORI SERENITE
+                {{ languageStore.isEn() ? 'I declare having read the information document and the management regulations of the KORI SERENITE mutual fund' : 'Je déclare avoir pris connaissance du document d\'information et du règlement de gestion du fonds commun de placement KORI SERENITE' }}
               </span>
             </label>
           </div>
@@ -2101,28 +2189,28 @@ const submitOnboarding = async () => {
         
         <div class="space-y-2">
           <h2 class="text-2xl font-black text-slate-900">
-            {{ onboardingSessionStatus === 'validated' ? 'Compte Activé !' : onboardingSessionStatus === 'rejected' ? 'Dossier à corriger' : 'Dossier Soumis !' }}
+            {{ onboardingSessionStatus === 'validated' ? (languageStore.isEn() ? 'Account Activated!' : 'Compte Activé !') : onboardingSessionStatus === 'rejected' ? (languageStore.isEn() ? 'File needs correction' : 'Dossier à corriger') : (languageStore.isEn() ? 'File Submitted!' : 'Dossier Soumis !') }}
           </h2>
           <p class="text-slate-500 text-xs leading-relaxed max-w-[280px] mx-auto font-medium">
             <template v-if="onboardingSessionStatus === 'validated'">
-              Félicitations ! Votre compte est activé. Vous pouvez désormais souscrire à nos fonds d'investissement.
+              {{ languageStore.isEn() ? 'Congratulations! Your account is activated. You can now subscribe to our investment funds.' : 'Félicitations ! Votre compte est activé. Vous pouvez désormais souscrire à nos fonds d\'investissement.' }}
             </template>
             <template v-else-if="onboardingSessionStatus === 'rejected'">
-              Notre équipe a relevé des éléments à corriger. Modifiez votre dossier et soumettez-le à nouveau.
+              {{ languageStore.isEn() ? 'Our team identified items needing correction. Please update your file and submit it again.' : 'Notre équipe a relevé des éléments à corriger. Modifiez votre dossier et soumettez-le à nouveau.' }}
             </template>
             <template v-else>
-              Votre dossier a été transmis à l'équipe de conformité Kori pour examen. Vous serez notifié dès sa validation.
+              {{ languageStore.isEn() ? 'Your file has been submitted to the Kori compliance team for review. You will be notified upon approval.' : 'Votre dossier a été transmis à l\'équipe de conformité Kori pour examen. Vous serez notifié dès sa validation.' }}
             </template>
           </p>
         </div>
 
         <div class="w-full bg-[#FAF6F0] rounded-3xl p-6 space-y-3 border border-[#E8B010]/20 text-left shadow-2xs">
           <div class="flex justify-between items-center text-xs">
-            <span class="text-[#8C7A70] font-black uppercase tracking-wider text-[10px]">Profil déterminé</span>
+            <span class="text-[#8C7A70] font-black uppercase tracking-wider text-[10px]">{{ languageStore.isEn() ? 'Determined profile' : 'Profil déterminé' }}</span>
             <span class="text-[#3A190C] font-black">{{ localProfile }}</span>
           </div>
           <div class="flex justify-between items-center text-xs">
-            <span class="text-[#8C7A70] font-black uppercase tracking-wider text-[10px]">Statut Dossier</span>
+            <span class="text-[#8C7A70] font-black uppercase tracking-wider text-[10px]">{{ languageStore.isEn() ? 'File Status' : 'Statut Dossier' }}</span>
             <span 
               :class="{
                 'bg-emerald-100 text-emerald-800 border border-emerald-200': onboardingSessionStatus === 'validated',
@@ -2131,12 +2219,12 @@ const submitOnboarding = async () => {
               }"
               class="px-3.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shadow-2xs"
             >
-              {{ onboardingSessionStatus === 'validated' ? '✓ Validé' : onboardingSessionStatus === 'rejected' ? '⚠ Corrections requises' : 'En cours d\'étude' }}
+              {{ onboardingSessionStatus === 'validated' ? (languageStore.isEn() ? '✓ Validated' : '✓ Validé') : onboardingSessionStatus === 'rejected' ? (languageStore.isEn() ? '⚠ Corrections required' : '⚠ Corrections requises') : (languageStore.isEn() ? 'Under review' : 'En cours d\'étude') }}
             </span>
           </div>
           <div v-if="onboardingSessionStatus !== 'validated'" class="flex items-start gap-2 pt-2 border-t border-[#E8B010]/15">
             <span class="text-[10px] text-[#78655B] font-semibold leading-relaxed">
-              💡 Vous pouvez compléter ou corriger vos informations et documents tant que votre dossier n'est pas validé.
+              {{ languageStore.isEn() ? '💡 You can update or correct your information and documents as long as your file is not yet validated.' : '💡 Vous pouvez compléter ou corriger vos informations et documents tant que votre dossier n\'est pas validé.' }}
             </span>
           </div>
         </div>
@@ -2148,26 +2236,26 @@ const submitOnboarding = async () => {
               <UserCheck class="w-5 h-5" />
             </div>
             <div>
-              <h4 class="text-xs font-black uppercase tracking-wider text-slate-900">Complément réglementaire requis</h4>
-              <p class="text-[10px] text-slate-500 font-bold">Catégorie d'investisseur pour vos bulletins de souscription</p>
+              <h4 class="text-xs font-black uppercase tracking-wider text-slate-900">{{ languageStore.isEn() ? 'Regulatory complement required' : 'Complément réglementaire requis' }}</h4>
+              <p class="text-[10px] text-slate-500 font-bold">{{ languageStore.isEn() ? 'Investor category for your subscription bulletins' : 'Catégorie d\'investisseur pour vos bulletins de souscription' }}</p>
             </div>
           </div>
 
           <div v-if="missingCategorySuccess" class="bg-emerald-50 text-emerald-800 p-4 rounded-2xl text-xs font-bold flex items-center gap-2 border border-emerald-200">
             <CheckCircle2 class="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Votre catégorie a bien été enregistrée : {{ missingCategoryValue }}</span>
+            <span>{{ languageStore.isEn() ? 'Your category has been recorded: ' : 'Votre catégorie a bien été enregistrée : ' }}{{ missingCategoryValue }}</span>
           </div>
 
           <div v-else class="space-y-3">
             <p class="text-slate-600 text-xs leading-relaxed font-medium">
-              Votre dossier est déjà validé. Vous n'avez pas besoin de soumettre à nouveau vos pièces. Veuillez simplement préciser votre catégorie de client :
+              {{ languageStore.isEn() ? 'Your file is already approved. You do not need to resubmit your documents. Please specify your client category:' : 'Votre dossier est déjà validé. Vous n\'avez pas besoin de soumettre à nouveau vos pièces. Veuillez simplement préciser votre catégorie de client :' }}
             </p>
             <div class="relative">
               <select v-model="missingCategoryValue" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
-                <option value="Particulier">Particulier (Recommandé)</option>
-                <option value="Professionnel">Professionnel</option>
-                <option value="Institutionnel">Institutionnel</option>
-                <option value="Personne Morale">Personne Morale</option>
+                <option value="Particulier">{{ languageStore.isEn() ? 'Individual (Recommended)' : 'Particulier (Recommandé)' }}</option>
+                <option value="Professionnel">{{ languageStore.isEn() ? 'Professional' : 'Professionnel' }}</option>
+                <option value="Institutionnel">{{ languageStore.isEn() ? 'Institutional' : 'Institutionnel' }}</option>
+                <option value="Personne Morale">{{ languageStore.isEn() ? 'Corporate entity' : 'Personne Morale' }}</option>
               </select>
               <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
@@ -2178,7 +2266,7 @@ const submitOnboarding = async () => {
               class="w-full bg-primary hover:bg-slate-800 text-white font-black py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-md transition-all flex items-center justify-center gap-2 active:scale-95"
             >
               <Loader2 v-if="updatingMissingCategory" class="w-4 h-4 animate-spin" />
-              <span>Enregistrer ma catégorie</span>
+              <span>{{ languageStore.isEn() ? 'Save my category' : 'Enregistrer ma catégorie' }}</span>
             </button>
           </div>
         </div>
@@ -2193,11 +2281,11 @@ const submitOnboarding = async () => {
           >
             <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
             <PenTool v-else class="w-4 h-4" />
-            Modifier mon dossier
+            {{ languageStore.isEn() ? 'Modify my file' : 'Modifier mon dossier' }}
           </button>
 
           <button @click="router.push('/home')" class="w-full bg-primary text-white font-black py-4 rounded-3xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-95 transition-all text-sm uppercase tracking-wider">
-            Retour au Tableau de Bord
+            {{ languageStore.isEn() ? 'Back to Dashboard' : 'Retour au Tableau de Bord' }}
             <ArrowRight class="w-4 h-4" />
           </button>
         </div>
@@ -2214,7 +2302,7 @@ const submitOnboarding = async () => {
         @click="prevStep"
         class="bg-slate-100 text-slate-600 font-black px-6 py-4.5 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider"
       >
-        Retour
+        {{ languageStore.isEn() ? 'Back' : 'Retour' }}
       </button>
 
       <!-- Next / Submit Button -->
@@ -2226,37 +2314,48 @@ const submitOnboarding = async () => {
       >
         <Loader2 v-if="submitting || stepLoading || verifyingKYC" class="w-5 h-5 animate-spin text-white" />
         <span v-else>
-          {{ currentStep === 'signature' ? 'Finaliser et Signer' : 'Étape suivante' }}
+          {{ currentStep === 'signature' ? (languageStore.isEn() ? 'Finalize and Sign' : 'Finaliser et Signer') : (languageStore.isEn() ? 'Next step' : 'Étape suivante') }}
         </span>
       </button>
     </div>
 
     <!-- Error Modal -->
-    <div v-if="showErrorModal" class="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-      <!-- Dark backdrop -->
-      <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showErrorModal = false"></div>
-      
-      <!-- Modal card -->
-      <div class="relative bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-4 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-        <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center text-rose-500">
-          <AlertCircle class="w-8 h-8" />
-        </div>
+    <Teleport to="body">
+      <div v-if="showErrorModal" class="fixed inset-0 z-[10000] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <!-- Dark backdrop -->
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showErrorModal = false"></div>
         
-        <div class="space-y-2">
-          <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest">{{ modalErrorTitle }}</h3>
-          <p class="text-slate-500 text-xs font-semibold leading-relaxed">
-            {{ modalErrorMessage }}
-          </p>
+        <!-- Modal card -->
+        <div class="relative bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-4 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+          <button 
+            type="button" 
+            @click="showErrorModal = false" 
+            class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+            :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+          >
+            <X class="w-4 h-4" />
+          </button>
+
+          <div class="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center text-rose-500">
+            <AlertCircle class="w-8 h-8" />
+          </div>
+          
+          <div class="space-y-2">
+            <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest">{{ modalErrorTitle }}</h3>
+            <p class="text-slate-500 text-xs font-semibold leading-relaxed">
+              {{ modalErrorMessage }}
+            </p>
+          </div>
+          
+          <button 
+            @click="showErrorModal = false" 
+            class="w-full bg-slate-950 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-wider active:scale-95 transition-all"
+          >
+            {{ languageStore.isEn() ? 'Got it' : 'D\'accord' }}
+          </button>
         </div>
-        
-        <button 
-          @click="showErrorModal = false" 
-          class="w-full bg-slate-950 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-wider active:scale-95 transition-all"
-        >
-          D'accord
-        </button>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 

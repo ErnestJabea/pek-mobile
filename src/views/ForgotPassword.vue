@@ -27,7 +27,7 @@ const handleSubmit = async () => {
     if (err.response?.status === 422) {
       validationErrors.value = err.response.data.errors || {}
     } else {
-      error.value = err.response?.data?.message || 'Aucun compte trouvé avec cet email.'
+      error.value = err.response?.data?.message || (languageStore.isEn() ? 'No account found with this email.' : 'Aucun compte trouvé avec cet email.')
     }
   } finally {
     loading.value = false

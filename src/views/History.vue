@@ -272,7 +272,7 @@ const getTotalAmount = (sub) => {
             <div class="text-right">
               <span class="text-slate-400 text-[10px] font-bold uppercase block">{{ languageStore.isEn() ? 'Shares / Units' : 'Nombre de Parts' }}</span>
               <span class="text-slate-900 font-bold text-xs mt-0.5 block">
-                {{ parseFloat(sub.nb_parts || sub.shares_count || 1).toLocaleString() }} part(s)
+                {{ parseFloat(sub.nb_parts || sub.shares_count || 1).toLocaleString() }} {{ languageStore.isEn() ? 'share(s)' : 'part(s)' }}
               </span>
             </div>
           </div>
@@ -281,7 +281,7 @@ const getTotalAmount = (sub) => {
           <div class="flex justify-between items-center pt-3 border-t border-slate-50 text-[11px] text-slate-500">
             <div class="flex items-center gap-1.5">
               <component :is="getPaymentIcon(sub.moyen_paiement || sub.payment_method)" class="w-3.5 h-3.5 text-primary" />
-              <span class="capitalize font-medium">{{ sub.moyen_paiement || sub.payment_method || 'Paiement' }}</span>
+              <span class="capitalize font-medium">{{ sub.moyen_paiement || sub.payment_method || (languageStore.isEn() ? 'Payment' : 'Paiement') }}</span>
             </div>
             <span class="font-medium text-slate-400">{{ formatDate(sub.created_at) }}</span>
           </div>

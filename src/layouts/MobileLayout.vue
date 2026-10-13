@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
 import api from '../api/api'
 import LanguageSelector from '../components/LanguageSelector.vue'
+import { translateNotification } from '../locales/notificationTranslator.js'
 import logoImg from '../assets/logo.png'
 
 const route = useRoute()
@@ -40,8 +41,9 @@ const requestNotificationPermission = async () => {
 }
 
 const showBrowserNotification = async (notification) => {
+  const localized = translateNotification(notification, languageStore.isEn())
   const options = {
-    body: notification.body,
+    body: localized.body,
     icon: '/logo.png',
     data: { url: '/notifications' }
   }
@@ -49,19 +51,20 @@ const showBrowserNotification = async (notification) => {
   if ('serviceWorker' in navigator) {
     const registration = await navigator.serviceWorker.getRegistration()
     if (registration) {
-      await registration.showNotification(notification.title, options)
+      await registration.showNotification(localized.title, options)
       return
     }
   }
 
-  new Notification(notification.title, options)
+  new Notification(localized.title, options)
 }
 
 const checkNotifications = async () => {
   if (!authStore.isAuthenticated || document.visibilityState !== 'visible') return
   try {
     const response = await api.get('/notifications')
-    const notifications = response.data.data || response.data
+    const rawNotifications = Array.isArray(response.data?.data) ? response.data.data : (Array.isArray(response.data) ? response.data : [])
+    const notifications = rawNotifications
 
     // Calculate unread count
     const unreadCount = notifications.filter(n => !n.read_at).length

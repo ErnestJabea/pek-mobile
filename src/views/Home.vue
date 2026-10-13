@@ -566,7 +566,7 @@ onMounted(() => {
         </div>
 
         <router-link to="/onboarding" class="block w-full bg-[#1F0A03] text-white text-center font-black py-3.5 rounded-2xl shadow-lg hover:bg-[#3A190C] transition-all text-xs uppercase tracking-wider">
-          Mettre à jour mes documents
+          {{ languageStore.isEn() ? 'Update my documents' : 'Mettre à jour mes documents' }}
         </router-link>
       </section>
 
@@ -605,10 +605,10 @@ onMounted(() => {
           </div>
           <div>
             <h4 class="text-xs font-black text-amber-100 uppercase tracking-wide flex items-center gap-1.5">
-              <span>Joyeux Anniversaire !</span>
+              <span>{{ languageStore.isEn() ? 'Happy Birthday!' : 'Joyeux Anniversaire !' }}</span>
               <span class="text-base">🎉</span>
             </h4>
-            <p class="text-[11px] text-white/90 font-medium">Toute l'équipe PEK vous souhaite une excellente journée d'anniversaire et le plein de réussite dans vos projets.</p>
+            <p class="text-[11px] text-white/90 font-medium">{{ languageStore.isEn() ? 'The entire PEK team wishes you a wonderful birthday and great success in all your projects.' : "Toute l'équipe PEK vous souhaite une excellente journée d'anniversaire et le plein de réussite dans vos projets." }}</p>
           </div>
         </div>
       </section>
@@ -620,8 +620,8 @@ onMounted(() => {
             <AlertCircle class="w-5 h-5 text-rose-600" />
           </div>
           <div>
-            <h4 class="text-xs font-black text-rose-950 uppercase tracking-wide">Pièce d'identité expirée</h4>
-            <p class="text-[11px] text-rose-800 font-medium">Votre pièce a expiré le {{ formattedExpirationDate }}. Veuillez la renouveler pour maintenir la conformité de votre compte.</p>
+            <h4 class="text-xs font-black text-rose-950 uppercase tracking-wide">{{ languageStore.isEn() ? 'ID document expired' : "Pièce d'identité expirée" }}</h4>
+            <p class="text-[11px] text-rose-800 font-medium">{{ languageStore.isEn() ? `Your document expired on ${formattedExpirationDate}. Please renew it to maintain account compliance.` : `Votre pièce a expiré le ${formattedExpirationDate}. Veuillez la renouveler pour maintenir la conformité de votre compte.` }}</p>
           </div>
         </div>
         <button 
@@ -629,7 +629,7 @@ onMounted(() => {
           @click="showRenewIdModal = true" 
           class="bg-rose-600 hover:bg-rose-700 text-white font-black text-[11px] py-2.5 px-4 rounded-xl uppercase tracking-wider shrink-0 shadow-sm active:scale-95 transition-all"
         >
-          Mettre à jour
+          {{ languageStore.t('update') }}
         </button>
       </section>
 
@@ -639,8 +639,8 @@ onMounted(() => {
             <AlertCircle class="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h4 class="text-xs font-black text-amber-950 uppercase tracking-wide">Pièce d'identité à renouveler</h4>
-            <p class="text-[11px] text-amber-800 font-medium">Expire dans {{ authStore.user?.id_days_until_expiration }} jours (le {{ formattedExpirationDate }}). Pensez à la renouveler.</p>
+            <h4 class="text-xs font-black text-amber-950 uppercase tracking-wide">{{ languageStore.isEn() ? 'ID document to renew' : "Pièce d'identité à renouveler" }}</h4>
+            <p class="text-[11px] text-amber-800 font-medium">{{ languageStore.isEn() ? `Expires in ${authStore.user?.id_days_until_expiration} days (on ${formattedExpirationDate}). Remember to renew it.` : `Expire dans ${authStore.user?.id_days_until_expiration} jours (le ${formattedExpirationDate}). Pensez à la renouveler.` }}</p>
           </div>
         </div>
         <button 
@@ -648,7 +648,7 @@ onMounted(() => {
           @click="showRenewIdModal = true" 
           class="bg-amber-600 hover:bg-amber-700 text-white font-black text-[11px] py-2.5 px-4 rounded-xl uppercase tracking-wider shrink-0 shadow-sm active:scale-95 transition-all"
         >
-          Renouveler
+          {{ languageStore.t('renew') }}
         </button>
       </section>
 
@@ -659,8 +659,8 @@ onMounted(() => {
             <UserCheck class="w-5 h-5" />
           </div>
           <div>
-            <h4 class="text-xs font-black text-amber-950 uppercase tracking-wide">Précision réglementaire</h4>
-            <p class="text-[11px] text-amber-800 font-medium">Veuillez indiquer votre catégorie d'investisseur pour vos bulletins.</p>
+            <h4 class="text-xs font-black text-amber-950 uppercase tracking-wide">{{ languageStore.isEn() ? 'Regulatory Requirement' : 'Précision réglementaire' }}</h4>
+            <p class="text-[11px] text-amber-800 font-medium">{{ languageStore.isEn() ? 'Please specify your investor category for your investment bulletins.' : "Veuillez indiquer votre catégorie d'investisseur pour vos bulletins." }}</p>
           </div>
         </div>
         <button 
@@ -668,7 +668,7 @@ onMounted(() => {
           @click="showCategoryModal = true" 
           class="bg-amber-600 hover:bg-amber-700 text-white font-black text-[11px] py-2.5 px-4 rounded-xl uppercase tracking-wider shrink-0 shadow-sm active:scale-95 transition-all"
         >
-          Renseigner
+          {{ languageStore.isEn() ? 'Provide' : 'Renseigner' }}
         </button>
       </section>
 
@@ -729,256 +729,281 @@ onMounted(() => {
     </div>
 
     <!-- Product VL Details Modal with Evolutionary Curve Graph -->
-    <div v-if="selectedProduct" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div class="bg-white rounded-[32px] p-6 w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-100 shadow-2xl animate-in zoom-in-95 duration-200 text-left space-y-6">
-        <div class="flex items-start justify-between gap-4">
-          <div class="space-y-1">
-            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ languageStore.t('min_threshold') }}: {{ (selectedProduct.min || 0).toLocaleString() }} XAF</span>
-            <h3 class="text-xl font-black text-slate-900 leading-tight">{{ selectedProduct.name }}</h3>
-          </div>
-          <button
-            type="button"
-            @click="closeProductDetails"
-            class="w-9 h-9 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center active:scale-95 transition-all"
-          >
-            <X class="w-4 h-4" />
-          </button>
-        </div>
+    <Teleport to="body">
+      <div v-if="selectedProduct" class="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-6">
+        <!-- Backdrop overlay with blur and click-to-close -->
+        <div 
+          @click="closeProductDetails" 
+          class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+        ></div>
 
-        <p class="text-sm text-slate-600 leading-relaxed">{{ selectedProduct.description }}</p>
-
-        <!-- Carte Évolution de la VL (Dynamique au survol) -->
-        <div class="bg-amber-50/50 border border-amber-200/40 rounded-3xl p-5 space-y-2 transition-all">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] text-[#482010] block uppercase font-black tracking-widest flex items-center gap-1.5">
-              <span v-if="modalActiveDisplayPoint.isHovered" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              {{ modalActiveDisplayPoint.title }}
-            </span>
-            <span v-if="modalActiveDisplayPoint.isHovered" class="text-[9px] font-bold text-slate-400">
-              {{ languageStore.isEn() ? 'Interactive hover' : 'Survol interactif' }}
-            </span>
-            <span v-else class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-              {{ selectedPeriod === '6S' ? (languageStore.isEn() ? 'Last 6 weeks' : 'Dernières 6 semaines') : (languageStore.isEn() ? 'Last 12 weeks' : 'Dernières 12 semaines') }}
-            </span>
-          </div>
-
-          <div class="flex items-end justify-between gap-3">
-            <span class="text-slate-900 font-black text-3xl leading-none transition-all">
-              {{ modalActiveDisplayPoint.vl.toLocaleString() }} XAF
-            </span>
-            <span
-              v-if="modalActiveDisplayPoint.variation !== null"
-              :class="modalActiveDisplayPoint.variation >= 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-200/50' : 'bg-rose-50 text-rose-600 border-rose-200/50'"
-              class="px-2.5 py-1 rounded-full text-[10px] font-black border"
-            >
-              {{ modalActiveDisplayPoint.variation >= 0 ? '+' : '' }}{{ modalActiveDisplayPoint.variation.toFixed(2) }}%
-            </span>
-          </div>
-        </div>
-
-        <!-- Conteneur Graphique Courbe Évolutive -->
-        <div v-if="modalChartPoints.length > 1" class="space-y-3 animate-in fade-in duration-300">
-          <!-- Filtres de Période (6 Semaines / 12 Semaines) -->
-          <div class="flex items-center justify-between">
-            <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
-              <TrendingUp class="w-3.5 h-3.5 text-primary" />
-              {{ languageStore.isEn() ? 'Evolution Curve' : 'Courbe d\'évolution' }}
-            </span>
-
-            <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
-              <button
-                type="button"
-                @click="selectedPeriod = '6S'; hoveredIndex = null"
-                :class="selectedPeriod === '6S' ? 'bg-white text-primary shadow-xs font-black' : 'text-slate-500 font-bold hover:text-slate-800'"
-                class="px-2.5 py-1 rounded-lg text-[10px] transition-all active:scale-95"
-              >
-                {{ languageStore.isEn() ? '6 Weeks' : '6 Semaines' }}
-              </button>
-              <button
-                type="button"
-                @click="selectedPeriod = '12S'; hoveredIndex = null"
-                :class="selectedPeriod === '12S' ? 'bg-white text-primary shadow-xs font-black' : 'text-slate-500 font-bold hover:text-slate-800'"
-                class="px-2.5 py-1 rounded-lg text-[10px] transition-all active:scale-95"
-              >
-                {{ languageStore.isEn() ? '12 Weeks' : '12 Semaines' }}
-              </button>
+        <!-- Modal Dialog Card -->
+        <div class="relative bg-white rounded-[32px] w-full max-w-md max-h-[90vh] flex flex-col border border-slate-100 shadow-2xl animate-in zoom-in-95 duration-200 text-left z-10 overflow-hidden">
+          <!-- Pinned Header with permanent Close Button in top right corner -->
+          <div class="px-5 py-4 sm:px-6 bg-white border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
+            <div class="space-y-0.5 min-w-0 pr-2">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">{{ languageStore.t('min_threshold') }}: {{ (selectedProduct.min || 0).toLocaleString() }} XAF</span>
+              <h3 class="text-base sm:text-lg font-black text-slate-900 leading-tight truncate">{{ selectedProduct.name }}</h3>
             </div>
+            <button
+              type="button"
+              @click="closeProductDetails"
+              class="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center active:scale-95 transition-all shrink-0 shadow-xs cursor-pointer"
+              :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+            >
+              <X class="w-5 h-5" />
+            </button>
           </div>
 
-          <!-- Zone du Graphique SVG Interactif -->
-          <div 
-            class="relative bg-slate-50/80 rounded-3xl p-3 border border-slate-100 overflow-hidden select-none"
-            @mouseleave="onModalChartLeave"
-            @touchend="onModalChartLeave"
-          >
-            <!-- Floating Tooltip Pill -->
-            <div 
-              v-if="modalHoveredPoint"
-              class="absolute pointer-events-none transition-all duration-150 transform -translate-x-1/2 z-30"
-              :style="{ 
-                left: `${(modalHoveredPoint.x / 380) * 100}%`, 
-                top: `${Math.max(6, modalHoveredPoint.y - 48)}px` 
-              }"
-            >
-              <div class="bg-slate-900/95 backdrop-blur-md text-white px-2.5 py-1 rounded-xl shadow-xl border border-slate-700/60 text-center whitespace-nowrap">
-                <div class="text-[8px] text-slate-300 font-bold uppercase tracking-wider">
-                  {{ modalHoveredPoint.fullDate }}
+          <!-- Scrollable Content Area -->
+          <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+            <p class="text-sm text-slate-600 leading-relaxed">{{ selectedProduct.description }}</p>
+
+            <!-- Carte Évolution de la VL (Dynamique au survol) -->
+            <div class="bg-amber-50/50 border border-amber-200/40 rounded-3xl p-5 space-y-2 transition-all">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-[#482010] block uppercase font-black tracking-widest flex items-center gap-1.5">
+                  <span v-if="modalActiveDisplayPoint.isHovered" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  {{ modalActiveDisplayPoint.title }}
+                </span>
+                <span v-if="modalActiveDisplayPoint.isHovered" class="text-[9px] font-bold text-slate-400">
+                  {{ languageStore.isEn() ? 'Interactive hover' : 'Survol interactif' }}
+                </span>
+                <span v-else class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                  {{ selectedPeriod === '6S' ? (languageStore.isEn() ? 'Last 6 weeks' : 'Dernières 6 semaines') : (languageStore.isEn() ? 'Last 12 weeks' : 'Dernières 12 semaines') }}
+                </span>
+              </div>
+
+              <div class="flex items-end justify-between gap-3">
+                <span class="text-slate-900 font-black text-3xl leading-none transition-all">
+                  {{ modalActiveDisplayPoint.vl.toLocaleString() }} XAF
+                </span>
+                <span
+                  v-if="modalActiveDisplayPoint.variation !== null"
+                  :class="modalActiveDisplayPoint.variation >= 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-200/50' : 'bg-rose-50 text-rose-600 border-rose-200/50'"
+                  class="px-2.5 py-1 rounded-full text-[10px] font-black border"
+                >
+                  {{ modalActiveDisplayPoint.variation >= 0 ? '+' : '' }}{{ modalActiveDisplayPoint.variation.toFixed(2) }}%
+                </span>
+              </div>
+            </div>
+
+            <!-- Conteneur Graphique Courbe Évolutive -->
+            <div v-if="modalChartPoints.length > 1" class="space-y-3 animate-in fade-in duration-300">
+              <!-- Filtres de Période (6 Semaines / 12 Semaines) -->
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                  <TrendingUp class="w-3.5 h-3.5 text-primary" />
+                  {{ languageStore.isEn() ? 'Evolution Curve' : 'Courbe d\'évolution' }}
+                </span>
+
+                <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
+                  <button
+                    type="button"
+                    @click="selectedPeriod = '6S'; hoveredIndex = null"
+                    :class="selectedPeriod === '6S' ? 'bg-white text-primary shadow-xs font-black' : 'text-slate-500 font-bold hover:text-slate-800'"
+                    class="px-2.5 py-1 rounded-lg text-[10px] transition-all active:scale-95"
+                  >
+                    {{ languageStore.isEn() ? '6 Weeks' : '6 Semaines' }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="selectedPeriod = '12S'; hoveredIndex = null"
+                    :class="selectedPeriod === '12S' ? 'bg-white text-primary shadow-xs font-black' : 'text-slate-500 font-bold hover:text-slate-800'"
+                    class="px-2.5 py-1 rounded-lg text-[10px] transition-all active:scale-95"
+                  >
+                    {{ languageStore.isEn() ? '12 Weeks' : '12 Semaines' }}
+                  </button>
                 </div>
-                <div class="text-[11px] font-black text-white flex items-center justify-center gap-1.5">
-                  <span>{{ modalHoveredPoint.vl.toLocaleString() }} XAF</span>
-                  <span :class="modalHoveredPoint.totalVar >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[8px] font-black">
-                    {{ modalHoveredPoint.totalVar >= 0 ? '+' : '' }}{{ modalHoveredPoint.totalVar.toFixed(1) }}%
+              </div>
+
+              <!-- Zone du Graphique SVG Interactif -->
+              <div 
+                class="relative bg-slate-50/80 rounded-3xl p-3 border border-slate-100 overflow-hidden select-none"
+                @mouseleave="onModalChartLeave"
+                @touchend="onModalChartLeave"
+              >
+                <!-- Floating Tooltip Pill -->
+                <div 
+                  v-if="modalHoveredPoint"
+                  class="absolute pointer-events-none transition-all duration-150 transform -translate-x-1/2 z-30"
+                  :style="{ 
+                    left: `${(modalHoveredPoint.x / 380) * 100}%`, 
+                    top: `${Math.max(6, modalHoveredPoint.y - 48)}px` 
+                  }"
+                >
+                  <div class="bg-slate-900/95 backdrop-blur-md text-white px-2.5 py-1 rounded-xl shadow-xl border border-slate-700/60 text-center whitespace-nowrap">
+                    <div class="text-[8px] text-slate-300 font-bold uppercase tracking-wider">
+                      {{ modalHoveredPoint.fullDate }}
+                    </div>
+                    <div class="text-[11px] font-black text-white flex items-center justify-center gap-1.5">
+                      <span>{{ modalHoveredPoint.vl.toLocaleString() }} XAF</span>
+                      <span :class="modalHoveredPoint.totalVar >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[8px] font-black">
+                        {{ modalHoveredPoint.totalVar >= 0 ? '+' : '' }}{{ modalHoveredPoint.totalVar.toFixed(1) }}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SVG Graph -->
+                <svg 
+                  ref="chartSvgRef"
+                  viewBox="0 0 380 180" 
+                  class="w-full h-44 overflow-visible cursor-crosshair touch-none"
+                  @mousemove="onModalChartHover"
+                  @touchmove.prevent="onModalChartHover"
+                >
+                  <defs>
+                    <linearGradient id="modalCurveGradientHome" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#482010" stop-opacity="0.25" />
+                      <stop offset="65%" stop-color="#482010" stop-opacity="0.05" />
+                      <stop offset="100%" stop-color="#482010" stop-opacity="0.00" />
+                    </linearGradient>
+                    <linearGradient id="modalLineGradientHome" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stop-color="#E8B010" />
+                      <stop offset="100%" stop-color="#482010" />
+                    </linearGradient>
+                  </defs>
+
+                  <!-- Horizontal Grid Lines -->
+                  <line x1="24" y1="36" x2="356" y2="36" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 4" />
+                  <line x1="24" y1="78" x2="356" y2="78" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 4" />
+                  <line x1="24" y1="120" x2="356" y2="120" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 4" />
+                  <line x1="24" y1="142" x2="356" y2="142" stroke="#cbd5e1" stroke-width="1" />
+
+                  <path :d="modalChartPaths.area" fill="url(#modalCurveGradientHome)" />
+                  <path :d="modalChartPaths.line" fill="none" stroke="url(#modalLineGradientHome)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+
+                  <!-- Crosshair and Interactive Dots -->
+                  <g v-for="(pt, idx) in modalChartPoints" :key="idx">
+                    <line
+                      v-if="hoveredIndex === idx"
+                      :x1="pt.x"
+                      :y1="0"
+                      :x2="pt.x"
+                      :y2="142"
+                      stroke="#482010"
+                      stroke-dasharray="3 3"
+                      stroke-opacity="0.4"
+                      stroke-width="1.5"
+                    />
+                    <circle
+                      :cx="pt.x"
+                      :cy="pt.y"
+                      :r="hoveredIndex === idx ? 6 : 3.5"
+                      :fill="hoveredIndex === idx ? '#E8B010' : '#482010'"
+                      :stroke="hoveredIndex === idx ? '#482010' : '#ffffff'"
+                      stroke-width="2"
+                      class="transition-all duration-150"
+                    />
+                  </g>
+
+                  <!-- X-Axis Date Labels -->
+                  <g v-for="(pt, idx) in modalChartPoints" :key="'label-' + idx">
+                    <text 
+                      v-if="modalChartPoints.length <= 6 || idx % 2 === 0 || idx === modalChartPoints.length - 1"
+                      :x="pt.x" 
+                      y="160" 
+                      text-anchor="middle" 
+                      :font-weight="hoveredIndex === idx ? '900' : '700'"
+                      :fill="hoveredIndex === idx ? '#482010' : '#94a3b8'"
+                      font-size="9"
+                      class="transition-all uppercase tracking-tighter select-none font-sans"
+                    >
+                      {{ pt.date }}
+                    </text>
+                  </g>
+                </svg>
+
+                <!-- Guide explicatif discret -->
+                <div class="flex items-center justify-between text-[9px] text-slate-400 font-bold px-2 pt-1 border-t border-slate-100/80">
+                  <span class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#E8B010]"></span>
+                    {{ languageStore.isEn() ? 'Hover or drag to read NAV values' : 'Survolez ou glissez pour lire les valeurs' }}
+                  </span>
+                  <span>
+                    {{ modalChartPoints.length }} {{ languageStore.isEn() ? 'weeks history' : 'semaines d\'historique' }}
                   </span>
                 </div>
               </div>
             </div>
 
-            <!-- SVG Graph -->
-            <svg 
-              ref="chartSvgRef"
-              viewBox="0 0 380 180" 
-              class="w-full h-44 overflow-visible cursor-crosshair touch-none"
-              @mousemove="onModalChartHover"
-              @touchmove.prevent="onModalChartHover"
-            >
-              <defs>
-                <linearGradient id="modalCurveGradientHome" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#482010" stop-opacity="0.25" />
-                  <stop offset="65%" stop-color="#482010" stop-opacity="0.05" />
-                  <stop offset="100%" stop-color="#482010" stop-opacity="0.00" />
-                </linearGradient>
-                <linearGradient id="modalLineGradientHome" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stop-color="#E8B010" />
-                  <stop offset="100%" stop-color="#482010" />
-                </linearGradient>
-              </defs>
-
-              <!-- Horizontal Grid Lines -->
-              <line x1="24" y1="36" x2="356" y2="36" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 4" />
-              <line x1="24" y1="78" x2="356" y2="78" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 4" />
-              <line x1="24" y1="120" x2="356" y2="120" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 4" />
-              <line x1="24" y1="142" x2="356" y2="142" stroke="#cbd5e1" stroke-width="1" />
-
-              <path :d="modalChartPaths.area" fill="url(#modalCurveGradientHome)" />
-              <path :d="modalChartPaths.line" fill="none" stroke="url(#modalLineGradientHome)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-
-              <!-- Crosshair and Interactive Dots -->
-              <g v-for="(pt, idx) in modalChartPoints" :key="idx">
-                <line
-                  v-if="hoveredIndex === idx"
-                  :x1="pt.x"
-                  :y1="0"
-                  :x2="pt.x"
-                  :y2="142"
-                  stroke="#482010"
-                  stroke-dasharray="3 3"
-                  stroke-opacity="0.4"
-                  stroke-width="1.5"
-                />
-                <circle
-                  :cx="pt.x"
-                  :cy="pt.y"
-                  :r="hoveredIndex === idx ? 6 : 3.5"
-                  :fill="hoveredIndex === idx ? '#E8B010' : '#482010'"
-                  :stroke="hoveredIndex === idx ? '#482010' : '#ffffff'"
-                  stroke-width="2"
-                  class="transition-all duration-150"
-                />
-              </g>
-
-              <!-- X-Axis Date Labels -->
-              <g v-for="(pt, idx) in modalChartPoints" :key="'label-' + idx">
-                <text 
-                  v-if="modalChartPoints.length <= 6 || idx % 2 === 0 || idx === modalChartPoints.length - 1"
-                  :x="pt.x" 
-                  y="160" 
-                  text-anchor="middle" 
-                  :font-weight="hoveredIndex === idx ? '900' : '700'"
-                  :fill="hoveredIndex === idx ? '#482010' : '#94a3b8'"
-                  font-size="9"
-                  class="transition-all uppercase tracking-tighter select-none font-sans"
-                >
-                  {{ pt.date }}
-                </text>
-              </g>
-            </svg>
-
-            <!-- Guide explicatif discret -->
-            <div class="flex items-center justify-between text-[9px] text-slate-400 font-bold px-2 pt-1 border-t border-slate-100/80">
-              <span class="flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#E8B010]"></span>
-                {{ languageStore.isEn() ? 'Hover or drag to read NAV values' : 'Survolez ou glissez pour lire les valeurs' }}
-              </span>
-              <span>
-                {{ modalChartPoints.length }} {{ languageStore.isEn() ? 'weeks history' : 'semaines d\'historique' }}
-              </span>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{{ languageStore.t('risk_level') }}</span>
+                <span class="text-sm font-black text-slate-800 mt-1 block">{{ selectedProduct.risk }}</span>
+              </div>
+              <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{{ languageStore.t('nav_value') }}</span>
+                <span class="text-sm font-black text-primary mt-1 block">{{ selectedLatestVl.toLocaleString() }} XAF</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{{ languageStore.t('risk_level') }}</span>
-            <span class="text-sm font-black text-slate-800 mt-1 block">{{ selectedProduct.risk }}</span>
+          <!-- Pinned Footer with CTA Button (Always visible above navbar) -->
+          <div class="p-4 sm:p-5 border-t border-slate-100 bg-white shrink-0">
+            <router-link 
+              :to="'/subscribe/' + selectedProduct.id"
+              class="w-full bg-primary text-white font-black py-3.5 sm:py-4 rounded-2xl text-center shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all text-sm uppercase tracking-wider flex items-center justify-center"
+            >
+              {{ languageStore.t('subscribe_now') }}
+            </router-link>
           </div>
-          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{{ languageStore.t('nav_value') }}</span>
-            <span class="text-sm font-black text-primary mt-1 block">{{ selectedLatestVl.toLocaleString() }} XAF</span>
-          </div>
-        </div>
-
-        <div class="flex gap-3 pt-2">
-          <router-link 
-            :to="'/subscribe/' + selectedProduct.id"
-            class="flex-1 bg-primary text-white font-black py-4 rounded-2xl text-center shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all text-xs uppercase tracking-wider"
-          >
-            {{ languageStore.t('subscribe_now') }}
-          </router-link>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- Quick Category Modal -->
-    <div v-if="showCategoryModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
-      <div @click="showCategoryModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
-      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
-        <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500">
-          <UserCheck class="w-8 h-8" />
-        </div>
-        <div class="space-y-2">
-          <h3 class="text-lg font-black text-slate-900">Catégorie Client</h3>
-          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
-            Précisez votre catégorie d'investisseur pour la conformité de vos bulletins d'investissement :
-          </p>
-        </div>
-        <div class="relative text-left">
-          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">Catégorie réglementaire *</label>
-          <div class="relative">
-            <select v-model="selectedCategoryModal" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
-              <option value="Particulier">Particulier (Recommandé)</option>
-              <option value="Professionnel">Professionnel</option>
-              <option value="Institutionnel">Institutionnel</option>
-              <option value="Personne Morale">Personne Morale</option>
-            </select>
-            <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+    <Teleport to="body">
+      <div v-if="showCategoryModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+        <div @click="showCategoryModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300 cursor-pointer"></div>
+        <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+          <button 
+            type="button" 
+            @click="showCategoryModal = false" 
+            class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+            :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+          >
+            <X class="w-4 h-4" />
+          </button>
+          <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-500">
+            <UserCheck class="w-8 h-8" />
+          </div>
+          <div class="space-y-2">
+            <h3 class="text-lg font-black text-slate-900">{{ languageStore.isEn() ? 'Client Category' : 'Catégorie Client' }}</h3>
+            <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+              {{ languageStore.isEn() ? 'Specify your investor category for the compliance of your investment bulletins:' : "Précisez votre catégorie d'investisseur pour la conformité de vos bulletins d'investissement :" }}
+            </p>
+          </div>
+          <div class="relative text-left">
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 mb-1 block">{{ languageStore.isEn() ? 'Regulatory category *' : 'Catégorie réglementaire *' }}</label>
+            <div class="relative">
+              <select v-model="selectedCategoryModal" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
+                <option value="Particulier">{{ languageStore.isEn() ? 'Individual (Recommended)' : 'Particulier (Recommandé)' }}</option>
+                <option value="Professionnel">{{ languageStore.isEn() ? 'Professional' : 'Professionnel' }}</option>
+                <option value="Institutionnel">{{ languageStore.isEn() ? 'Institutional' : 'Institutionnel' }}</option>
+                <option value="Personne Morale">{{ languageStore.isEn() ? 'Corporate Entity' : 'Personne Morale' }}</option>
+              </select>
+              <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <button 
+              type="button"
+              @click="saveModalCategory" 
+              :disabled="savingModalCategory"
+              class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Loader2 v-if="savingModalCategory" class="w-4 h-4 animate-spin" />
+              <span>{{ languageStore.t('save') }}</span>
+            </button>
+            <button type="button" @click="showCategoryModal = false" class="w-full py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition-colors cursor-pointer">
+              {{ languageStore.isEn() ? 'Later' : 'Plus tard' }}
+            </button>
           </div>
         </div>
-        <div class="space-y-2">
-          <button 
-            type="button"
-            @click="saveModalCategory" 
-            :disabled="savingModalCategory"
-            class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4 rounded-2xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
-          >
-            <Loader2 v-if="savingModalCategory" class="w-4 h-4 animate-spin" />
-            <span>Enregistrer</span>
-          </button>
-          <button type="button" @click="showCategoryModal = false" class="w-full py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition-colors">
-            Plus tard
-          </button>
-        </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- Modal Renouvellement Pièce d'Identité -->
     <RenewIdentityModal v-model="showRenewIdModal" @renewed="onIdRenewed" />

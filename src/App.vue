@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import MobileLayout from './layouts/MobileLayout.vue'
 import { Smartphone, MonitorOff, WifiOff } from 'lucide-vue-next'
 import { useAuthStore } from './stores/auth'
+import { useLanguageStore } from './stores/language'
 import { useAppContentStore } from './stores/appContent'
 import api from './api/api'
 import { restoreSession } from './services/restoreSession'
@@ -11,6 +12,7 @@ import { QrcodeSvg } from 'qrcode.vue'
 const isDesktop = ref(false)
 const isOffline = ref(!window.navigator.onLine)
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
 const appContentStore = useAppContentStore()
 const showApplePrompt = ref(false)
 const qrValue = ref(window.location.href)
@@ -57,8 +59,10 @@ onMounted(() => {
   detectiOS()
   initUser()
   appContentStore.fetchContents()
-  qrValue.value = window.location.href
-  window.addEventListener('resize', checkScreenSize)
+  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  qrValue.value = isLocalHost
+    ? `http://192.168.1.40:${window.location.port || '5173'}`
+    : window.location.href
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
 })
@@ -79,8 +83,8 @@ onUnmounted(() => {
           <Smartphone class="w-6 h-6 text-yellow-400" />
         </div>
         <div>
-          <h4 class="text-sm font-black uppercase tracking-wider">Installer PEK Mobile</h4>
-          <p class="text-[10px] text-white/50 font-bold">Ajoutez l'application sur votre iPhone</p>
+          <h4 class="text-sm font-black uppercase tracking-wider">{{ languageStore.isEn() ? 'Install PEK Mobile' : 'Installer PEK Mobile' }}</h4>
+          <p class="text-[10px] text-white/50 font-bold">{{ languageStore.isEn() ? 'Add the app to your iPhone' : "Ajoutez l'application sur votre iPhone" }}</p>
         </div>
       </div>
       <button @click="closeApplePrompt" class="text-white/60 hover:text-white font-black text-sm p-1">✕</button>
@@ -88,13 +92,13 @@ onUnmounted(() => {
     
     <div class="space-y-2 text-xs font-semibold text-white/80 leading-relaxed pl-1">
       <p class="flex items-center gap-2">
-        <span>1. Appuyez sur le bouton de <strong>Partage</strong></span>
+        <span>{{ languageStore.isEn() ? '1. Tap the Share button' : '1. Appuyez sur le bouton de Partage' }}</span>
         <svg class="w-5 h-5 text-yellow-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
       </p>
       <p class="flex items-center gap-2">
-        <span>2. Faites défiler et sélectionnez <strong>Sur l'écran d'accueil</strong></span>
+        <span>{{ languageStore.isEn() ? '2. Scroll and select Add to Home Screen' : "2. Faites défiler et sélectionnez Sur l'écran d'accueil" }}</span>
         <svg class="w-5 h-5 text-yellow-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -104,7 +108,7 @@ onUnmounted(() => {
 
   <div v-if="isOffline" role="status" class="fixed top-3 left-3 right-3 z-[10000] bg-rose-600 text-white rounded-2xl px-4 py-3 shadow-xl flex items-center gap-3 max-w-md mx-auto">
     <WifiOff class="w-5 h-5 shrink-0" />
-    <p class="text-xs font-bold">Mode hors connexion : consultation limitée, aucun dossier KYC ne peut être enregistré.</p>
+    <p class="text-xs font-bold">{{ languageStore.isEn() ? 'Offline mode: limited browsing, no KYC files can be submitted.' : 'Mode hors connexion : consultation limitée, aucun dossier KYC ne peut être enregistré.' }}</p>
   </div>
 
   <div v-if="isDesktop" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-[9999]">
@@ -119,15 +123,15 @@ onUnmounted(() => {
       </div>
       
       <div class="space-y-4">
-        <h1 class="text-2xl font-black text-slate-900 leading-tight">Version Mobile Uniquement</h1>
+        <h1 class="text-2xl font-black text-slate-900 leading-tight">{{ languageStore.isEn() ? 'Mobile Version Only' : 'Version Mobile Uniquement' }}</h1>
         <p class="text-slate-500 leading-relaxed font-medium">
-          L'application PEK est optimisée exclusivement pour les appareils mobiles et tablettes.
+          {{ languageStore.isEn() ? 'The PEK app is exclusively optimized for mobile and tablet devices.' : "L'application PEK est optimisée exclusivement pour les appareils mobiles et tablettes." }}
         </p>
       </div>
 
       <div class="pt-4">
         <div class="bg-slate-50 p-6 rounded-3xl space-y-4">
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Scannez pour continuer</p>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">{{ languageStore.isEn() ? 'Scan to continue' : 'Scannez pour continuer' }}</p>
           <div class="w-36 h-36 bg-white mx-auto rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 p-2">
             <QrcodeSvg
               v-if="qrValue"
@@ -136,7 +140,19 @@ onUnmounted(() => {
               level="H"
               foreground="#482010"
             />
-            <div v-else class="text-[10px] text-slate-400 italic">Génération...</div>
+            <div v-else class="text-[10px] text-slate-400 italic">{{ languageStore.isEn() ? 'Generating...' : 'Génération...' }}</div>
+          </div>
+          <div class="space-y-2">
+            <p class="text-[11px] font-mono text-slate-600 bg-white/80 py-1.5 px-3 rounded-xl border border-slate-200 select-all font-bold">
+              {{ qrValue }}
+            </p>
+            <button 
+              type="button" 
+              @click="isDesktop = false" 
+              class="text-xs text-amber-800 hover:text-amber-900 underline font-semibold transition-colors"
+            >
+              {{ languageStore.isEn() ? 'Test interface on this screen' : "Tester l'interface sur cet écran" }}
+            </button>
           </div>
         </div>
       </div>

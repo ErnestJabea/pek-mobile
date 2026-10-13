@@ -2,12 +2,14 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useLanguageStore } from '../stores/language'
 import { Lock, Eye, EyeOff, Loader2, CheckCircle2, ShieldAlert } from 'lucide-vue-next'
 import api from '../api/api'
 import PasswordCriteria from '../components/PasswordCriteria.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
 
 const newPassword = ref('')
 const currentPassword = ref('')
@@ -25,13 +27,13 @@ const handleSubmit = async () => {
   validationErrors.value = {}
 
   if (newPassword.value !== confirmPassword.value) {
-    error.value = 'Les mots de passe ne correspondent pas.'
+    error.value = languageStore.t('password_mismatch')
     loading.value = false
     return
   }
 
   if (newPassword.value.length < 12) {
-    error.value = 'Le mot de passe doit contenir au moins 12 caractères.'
+    error.value = languageStore.isEn() ? 'Password must contain at least 12 characters.' : 'Le mot de passe doit contenir au moins 12 caractères.'
     loading.value = false
     return
   }
@@ -53,7 +55,7 @@ const handleSubmit = async () => {
     if (err.response?.status === 422) {
       validationErrors.value = err.response.data.errors || {}
     } else {
-      error.value = err.response?.data?.message || 'Une erreur est survenue lors de la réinitialisation.'
+      error.value = err.response?.data?.message || (languageStore.isEn() ? 'An error occurred while resetting password.' : 'Une erreur est survenue lors de la réinitialisation.')
     }
   } finally {
     loading.value = false
@@ -69,8 +71,8 @@ const handleSubmit = async () => {
         <ShieldAlert class="w-8 h-8" />
       </div>
       <div class="text-center space-y-2">
-        <h2 class="text-2xl font-black text-primary">Nouveau mot de passe</h2>
-        <p class="text-slate-500 text-sm">Par mesure de sécurité, veuillez définir un mot de passe permanent avant d'accéder à votre compte.</p>
+        <h2 class="text-2xl font-black text-primary">{{ languageStore.t('temp_pwd_title') }}</h2>
+        <p class="text-slate-500 text-sm">{{ languageStore.t('temp_pwd_subtitle') }}</p>
       </div>
     </div>
 
@@ -78,8 +80,8 @@ const handleSubmit = async () => {
     <div v-if="success" class="space-y-6 animate-in zoom-in duration-300">
       <div class="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 text-center space-y-4">
         <CheckCircle2 class="w-12 h-12 text-emerald-500 mx-auto" />
-        <p class="text-emerald-700 font-bold">Mot de passe mis à jour !</p>
-        <p class="text-slate-500 text-sm">Votre nouveau mot de passe a été enregistré. Redirection vers votre tableau de bord...</p>
+        <p class="text-emerald-700 font-bold">{{ languageStore.t('temp_pwd_success_title') }}</p>
+        <p class="text-slate-500 text-sm">{{ languageStore.t('temp_pwd_success_desc') }}</p>
       </div>
     </div>
 
@@ -91,7 +93,7 @@ const handleSubmit = async () => {
 
       <div class="space-y-4">
         <div class="space-y-2">
-          <label class="text-sm font-bold text-slate-700 ml-1">Mot de passe temporaire actuel</label>
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('temp_pwd_current_label') }}</label>
           <div class="relative">
             <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input v-model="currentPassword" type="password" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4" required autocomplete="current-password">
@@ -99,7 +101,7 @@ const handleSubmit = async () => {
         </div>
         <!-- Nouveau mot de passe -->
         <div class="space-y-2">
-          <label class="text-sm font-bold text-slate-700 ml-1">Nouveau mot de passe</label>
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('temp_pwd_new_label') }}</label>
           <div class="relative">
             <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
@@ -126,7 +128,7 @@ const handleSubmit = async () => {
 
         <!-- Confirmer le mot de passe -->
         <div class="space-y-2">
-          <label class="text-sm font-bold text-slate-700 ml-1">Confirmer le mot de passe</label>
+          <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('temp_pwd_confirm_label') }}</label>
           <div class="relative">
             <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
@@ -160,7 +162,7 @@ const handleSubmit = async () => {
         class="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 hover:bg-slate-800 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2"
       >
         <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
-        <span v-else>Enregistrer mon nouveau mot de passe</span>
+        <span v-else>{{ languageStore.t('temp_pwd_btn_save') }}</span>
       </button>
     </form>
   </div>

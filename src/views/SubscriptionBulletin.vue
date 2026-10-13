@@ -3,9 +3,11 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Printer, Download, Loader2, AlertCircle } from 'lucide-vue-next'
 import api from '../api/api'
+import { useLanguageStore } from '../stores/language'
 
 const route = useRoute()
 const router = useRouter()
+const languageStore = useLanguageStore()
 const subscriptionId = route.params.id
 
 const data = ref(null)
@@ -83,7 +85,7 @@ onBeforeUnmount(() => {
         class="btn-action btn-retour"
       >
         <ArrowLeft class="w-4 h-4" />
-        <span>Retour</span>
+        <span>{{ languageStore.t('bulletin_toolbar_back') }}</span>
       </button>
 
       <div class="flex items-center gap-2">
@@ -93,7 +95,7 @@ onBeforeUnmount(() => {
           class="btn-action btn-secondaire"
         >
           <Download class="w-4 h-4" />
-          <span class="hidden sm:inline">Télécharger PDF</span>
+          <span class="hidden sm:inline">{{ languageStore.t('bulletin_toolbar_download') }}</span>
         </button>
         <button 
           type="button" 
@@ -101,7 +103,7 @@ onBeforeUnmount(() => {
           class="btn-action btn-imprimer"
         >
           <Printer class="w-4 h-4" />
-          <span>Imprimer</span>
+          <span>{{ languageStore.t('bulletin_toolbar_print') }}</span>
         </button>
       </div>
     </div>
@@ -109,20 +111,20 @@ onBeforeUnmount(() => {
     <!-- État de chargement -->
     <div v-if="loading" class="py-24 text-center space-y-4">
       <Loader2 class="w-10 h-10 animate-spin text-primary mx-auto" />
-      <p class="text-sm font-bold text-slate-600">Génération du bulletin officiel en cours…</p>
+      <p class="text-sm font-bold text-slate-600">{{ languageStore.t('bulletin_loading') }}</p>
     </div>
 
     <!-- État d'erreur -->
     <div v-else-if="error" class="py-16 text-center max-w-md mx-auto space-y-4 bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
       <AlertCircle class="w-12 h-12 text-rose-500 mx-auto" />
-      <h3 class="text-lg font-black text-slate-900">Document indisponible</h3>
+      <h3 class="text-lg font-black text-slate-900">{{ languageStore.t('bulletin_error_title') }}</h3>
       <p class="text-xs text-slate-500 font-medium">{{ error }}</p>
       <button 
         type="button" 
         @click="router.push('/my-subscriptions')" 
         class="bg-primary text-white text-xs font-black py-3 px-6 rounded-2xl"
       >
-        Retour à mes souscriptions
+        {{ languageStore.t('bulletin_back_to_subs') }}
       </button>
     </div>
 

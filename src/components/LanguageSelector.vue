@@ -3,9 +3,9 @@ import { useLanguageStore } from '../stores/language'
 
 const languageStore = useLanguageStore()
 
-const selectLang = (lang) => {
+const selectLang = async (lang) => {
   if (languageStore.currentLang !== lang) {
-    languageStore.setLanguage(lang)
+    await languageStore.setLanguage(lang)
     window.location.reload()
   }
 }

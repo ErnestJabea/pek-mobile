@@ -86,6 +86,28 @@ export const useAppContentStore = defineStore('appContent', () => {
     }
   }
 
+  // Get dynamic welcome slides (section: 'welcome_slides')
+  const getWelcomeSlides = () => {
+    const isEn = languageStore.isEn()
+    const slideItems = Object.values(contents.value).filter(
+      (item) => item && (item.section === 'welcome_slides' || (typeof item.key === 'string' && item.key.startsWith('welcome_slide_'))) && item.is_active !== false
+    )
+
+    if (slideItems.length > 0) {
+      slideItems.sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0))
+      return slideItems.map((item, index) => ({
+        id: item.id || item.key,
+        key: item.key,
+        title: isEn ? (item.title_en || item.title_fr || '') : (item.title_fr || item.title_en || ''),
+        description: isEn ? (item.body_en || item.body_fr || '') : (item.body_fr || item.body_en || ''),
+        image_url: item.image_url || (item.image_path ? `/storage/${item.image_path}` : null),
+        sort_order: item.sort_order || index + 1
+      }))
+    }
+
+    return []
+  }
+
   return {
     contents,
     loading,
@@ -94,6 +116,7 @@ export const useAppContentStore = defineStore('appContent', () => {
     getItem,
     t,
     getTitle,
-    getBanner
+    getBanner,
+    getWelcomeSlides
   }
 })

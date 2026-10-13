@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { UploadCloud, FileText, CheckCircle2, X, AlertCircle, Loader2, Download, ShieldCheck, Clock } from 'lucide-vue-next'
+import { useLanguageStore } from '../stores/language'
 import api from '../api/api'
 
 const props = defineProps({ subscription: { type: Object, required: true } })
+const languageStore = useLanguageStore()
 const proofs = ref([])
 const file = ref(null)
 const fileInput = ref(null)
@@ -19,7 +21,7 @@ const load = async () => {
   try { 
     proofs.value = (await api.get(`/subscriptions/${props.subscription.id}/proofs`)).data 
   } catch { 
-    error.value = 'Impossible de charger les justificatifs.' 
+    error.value = languageStore.isEn() ? 'Unable to load payment proofs.' : 'Impossible de charger les justificatifs.' 
   }
 }
 
@@ -50,11 +52,11 @@ const validateAndSetFile = (f) => {
   if (!f) return
   const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
   if (!validTypes.includes(f.type)) {
-    error.value = 'Format non supporté. Veuillez choisir un fichier PDF, JPEG ou PNG.'
+    error.value = languageStore.isEn() ? 'Unsupported format. Please choose a PDF, JPEG or PNG file.' : 'Format non supporté. Veuillez choisir un fichier PDF, JPEG ou PNG.'
     return
   }
   if (f.size > 10 * 1024 * 1024) {
-    error.value = 'Fichier trop volumineux. La taille maximale autorisée est de 10 Mo.'
+    error.value = languageStore.isEn() ? 'File too large. Maximum allowed size is 10 MB.' : 'Fichier trop volumineux. La taille maximale autorisée est de 10 Mo.'
     return
   }
   file.value = f
@@ -69,11 +71,11 @@ const upload = async () => {
   error.value = ''
   message.value = ''
   if (!navigator.onLine) { 
-    error.value = 'Une connexion Internet est requise pour envoyer le justificatif.'
+    error.value = languageStore.isEn() ? 'An internet connection is required to upload the proof.' : 'Une connexion Internet est requise pour envoyer le justificatif.'
     return 
   }
   if (!file.value || file.value.size > 10 * 1024 * 1024) { 
-    error.value = 'Veuillez sélectionner un fichier PDF, JPEG ou PNG de 10 Mo maximum.'
+    error.value = languageStore.isEn() ? 'Please select a PDF, JPEG or PNG file of up to 10 MB.' : 'Veuillez sélectionner un fichier PDF, JPEG ou PNG de 10 Mo maximum.'
     return 
   }
   busy.value = true
@@ -90,7 +92,7 @@ const upload = async () => {
     removeFile()
     await load()
   } catch (e) { 
-    error.value = e.response?.data?.message || 'Envoi impossible. Vérifiez les informations avant de réessayer.' 
+    error.value = e.response?.data?.message || (languageStore.isEn() ? 'Upload failed. Please check the information and try again.' : 'Envoi impossible. Vérifiez les informations avant de réessayer.') 
   } finally { 
     busy.value = false 
   }
@@ -106,21 +108,39 @@ const download = async (proof) => {
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   } catch { 
-    error.value = 'Document indisponible ou contrôle de sécurité en cours.' 
+    error.value = languageStore.isEn() ? 'Document unavailable or security scan in progress.' : 'Document indisponible ou contrôle de sécurité en cours.' 
   }
 }
 
-const scanLabel = (status) => ({ 
-  clean: 'Contrôle validé ✅', 
-  quarantined: 'Contrôle antivirus en cours ⏳', 
-  infected: 'Document bloqué ⚠️' 
-}[status] || status)
+const scanLabel = (status) => {
+  if (languageStore.isEn()) {
+    return {
+      clean: 'Check passed ✅',
+      quarantined: 'Antivirus scan in progress ⏳',
+      infected: 'Document blocked ⚠️'
+    }[status] || status
+  }
+  return { 
+    clean: 'Contrôle validé ✅', 
+    quarantined: 'Contrôle antivirus en cours ⏳', 
+    infected: 'Document bloqué ⚠️' 
+  }[status] || status
+}
 
-const reviewLabel = (status) => ({ 
-  received: 'Reçu', 
-  examined: 'Justificatif examiné',
-  replacement_requested: 'Remplacement demandé' 
-}[status] || status)
+const reviewLabel = (status) => {
+  if (languageStore.isEn()) {
+    return {
+      received: 'Received',
+      examined: 'Proof reviewed',
+      replacement_requested: 'Replacement requested'
+    }[status] || status
+  }
+  return { 
+    received: 'Reçu', 
+    examined: 'Justificatif examiné',
+    replacement_requested: 'Remplacement demandé' 
+  }[status] || status
+}
 </script>
 
 <template>
@@ -130,10 +150,10 @@ const reviewLabel = (status) => ({
       <div class="space-y-1">
         <h3 class="font-black text-slate-900 text-sm flex items-center gap-1.5">
           <ShieldCheck class="w-4 h-4 text-primary" />
-          Justificatif de virement
+          {{ languageStore.isEn() ? 'Proof of bank transfer' : 'Justificatif de virement' }}
         </h3>
         <p class="text-xs text-slate-500 leading-snug">
-          Transmettez votre reçu pour le rapprochement bancaire. Son dépôt ne confirme pas le paiement : les parts seront calculées avec la VL à la date de réception effective des fonds.
+          {{ languageStore.isEn() ? 'Upload your receipt for bank reconciliation. Submission does not confirm payment: units will be computed using the NAV on the actual fund reception date.' : 'Transmettez votre reçu pour le rapprochement bancaire. Son dépôt ne confirme pas le paiement : les parts seront calculées avec la VL à la date de réception effective des fonds.' }}
         </p>
       </div>
     </div>
@@ -141,30 +161,30 @@ const reviewLabel = (status) => ({
     <!-- Coordonnées bancaires récapitulatives si présentes -->
     <div v-if="subscription.bank_snapshot" class="text-xs bg-slate-50 rounded-2xl p-3.5 border border-slate-100 space-y-1.5">
       <div class="flex justify-between items-center text-slate-600">
-        <span class="font-bold">Banque :</span>
+        <span class="font-bold">{{ languageStore.isEn() ? 'Bank:' : 'Banque :' }}</span>
         <span class="font-black text-slate-900">{{ subscription.bank_snapshot.bank_name }}</span>
       </div>
       <div v-if="subscription.bank_snapshot.beneficiary" class="flex justify-between items-center text-slate-600">
-        <span class="font-bold">Bénéficiaire :</span>
+        <span class="font-bold">{{ languageStore.isEn() ? 'Beneficiary:' : 'Bénéficiaire :' }}</span>
         <span class="font-black text-slate-900">{{ subscription.bank_snapshot.beneficiary }}</span>
       </div>
       <div class="flex justify-between items-center text-slate-600">
-        <span class="font-bold">Compte / IBAN :</span>
+        <span class="font-bold">{{ languageStore.isEn() ? 'Account / IBAN:' : 'Compte / IBAN :' }}</span>
         <span class="font-mono font-bold text-slate-900 text-[11px]">{{ subscription.bank_snapshot.iban || subscription.bank_snapshot.rib }}</span>
       </div>
       <div class="flex justify-between items-center text-slate-600">
-        <span class="font-bold">Réf. à mentionner :</span>
+        <span class="font-bold">{{ languageStore.isEn() ? 'Ref. to mention:' : 'Réf. à mentionner :' }}</span>
         <span class="font-mono font-black text-primary text-[11px]">{{ subscription.reference_transaction }}</span>
       </div>
       <div class="flex justify-between items-center text-slate-600 pt-1 border-t border-slate-200/60">
-        <span class="font-bold">Total à virer :</span>
+        <span class="font-bold">{{ languageStore.isEn() ? 'Total to transfer:' : 'Total à virer :' }}</span>
         <span class="font-black text-primary">{{ Number(subscription.montant_total).toLocaleString() }} XAF</span>
       </div>
     </div>
 
     <div v-if="subscription.value_date" class="text-xs font-semibold text-emerald-700 bg-emerald-50 p-3 rounded-xl border border-emerald-100 flex items-center gap-2">
       <Clock class="w-4 h-4 shrink-0" />
-      <span>Date de valeur : {{ subscription.value_date.slice(0, 10) }}<span v-if="subscription.valuation_status === 'awaiting_nav'"> — fonds reçus, valorisation en attente avec la dernière VL publiée avant cette date.</span></span>
+      <span>{{ languageStore.isEn() ? 'Value date: ' : 'Date de valeur : ' }}{{ subscription.value_date.slice(0, 10) }}<span v-if="subscription.valuation_status === 'awaiting_nav'">{{ languageStore.isEn() ? ' — funds received, valuation pending latest NAV published before this date.' : ' — fonds reçus, valorisation en attente avec la dernière VL publiée avant cette date.' }}</span></span>
     </div>
 
     <!-- Formulaire d'upload de justificatif -->
@@ -173,7 +193,7 @@ const reviewLabel = (status) => ({
       <!-- Zone d'Upload Stylisée -->
       <div class="space-y-1.5">
         <label class="block text-xs font-black uppercase text-slate-500 tracking-wider">
-          Fichier du justificatif <span class="text-rose-500">*</span>
+          {{ languageStore.isEn() ? 'Proof file' : 'Fichier du justificatif' }} <span class="text-rose-500">*</span>
         </label>
         
         <!-- Zone vide : Glisser-déposer ou Parcourir -->
@@ -200,10 +220,10 @@ const reviewLabel = (status) => ({
             <UploadCloud class="w-6 h-6" />
           </div>
           <p class="text-xs text-slate-800 font-bold select-none">
-            Cliquez pour choisir un fichier ou <span class="text-primary font-black underline">Parcourir</span>
+            {{ languageStore.isEn() ? 'Click to choose a file or ' : 'Cliquez pour choisir un fichier ou ' }}<span class="text-primary font-black underline">{{ languageStore.isEn() ? 'Browse' : 'Parcourir' }}</span>
           </p>
           <p class="text-[11px] text-slate-400 font-medium mt-1 select-none">
-            PDF, JPEG ou PNG — 10 Mo maximum
+            {{ languageStore.isEn() ? 'PDF, JPEG or PNG — 10 MB maximum' : 'PDF, JPEG ou PNG — 10 Mo maximum' }}
           </p>
         </div>
 
@@ -223,7 +243,7 @@ const reviewLabel = (status) => ({
               <div class="flex items-center gap-2 mt-0.5">
                 <span class="text-[10px] text-slate-500 font-semibold">{{ formatFileSize(file.size) }}</span>
                 <span class="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
-                  <CheckCircle2 class="w-3 h-3 text-emerald-600" /> Prêt pour l'envoi
+                  <CheckCircle2 class="w-3 h-3 text-emerald-600" /> {{ languageStore.isEn() ? 'Ready for upload' : 'Prêt pour l\'envoi' }}
                 </span>
               </div>
             </div>
@@ -233,7 +253,7 @@ const reviewLabel = (status) => ({
             type="button"
             @click.stop="removeFile"
             class="w-8 h-8 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 flex items-center justify-center shrink-0 transition-all active:scale-90"
-            title="Supprimer ce fichier"
+            :title="languageStore.isEn() ? 'Delete this file' : 'Supprimer ce fichier'"
           >
             <X class="w-4 h-4" />
           </button>
@@ -243,20 +263,20 @@ const reviewLabel = (status) => ({
       <!-- Champs complémentaires : Date, Montant, Référence -->
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1">
-          <label class="block text-[10px] font-black uppercase text-slate-500 tracking-wider">Date du virement</label>
+          <label class="block text-[10px] font-black uppercase text-slate-500 tracking-wider">{{ languageStore.isEn() ? 'Transfer date' : 'Date du virement' }}</label>
           <input v-model="declaredDate" type="date" required class="block w-full rounded-xl border border-slate-200 p-2.5 bg-white text-xs font-bold text-slate-800 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs" />
         </div>
         <div class="space-y-1">
-          <label class="block text-[10px] font-black uppercase text-slate-500 tracking-wider">Montant viré (XAF)</label>
+          <label class="block text-[10px] font-black uppercase text-slate-500 tracking-wider">{{ languageStore.isEn() ? 'Amount transferred (XAF)' : 'Montant viré (XAF)' }}</label>
           <input v-model="declaredAmount" type="number" min="1" step="1" required class="block w-full rounded-xl border border-slate-200 p-2.5 bg-white text-xs font-bold text-slate-800 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs" />
         </div>
       </div>
 
       <div class="space-y-1">
         <label class="block text-[10px] font-black uppercase text-slate-500 tracking-wider">
-          Référence bancaire <span class="text-slate-400 font-normal lowercase">(si disponible)</span>
+          {{ languageStore.isEn() ? 'Bank reference' : 'Référence bancaire' }} <span class="text-slate-400 font-normal lowercase">({{ languageStore.isEn() ? 'if available' : 'si disponible' }})</span>
         </label>
-        <input v-model="declaredReference" placeholder="Ex: VIR-849202 ou n° de transaction banque" maxlength="120" class="block w-full rounded-xl border border-slate-200 p-2.5 bg-white text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs" />
+        <input v-model="declaredReference" :placeholder="languageStore.isEn() ? 'E.g.: VIR-849202 or bank transaction no.' : 'Ex: VIR-849202 ou n° de transaction banque'" maxlength="120" class="block w-full rounded-xl border border-slate-200 p-2.5 bg-white text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-2xs" />
       </div>
 
       <!-- Messages d'erreur et de succès -->
@@ -277,13 +297,13 @@ const reviewLabel = (status) => ({
       >
         <Loader2 v-if="busy" class="w-4 h-4 animate-spin" />
         <UploadCloud v-else class="w-4 h-4" />
-        <span>{{ busy ? 'Envoi et contrôle en cours…' : 'Envoyer le justificatif' }}</span>
+        <span>{{ busy ? (languageStore.isEn() ? 'Uploading and scanning...' : 'Envoi et contrôle en cours…') : (languageStore.isEn() ? 'Send proof' : 'Envoyer le justificatif') }}</span>
       </button>
     </form>
 
     <!-- Liste des justificatifs déjà envoyés -->
     <div v-if="proofs.length > 0" class="space-y-2 pt-2 border-t border-slate-100">
-      <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Justificatifs transmis ({{ proofs.length }})</span>
+      <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider block">{{ languageStore.isEn() ? 'Submitted proofs (' + proofs.length + ')' : 'Justificatifs transmis (' + proofs.length + ')' }}</span>
       <ul class="space-y-2">
         <li v-for="proof in proofs" :key="proof.id" class="rounded-2xl bg-slate-50 p-3.5 text-xs space-y-1.5 border border-slate-100">
           <div class="flex items-center justify-between gap-2">
@@ -297,7 +317,7 @@ const reviewLabel = (status) => ({
               class="text-primary hover:underline font-bold text-[11px] flex items-center gap-1 shrink-0"
             >
               <Download class="w-3 h-3" />
-              <span>Télécharger</span>
+              <span>{{ languageStore.isEn() ? 'Download' : 'Télécharger' }}</span>
             </button>
           </div>
           <div class="flex items-center gap-2 text-[10px] text-slate-500">
@@ -306,7 +326,7 @@ const reviewLabel = (status) => ({
             <span class="font-medium">{{ reviewLabel(proof.review_status) }}</span>
           </div>
           <p v-if="proof.review_note" class="text-[10px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-100 font-medium">
-            Note de conformité : {{ proof.review_note }}
+            {{ languageStore.isEn() ? 'Compliance note: ' : 'Note de conformité : ' }}{{ proof.review_note }}
           </p>
         </li>
       </ul>

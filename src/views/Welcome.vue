@@ -1,34 +1,66 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { TrendingUp, ShieldCheck, Wallet, ChevronRight, ChevronLeft } from 'lucide-vue-next'
+import { TrendingUp, ShieldCheck, Wallet, Sparkles, Building2, ChevronRight, ChevronLeft } from 'lucide-vue-next'
 import { useLanguageStore } from '../stores/language'
+import { useAppContentStore } from '../stores/appContent'
+import { getFrontendDocumentUrl } from '../utils/document'
 import LanguageSelector from '../components/LanguageSelector.vue'
 
 const router = useRouter()
 const languageStore = useLanguageStore()
+const appContentStore = useAppContentStore()
 const currentSlide = ref(0)
 
-const slides = computed(() => [
-  {
-    icon: TrendingUp,
-    title: languageStore.t('slide1_title'),
-    description: languageStore.t('slide1_desc'),
-    color: "text-blue-600 bg-blue-50"
-  },
-  {
-    icon: ShieldCheck,
-    title: languageStore.t('slide2_title'),
-    description: languageStore.t('slide2_desc'),
-    color: "text-emerald-600 bg-emerald-50"
-  },
-  {
-    icon: Wallet,
-    title: languageStore.t('slide3_title'),
-    description: languageStore.t('slide3_desc'),
-    color: "text-amber-600 bg-amber-50"
+onMounted(() => {
+  appContentStore.fetchContents()
+})
+
+const defaultIcons = [TrendingUp, ShieldCheck, Wallet, Sparkles, Building2]
+const defaultColors = [
+  "text-blue-600 bg-blue-50",
+  "text-emerald-600 bg-emerald-50",
+  "text-amber-600 bg-amber-50",
+  "text-purple-600 bg-purple-50",
+  "text-rose-600 bg-rose-50"
+]
+
+const slides = computed(() => {
+  const dynamicSlides = appContentStore.getWelcomeSlides()
+  if (dynamicSlides && dynamicSlides.length > 0) {
+    return dynamicSlides.map((s, idx) => ({
+      icon: defaultIcons[idx % defaultIcons.length],
+      title: s.title || languageStore.t(`slide${idx + 1}_title`),
+      description: s.description || languageStore.t(`slide${idx + 1}_desc`),
+      color: defaultColors[idx % defaultColors.length],
+      imageUrl: s.image_url || null
+    }))
   }
-])
+
+  return [
+    {
+      icon: TrendingUp,
+      title: languageStore.t('slide1_title'),
+      description: languageStore.t('slide1_desc'),
+      color: "text-blue-600 bg-blue-50",
+      imageUrl: null
+    },
+    {
+      icon: ShieldCheck,
+      title: languageStore.t('slide2_title'),
+      description: languageStore.t('slide2_desc'),
+      color: "text-emerald-600 bg-emerald-50",
+      imageUrl: null
+    },
+    {
+      icon: Wallet,
+      title: languageStore.t('slide3_title'),
+      description: languageStore.t('slide3_desc'),
+      color: "text-amber-600 bg-amber-50",
+      imageUrl: null
+    }
+  ]
+})
 
 const nextSlide = () => {
   if (currentSlide.value < slides.value.length - 1) {
@@ -72,16 +104,21 @@ const finishOnboarding = () => {
         class="space-y-8 text-center animate-in fade-in slide-in-from-bottom-6 duration-500 flex flex-col items-center max-w-sm"
       >
         <!-- Large Floating Icon Container -->
-        <div :class="[slides[currentSlide].color, 'w-24 h-24 rounded-[32px] flex items-center justify-center shadow-xl shadow-slate-100 transition-all duration-300']">
-          <component :is="slides[currentSlide].icon" class="w-12 h-12" />
+        <div :class="[slides[currentSlide]?.color || 'text-blue-600 bg-blue-50', 'w-24 h-24 rounded-[32px] flex items-center justify-center shadow-xl shadow-slate-100 transition-all duration-300 overflow-hidden']">
+          <img 
+            v-if="slides[currentSlide]?.imageUrl" 
+            :src="getFrontendDocumentUrl(slides[currentSlide].imageUrl)" 
+            :alt="slides[currentSlide]?.title" 
+            class="w-full h-full object-cover rounded-[32px]"
+          />
+          <component v-else :is="slides[currentSlide]?.icon || TrendingUp" class="w-12 h-12" />
         </div>
 
         <div class="space-y-4">
           <h2 class="text-2xl font-black text-slate-900 leading-tight">
-            {{ slides[currentSlide].title }}
+            {{ slides[currentSlide]?.title }}
           </h2>
-          <p class="text-slate-500 text-sm leading-relaxed px-4 font-medium">
-            {{ slides[currentSlide].description }}
+          <p class="text-slate-500 text-sm leading-relaxed px-4 font-medium" v-html="slides[currentSlide]?.description">
           </p>
         </div>
       </div>

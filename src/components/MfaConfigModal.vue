@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
 import api from '../api/api'
 import QrcodeVue from 'qrcode.vue'
+import { copyTextToClipboard } from '../utils/clipboard.js'
 import {
   X,
   Shield,
@@ -67,14 +68,12 @@ const closeModal = () => {
 
 const copySecretToClipboard = async () => {
   if (!totpSecret.value) return
-  try {
-    await navigator.clipboard.writeText(totpSecret.value)
+  const success = await copyTextToClipboard(totpSecret.value)
+  if (success) {
     copiedSecret.value = true
     setTimeout(() => {
       copiedSecret.value = false
-    }, 2000)
-  } catch (err) {
-    console.error('Failed to copy', err)
+    }, 2500)
   }
 }
 
@@ -90,7 +89,7 @@ const selectMethod = async (method) => {
       provisioningUri.value = response.data.provisioning_uri
       mode.value = 'setup_totp'
     } catch (err) {
-      errorMessage.value = err.response?.data?.message || 'Erreur lors de l\'initialisation de l\'application'
+      errorMessage.value = err.response?.data?.message || (languageStore.isEn() ? 'Error initializing app' : 'Erreur lors de l\'initialisation de l\'application')
     } finally {
       loading.value = false
     }
@@ -104,13 +103,13 @@ const selectMethod = async (method) => {
       if (response.data?.user) {
         authStore.setUser(response.data.user)
       }
-      successMessage.value = 'Authentification à deux facteurs par e-mail activée avec succès.'
+      successMessage.value = languageStore.isEn() ? 'Two-factor authentication via email enabled successfully.' : 'Authentification à deux facteurs par e-mail activée avec succès.'
       emit('updated', response.data?.user)
       setTimeout(() => {
         closeModal()
       }, 1500)
     } catch (err) {
-      errorMessage.value = err.response?.data?.message || 'Erreur lors de la mise à jour'
+      errorMessage.value = err.response?.data?.message || (languageStore.isEn() ? 'Error during update' : 'Erreur lors de la mise à jour')
     } finally {
       loading.value = false
     }
@@ -124,13 +123,13 @@ const selectMethod = async (method) => {
       if (response.data?.user) {
         authStore.setUser(response.data.user)
       }
-      successMessage.value = 'Authentification à deux facteurs désactivée.'
+      successMessage.value = languageStore.isEn() ? 'Two-factor authentication disabled.' : 'Authentification à deux facteurs désactivée.'
       emit('updated', response.data?.user)
       setTimeout(() => {
         closeModal()
       }, 1200)
     } catch (err) {
-      errorMessage.value = err.response?.data?.message || 'Erreur lors de la désactivation'
+      errorMessage.value = err.response?.data?.message || (languageStore.isEn() ? 'Error during deactivation' : 'Erreur lors de la désactivation')
     } finally {
       loading.value = false
     }
@@ -139,7 +138,7 @@ const selectMethod = async (method) => {
 
 const confirmTotp = async () => {
   if (!verificationCode.value || verificationCode.value.trim().length !== 6) {
-    errorMessage.value = 'Veuillez saisir le code à 6 chiffres affiché par votre application.'
+    errorMessage.value = languageStore.isEn() ? 'Please enter the 6-digit code shown in your app.' : 'Veuillez saisir le code à 6 chiffres affiché par votre application.'
     return
   }
 
@@ -154,13 +153,13 @@ const confirmTotp = async () => {
     if (response.data?.user) {
       authStore.setUser(response.data.user)
     }
-    successMessage.value = 'Application d\'authentification configurée et activée avec succès !'
+    successMessage.value = languageStore.isEn() ? 'Authenticator app configured and enabled successfully!' : 'Application d\'authentification configurée et activée avec succès !'
     emit('updated', response.data?.user)
     setTimeout(() => {
       closeModal()
     }, 1800)
   } catch (err) {
-    errorMessage.value = err.response?.data?.message || 'Code invalide. Vérifiez l\'heure de votre appareil et réessayez.'
+    errorMessage.value = err.response?.data?.message || (languageStore.isEn() ? 'Invalid code. Check your device time and try again.' : 'Code invalide. Vérifiez l\'heure de votre appareil et réessayez.')
   } finally {
     loading.value = false
   }
@@ -183,36 +182,42 @@ const handleDismissPrompt = async () => {
 </script>
 
 <template>
-  <div 
-    v-if="modelValue" 
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-  >
+  <Teleport to="body">
     <div 
-      class="bg-white rounded-[32px] p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 space-y-5 text-left relative"
+      v-if="modelValue" 
+      class="fixed inset-0 z-[10000] flex items-center justify-center p-4"
     >
-      <!-- Close button (uniquement si pas de prompt forcé ou si dismiss possible) -->
-      <button 
-        type="button" 
-        @click="isInitialPrompt ? handleDismissPrompt() : closeModal()" 
-        class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+      <div 
+        @click="isInitialPrompt ? null : closeModal()" 
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+      ></div>
+      <div 
+        class="relative bg-white rounded-[32px] p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 space-y-5 text-left z-10 animate-in zoom-in-95 duration-200"
       >
-        <X class="w-4 h-4" />
-      </button>
+        <!-- Close button (uniquement si pas de prompt forcé ou si dismiss possible) -->
+        <button 
+          type="button" 
+          @click="isInitialPrompt ? handleDismissPrompt() : closeModal()" 
+          class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+          :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+        >
+          <X class="w-4 h-4" />
+        </button>
 
       <!-- Header -->
       <div class="space-y-1 pr-8">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-black uppercase tracking-wider mb-1">
+        <!-- <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-black uppercase tracking-wider mb-1">
           <ShieldCheck class="w-3.5 h-3.5 text-emerald-600" />
           Sécurité du compte
-        </div>
+        </div> -->
         <h3 class="text-xl font-black text-slate-900">
-          {{ isInitialPrompt ? 'Sécurisez votre compte' : 'Double Authentification (MFA)' }}
+          {{ isInitialPrompt ? (languageStore.isEn() ? 'Secure your account' : 'Sécurisez votre compte') : (languageStore.isEn() ? 'Two-Factor Authentication (MFA)' : 'Double Authentification (MFA)') }}
         </h3>
         <p class="text-xs text-slate-500 font-medium">
           {{ 
             isInitialPrompt 
-              ? 'Choisissez une méthode de validation pour protéger vos investissements et vos données.' 
-              : 'Configurez la méthode de vérification demandée lors de votre connexion à la plateforme.' 
+              ? (languageStore.isEn() ? 'Choose a validation method to protect your investments and your data.' : 'Choisissez une méthode de validation pour protéger vos investissements et vos données.')
+              : (languageStore.isEn() ? 'Configure the verification method requested when signing in to the platform.' : 'Configurez la méthode de vérification demandée lors de votre connexion à la plateforme.') 
           }}
         </p>
       </div>
@@ -251,12 +256,12 @@ const handleDismissPrompt = async () => {
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h4 class="font-bold text-slate-800 text-sm">Application d'authentification</h4>
+                <h4 class="font-bold text-slate-800 text-sm">{{ languageStore.isEn() ? 'Authenticator app' : 'Application d\'authentification' }}</h4>
                 <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  Recommandé
+                  {{ languageStore.isEn() ? 'Recommended' : 'Recommandé' }}
                 </span>
                 <span v-if="currentMfaType === 'totp'" class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white">
-                  Actif
+                  {{ languageStore.isEn() ? 'Active' : 'Actif' }}
                 </span>
               </div>
               <p class="text-slate-500 text-[11px] mt-0.5">
@@ -282,13 +287,13 @@ const handleDismissPrompt = async () => {
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h4 class="font-bold text-slate-800 text-sm">Code de vérification par e-mail</h4>
+                <h4 class="font-bold text-slate-800 text-sm">{{ languageStore.isEn() ? 'Email verification code' : 'Code de vérification par e-mail' }}</h4>
                 <span v-if="currentMfaType === 'email'" class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-primary text-white">
-                  Actif
+                  {{ languageStore.isEn() ? 'Active' : 'Actif' }}
                 </span>
               </div>
               <p class="text-slate-500 text-[11px] mt-0.5">
-                Un code à 6 chiffres envoyé sur votre adresse à chaque connexion
+                {{ languageStore.isEn() ? 'A 6-digit code sent to your email on each login' : 'Un code à 6 chiffres envoyé sur votre adresse à chaque connexion' }}
               </p>
             </div>
           </div>
@@ -310,13 +315,13 @@ const handleDismissPrompt = async () => {
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h4 class="font-bold text-slate-700 text-sm">Ne pas activer de double facteur</h4>
+                <h4 class="font-bold text-slate-700 text-sm">{{ languageStore.isEn() ? 'Do not enable two-factor' : 'Ne pas activer de double facteur' }}</h4>
                 <span v-if="currentMfaType === 'none'" class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                  Actif
+                  {{ languageStore.isEn() ? 'Active' : 'Actif' }}
                 </span>
               </div>
               <p class="text-slate-400 text-[11px] mt-0.5">
-                Connexion directe avec votre mot de passe (sécurité standard)
+                {{ languageStore.isEn() ? 'Direct sign-in with your password (standard security)' : 'Connexion directe avec votre mot de passe (sécurité standard)' }}
               </p>
             </div>
           </div>
@@ -330,7 +335,7 @@ const handleDismissPrompt = async () => {
             @click="handleDismissPrompt"
             class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors py-2 px-4"
           >
-            Configurer plus tard
+            {{ languageStore.isEn() ? 'Configure later' : 'Configurer plus tard' }}
           </button>
         </div>
       </div>
@@ -342,15 +347,15 @@ const handleDismissPrompt = async () => {
           @click="mode = 'select'; errorMessage = ''"
           class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
         >
-          <ChevronLeft class="w-4 h-4" /> Changer de méthode
+          <ChevronLeft class="w-4 h-4" /> {{ languageStore.isEn() ? 'Change method' : 'Changer de méthode' }}
         </button>
 
         <div class="p-4 bg-slate-50 rounded-2xl space-y-3">
           <h4 class="font-black text-xs uppercase tracking-wider text-slate-700 flex items-center gap-2">
-            <span>Étape 1 :</span> Scannez le QR Code
+            <span>{{ languageStore.isEn() ? 'Step 1:' : 'Étape 1 :' }}</span> {{ languageStore.isEn() ? 'Scan the QR Code' : 'Scannez le QR Code' }}
           </h4>
           <p class="text-xs text-slate-600 leading-relaxed">
-            Ouvrez votre application d'authentification (Google Authenticator, Microsoft Authenticator, etc.) et scannez ce code :
+            {{ languageStore.isEn() ? 'Open your authenticator app (Google Authenticator, Microsoft Authenticator, etc.) and scan this code:' : 'Ouvrez votre application d\'authentification (Google Authenticator, Microsoft Authenticator, etc.) et scannez ce code :' }}
           </p>
 
           <div class="flex justify-center p-4 bg-white rounded-2xl border border-slate-200 shadow-sm w-fit mx-auto">
@@ -364,21 +369,31 @@ const handleDismissPrompt = async () => {
           </div>
 
           <div class="pt-1">
-            <label class="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-              Ou entrez cette clé secrète manuellement :
-            </label>
-            <div class="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200">
-              <code class="text-xs font-mono font-bold text-slate-800 tracking-wider flex-1 truncate">
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                {{ languageStore.isEn() ? 'Or enter this secret key manually:' : 'Ou entrez cette clé secrète manuellement :' }}
+              </label>
+              <span v-if="copiedSecret" class="text-[10px] font-bold text-emerald-600 animate-in fade-in">
+                {{ languageStore.isEn() ? 'Copied to clipboard!' : 'Copié dans le presse-papier !' }}
+              </span>
+            </div>
+            <div 
+              @click="copySecretToClipboard"
+              class="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200 hover:border-slate-300 transition-all cursor-pointer group"
+              :title="languageStore.isEn() ? 'Click to copy secret key' : 'Cliquer pour copier la clé secrète'"
+            >
+              <code class="text-xs font-mono font-bold text-slate-800 tracking-wider flex-1 truncate select-all">
                 {{ totpSecret }}
               </code>
               <button 
                 type="button" 
-                @click="copySecretToClipboard"
-                class="px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
-                :class="copiedSecret ? 'bg-emerald-500 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'"
+                @click.stop="copySecretToClipboard"
+                :aria-label="copiedSecret ? (languageStore.isEn() ? 'Secret key copied' : 'Clé secrète copiée') : (languageStore.isEn() ? 'Copy secret key' : 'Copier la clé secrète')"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer shadow-sm active:scale-95"
+                :class="copiedSecret ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'"
               >
                 <component :is="copiedSecret ? Check : Copy" class="w-3.5 h-3.5" />
-                <span>{{ copiedSecret ? 'Copié' : 'Copier' }}</span>
+                <span>{{ copiedSecret ? (languageStore.isEn() ? 'Copied!' : 'Copié !') : (languageStore.isEn() ? 'Copy' : 'Copier') }}</span>
               </button>
             </div>
           </div>
@@ -387,10 +402,10 @@ const handleDismissPrompt = async () => {
         <!-- Saisie du code pour confirmation -->
         <div class="space-y-2">
           <h4 class="font-black text-xs uppercase tracking-wider text-slate-700 flex items-center gap-2">
-            <span>Étape 2 :</span> Confirmez le code à 6 chiffres
+            <span>{{ languageStore.isEn() ? 'Step 2:' : 'Étape 2 :' }}</span> {{ languageStore.isEn() ? 'Confirm the 6-digit code' : 'Confirmez le code à 6 chiffres' }}
           </h4>
           <p class="text-xs text-slate-500">
-            Saisissez le code temporaire actuellement affiché sur votre application :
+            {{ languageStore.isEn() ? 'Enter the temporary code currently displayed in your app:' : 'Saisissez le code temporaire actuellement affiché sur votre application :' }}
           </p>
           <input 
             v-model="verificationCode"
@@ -410,11 +425,12 @@ const handleDismissPrompt = async () => {
         >
           <Loader2 v-if="loading" class="w-5 h-5 animate-spin" />
           <template v-else>
-            <span>Activer l'application</span>
+            <span>{{ languageStore.isEn() ? 'Enable authenticator' : 'Activer l\'application' }}</span>
             <CheckCircle2 class="w-4 h-4" />
           </template>
         </button>
       </div>
     </div>
   </div>
+  </Teleport>
 </template>

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Landmark, ChevronLeft, Wallet, CreditCard, Smartphone, ArrowRight, Loader2, CheckCircle2, Clock, AlertCircle, ChevronRight, TrendingUp, TrendingDown, PieChart, Coins, Layers, Sparkles, FileText } from 'lucide-vue-next'
+import { Landmark, ChevronLeft, Wallet, CreditCard, Smartphone, ArrowRight, Loader2, CheckCircle2, Clock, AlertCircle, ChevronRight, TrendingUp, TrendingDown, PieChart, Coins, Layers, Sparkles, FileText, X } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import BankTransferProofs from '../components/BankTransferProofs.vue'
 import api from '../api/api'
@@ -65,13 +65,16 @@ const verifyPayment = async (subId) => {
   try {
     const response = await api.post(`/subscriptions/${subId}/check-status`)
     const paid = response.data.subscription?.statut === 'Succès' || ['paid', 'success'].includes(response.data.status)
-    openStatusModal(paid ? 'Paiement confirmé' : 'État du paiement', response.data.message, paid ? 'success' : 'info')
+    const title = paid 
+      ? (languageStore.isEn() ? 'Payment Confirmed' : 'Paiement confirmé') 
+      : (languageStore.isEn() ? 'Payment Status' : 'État du paiement')
+    openStatusModal(title, response.data.message, paid ? 'success' : 'info')
     await fetchData()
   } catch (error) {
     console.error('Error checking payment status:', error)
     openStatusModal(
-      'Échec de la vérification ⚠️',
-      error.response?.data?.message || 'Erreur lors de la vérification du paiement.',
+      languageStore.isEn() ? 'Verification Failed ⚠️' : 'Échec de la vérification ⚠️',
+      error.response?.data?.message || (languageStore.isEn() ? 'Error checking payment status.' : 'Erreur lors de la vérification du paiement.'),
       'error'
     )
   } finally {
@@ -90,24 +93,28 @@ const resumeHostedPayment = async (subId) => {
     const response = await api.post(`/subscriptions/${subId}/payment-session`)
     if (response.data.payment?.provider === 's3p') {
       await fetchData()
-      openStatusModal('État du paiement', response.data.message, 'info')
+      openStatusModal(languageStore.isEn() ? 'Payment Status' : 'État du paiement', response.data.message, 'info')
       return
     }
     if (response.data.payment?.status === 'paid') {
       await fetchData()
-      openStatusModal('Paiement confirmé ✅', 'Vos parts sont créditées.', 'success')
+      openStatusModal(
+        languageStore.isEn() ? 'Payment Confirmed ✅' : 'Paiement confirmé ✅', 
+        languageStore.isEn() ? 'Your shares have been credited.' : 'Vos parts sont créditées.', 
+        'success'
+      )
       return
     }
 
     const url = new URL(response.data.payment?.checkout_url)
     if (url.protocol !== 'https:' || !allowedCheckoutHosts.includes(url.hostname.toLowerCase())) {
-      throw new Error('URL de paiement non autorisée.')
+      throw new Error(languageStore.isEn() ? 'Unauthorized payment URL.' : 'URL de paiement non autorisée.')
     }
     window.location.assign(url.toString())
   } catch (error) {
     openStatusModal(
-      'Paiement indisponible',
-      error.response?.data?.message || error.message || 'Impossible de reprendre le paiement.',
+      languageStore.isEn() ? 'Payment Unavailable' : 'Paiement indisponible',
+      error.response?.data?.message || error.message || (languageStore.isEn() ? 'Unable to resume payment.' : 'Impossible de reprendre le paiement.'),
       'error'
     )
   } finally {
@@ -155,6 +162,42 @@ const getStatusIcon = (status) => {
     case 'Échec': return AlertCircle
     default: return Clock
   }
+}
+
+const getStatusLabel = (status) => {
+  if (languageStore.isEn()) {
+    switch (status) {
+      case 'Succès': return 'Success'
+      case 'Validé': return 'Validated'
+      case 'En attente': return 'Pending'
+      case 'Échec': return 'Failed'
+      default: return status
+    }
+  }
+  return status
+}
+
+const getMobileStateLabel = (state) => {
+  if (languageStore.isEn()) {
+    const map = {
+      preparing: 'Preparing payment',
+      submitted: 'Confirm on your phone',
+      pending: 'Awaiting confirmation',
+      verification_required: 'Result to verify — do not trigger debit again',
+      errored: 'Payment unsuccessful',
+      reversed: 'Payment reversed by provider — contact support'
+    }
+    return map[state] || 'Pending'
+  }
+  const map = {
+    preparing: 'Préparation du paiement',
+    submitted: 'Confirmez sur votre téléphone',
+    pending: 'En attente de confirmation',
+    verification_required: 'Résultat à vérifier — ne relancez pas de débit',
+    errored: 'Paiement non abouti',
+    reversed: 'Paiement annulé par le prestataire — contactez le support'
+  }
+  return map[state] || 'En attente'
 }
 
 let refreshTimer
@@ -321,7 +364,7 @@ onUnmounted(() => {
             <div class="space-y-2 pt-3 border-t border-slate-100 text-xs">
               <div class="flex justify-between items-center gap-2">
                 <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">{{ languageStore.isEn() ? 'Total Shares Owned' : 'Nombre de parts' }}</span>
-                <span class="text-slate-900 font-black text-sm tabular-nums whitespace-nowrap">{{ pos.nb_parts_total.toLocaleString() }} parts</span>
+                <span class="text-slate-900 font-black text-sm tabular-nums whitespace-nowrap">{{ pos.nb_parts_total.toLocaleString() }} {{ languageStore.isEn() ? 'shares' : 'parts' }}</span>
               </div>
               <div class="flex justify-between items-center gap-2">
                 <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">{{ languageStore.isEn() ? 'Current Position Value' : 'Valorisation' }}</span>
@@ -393,57 +436,57 @@ onUnmounted(() => {
               </div>
               <div :class="getStatusClass(getEffectiveStatus(sub))" class="px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 border">
                 <component :is="getStatusIcon(getEffectiveStatus(sub))" class="w-3 h-3" />
-                {{ getEffectiveStatus(sub) }}
+                {{ getStatusLabel(getEffectiveStatus(sub)) }}
               </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3 pt-3 border-t border-slate-50 text-xs">
               <div>
-                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">Placement Net</span>
+                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ languageStore.isEn() ? 'Net Placement' : 'Placement Net' }}</span>
                 <span class="text-slate-900 font-black">{{ (sub.montant_net !== undefined && sub.montant_net !== null ? sub.montant_net : Math.round(sub.montant_total / 1.01)).toLocaleString() }} XAF</span>
               </div>
               <div class="text-right">
-                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">Frais d'entrée (1%)</span>
+                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ languageStore.isEn() ? 'Entry Fee (1%)' : 'Frais d\'entrée (1%)' }}</span>
                 <span class="text-slate-600 font-bold">+ {{ (sub.frais_gestion !== undefined && sub.frais_gestion !== null ? sub.frais_gestion : Math.max(0, sub.montant_total - Math.round(sub.montant_total / 1.01))).toLocaleString() }} XAF</span>
               </div>
               <div>
-                <span class="text-primary text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ getEffectiveStatus(sub) === 'Succès' ? 'Montant payé' : 'Montant total à payer' }}</span>
+                <span class="text-primary text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ getEffectiveStatus(sub) === 'Succès' ? (languageStore.isEn() ? 'Amount Paid' : 'Montant payé') : (languageStore.isEn() ? 'Total Amount Due' : 'Montant total à payer') }}</span>
                 <span class="text-primary font-black">{{ parseFloat(sub.montant_total).toLocaleString() }} XAF</span>
               </div>
               <div class="text-right">
-                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ getEffectiveStatus(sub) === 'Succès' ? 'Parts attribuées' : 'Parts estimées' }}</span>
+                <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ getEffectiveStatus(sub) === 'Succès' ? (languageStore.isEn() ? 'Allocated Shares' : 'Parts attribuées') : (languageStore.isEn() ? 'Estimated Shares' : 'Parts estimées') }}</span>
                 <span class="text-slate-900 font-black">{{ parseFloat(sub.nb_parts).toLocaleString() }}</span>
               </div>
             </div>
 
             <div class="flex flex-col gap-1 text-[10px] text-slate-400 font-bold border-t border-slate-50 pt-3">
               <div class="flex justify-between items-center">
-                <span>Réf PEK : <span class="text-slate-600 font-black">{{ sub.reference_transaction }}</span></span>
-                <span class="italic font-normal">{{ new Date(sub.created_at).toLocaleDateString() }}</span>
+                <span>{{ languageStore.isEn() ? 'PEK Ref:' : 'Réf PEK :' }} <span class="text-slate-600 font-black">{{ sub.reference_transaction }}</span></span>
+                <span class="italic font-normal">{{ new Date(sub.created_at).toLocaleDateString(languageStore.isEn() ? 'en-US' : 'fr-FR') }}</span>
               </div>
               <div v-if="sub.maviance_transaction_ref" class="flex justify-between items-center">
-                <span>Réf Maviance : <span class="text-slate-600 font-black truncate max-w-[200px]">{{ sub.maviance_transaction_ref }}</span></span>
+                <span>{{ languageStore.isEn() ? 'Operator Ref:' : 'Réf Maviance :' }} <span class="text-slate-600 font-black truncate max-w-[200px]">{{ sub.maviance_transaction_ref }}</span></span>
               </div>
             </div>
 
-            <p v-if="sub.valuation_status === 'valued' && sub.nav_date" class="text-xs text-slate-600">VL appliquée : {{ Number(sub.prix_unitaire).toLocaleString('fr-FR', { maximumFractionDigits: 4 }) }} XAF — du {{ sub.nav_date.slice(0, 10) }}</p>
+            <p v-if="sub.valuation_status === 'valued' && sub.nav_date" class="text-xs text-slate-600">{{ languageStore.isEn() ? 'Applied NAV:' : 'VL appliquée :' }} {{ Number(sub.prix_unitaire).toLocaleString(languageStore.isEn() ? 'en-US' : 'fr-FR', { maximumFractionDigits: 4 }) }} XAF — {{ sub.nav_date.slice(0, 10) }}</p>
             <!-- Bouton premium pour forcer la vérification de paiement -->
             <BankTransferProofs v-if="['bank_transfer', 'virement'].includes(sub.moyen_paiement)" :subscription="sub" />
             <div v-if="sub.mobile_provider" class="text-xs space-y-2 rounded-xl bg-slate-50 p-3">
               <p class="font-semibold">{{ sub.mobile_provider === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</p>
-              <p v-if="getEffectiveStatus(sub) === 'Succès'" class="font-bold text-emerald-700">✓ Paiement confirmé et parts créditées sur votre portefeuille.</p>
-              <p v-if="sub.s3p_ptn" class="break-all">Référence opérateur : {{ sub.s3p_ptn }}</p>
-              <p v-if="sub.s3p_receipt_number">Reçu opérateur : {{ sub.s3p_receipt_number }}</p>
-              <p v-if="sub.mobile_state === 'errored' && sub.s3p_error_code">Code de retour : {{ sub.s3p_error_code }} — conservez votre référence PEK pour le support.</p>
-              <p v-if="sub.valuation_status === 'awaiting_payment_date' && getEffectiveStatus(sub) !== 'Succès'">Paiement confirmé. La date de réception reste à rapprocher avant attribution des parts.</p>
-              <button v-if="sub.mobile_state === 'quote_failed'" @click="resumeHostedPayment(sub.id)" :disabled="redirectingId === sub.id" class="w-full rounded-xl bg-primary text-white py-3 disabled:opacity-50">Réessayer la préparation du paiement</button>
-              <p v-if="sub.mobile_state === 'quote_failed'">Le paiement n’a pas été transmis à l’opérateur.</p>
-              <p v-if="sub.valuation_status === 'awaiting_nav' && getEffectiveStatus(sub) !== 'Succès'">Fonds reçus. Attribution des parts en cours...</p>
-              <p v-if="sub.mobile_state === 'simulation_review'">Opération de simulation exclue du portefeuille. Contactez le support.</p>
-              <button v-if="sub.mobile_state === 'errored'" @click="router.push(`/subscribe/${sub.product_id}`)" class="underline text-primary">Créer une nouvelle demande après cet échec confirmé</button>
-              <p v-if="getEffectiveStatus(sub) !== 'Succès'">{{ { preparing: 'Préparation du paiement', submitted: 'Confirmez sur votre téléphone', pending: 'En attente de confirmation', verification_required: 'Résultat à vérifier — ne relancez pas de débit', errored: 'Paiement non abouti', reversed: 'Paiement annulé par le prestataire — contactez le support' }[sub.mobile_state] || 'En attente' }}</p>
-              <p v-if="['submitted', 'pending', 'verification_required'].includes(sub.mobile_state) && getEffectiveStatus(sub) !== 'Succès'">La confirmation et l’attribution des parts sont automatiques. Vous pouvez quitter cette page.</p>
-              <button v-if="['submitted', 'pending', 'verification_required'].includes(sub.mobile_state) && getEffectiveStatus(sub) !== 'Succès'" @click="verifyPayment(sub.id)" :disabled="checkingId === sub.id" class="text-primary underline text-xs disabled:opacity-50">{{ checkingId === sub.id ? 'Vérification…' : 'Vérifier le paiement (facultatif)' }}</button>
+              <p v-if="getEffectiveStatus(sub) === 'Succès'" class="font-bold text-emerald-700">{{ languageStore.isEn() ? '✓ Payment confirmed and shares credited to your portfolio.' : '✓ Paiement confirmé et parts créditées sur votre portefeuille.' }}</p>
+              <p v-if="sub.s3p_ptn" class="break-all">{{ languageStore.isEn() ? 'Operator reference:' : 'Référence opérateur :' }} {{ sub.s3p_ptn }}</p>
+              <p v-if="sub.s3p_receipt_number">{{ languageStore.isEn() ? 'Operator receipt:' : 'Reçu opérateur :' }} {{ sub.s3p_receipt_number }}</p>
+              <p v-if="sub.mobile_state === 'errored' && sub.s3p_error_code">{{ languageStore.isEn() ? 'Return code:' : 'Code de retour :' }} {{ sub.s3p_error_code }} — {{ languageStore.isEn() ? 'keep your PEK reference for support.' : 'conservez votre référence PEK pour le support.' }}</p>
+              <p v-if="sub.valuation_status === 'awaiting_payment_date' && getEffectiveStatus(sub) !== 'Succès'">{{ languageStore.isEn() ? 'Payment confirmed. Awaiting reception date matching before share allocation.' : 'Paiement confirmé. La date de réception reste à rapprocher avant attribution des parts.' }}</p>
+              <button v-if="sub.mobile_state === 'quote_failed'" @click="resumeHostedPayment(sub.id)" :disabled="redirectingId === sub.id" class="w-full rounded-xl bg-primary text-white py-3 disabled:opacity-50">{{ languageStore.isEn() ? 'Retry payment setup' : 'Réessayer la préparation du paiement' }}</button>
+              <p v-if="sub.mobile_state === 'quote_failed'">{{ languageStore.isEn() ? 'Payment was not transmitted to the operator.' : 'Le paiement n’a pas été transmis à l’opérateur.' }}</p>
+              <p v-if="sub.valuation_status === 'awaiting_nav' && getEffectiveStatus(sub) !== 'Succès'">{{ languageStore.isEn() ? 'Funds received. Share allocation in progress...' : 'Fonds reçus. Attribution des parts en cours...' }}</p>
+              <p v-if="sub.mobile_state === 'simulation_review'">{{ languageStore.isEn() ? 'Simulation operation excluded from portfolio. Please contact support.' : 'Opération de simulation exclue du portefeuille. Contactez le support.' }}</p>
+              <button v-if="sub.mobile_state === 'errored'" @click="router.push(`/subscribe/${sub.product_id}`)" class="underline text-primary">{{ languageStore.isEn() ? 'Create a new request after this confirmed failure' : 'Créer une nouvelle demande après cet échec confirmé' }}</button>
+              <p v-if="getEffectiveStatus(sub) !== 'Succès'">{{ getMobileStateLabel(sub.mobile_state) }}</p>
+              <p v-if="['submitted', 'pending', 'verification_required'].includes(sub.mobile_state) && getEffectiveStatus(sub) !== 'Succès'">{{ languageStore.isEn() ? 'Confirmation and share allocation are automatic. You may leave this page.' : 'La confirmation et l’attribution des parts sont automatiques. Vous pouvez quitter cette page.' }}</p>
+              <button v-if="['submitted', 'pending', 'verification_required'].includes(sub.mobile_state) && getEffectiveStatus(sub) !== 'Succès'" @click="verifyPayment(sub.id)" :disabled="checkingId === sub.id" class="text-primary underline text-xs disabled:opacity-50">{{ checkingId === sub.id ? (languageStore.isEn() ? 'Verifying...' : 'Vérification…') : (languageStore.isEn() ? 'Verify payment (optional)' : 'Vérifier le paiement (facultatif)') }}</button>
             </div>
             <div v-if="getEffectiveStatus(sub) !== 'Succès' && ['card', 'mobile_money'].includes(sub.moyen_paiement)" class="pt-2">
               <button
@@ -454,7 +497,7 @@ onUnmounted(() => {
                 <Loader2 v-if="redirectingId === sub.id" class="w-4 h-4 animate-spin" />
                 <Smartphone v-if="sub.moyen_paiement === 'mobile_money' && redirectingId !== sub.id" class="w-4 h-4" />
                 <CreditCard v-else-if="redirectingId !== sub.id" class="w-4 h-4" />
-                {{ redirectingId === sub.id ? 'Ouverture du paiement...' : 'Payer maintenant' }}
+                {{ redirectingId === sub.id ? (languageStore.isEn() ? 'Opening payment...' : 'Ouverture du paiement...') : (languageStore.isEn() ? 'Pay Now' : 'Payer maintenant') }}
               </button>
             </div>
 
@@ -466,7 +509,7 @@ onUnmounted(() => {
               >
                 <Loader2 v-if="checkingId === sub.id" class="w-4 h-4 animate-spin" />
                 <Clock v-else class="w-4 h-4" />
-                {{ checkingId === sub.id ? 'Vérification en cours...' : 'Vérifier le statut du paiement' }}
+                {{ checkingId === sub.id ? (languageStore.isEn() ? 'Verification in progress...' : 'Vérification en cours...') : (languageStore.isEn() ? 'Check payment status' : 'Vérifier le statut du paiement') }}
               </button>
             </div>
             <div v-if="getEffectiveStatus(sub) === 'Succès'" class="pt-2">
@@ -475,7 +518,7 @@ onUnmounted(() => {
                 class="w-full bg-[#3B1300] hover:bg-[#4A1E00] text-white text-xs font-bold py-3.5 px-5 rounded-2xl transition-all flex items-center justify-start gap-2.5 active:scale-[0.98] shadow-md hover:shadow-lg text-left"
               >
                 <FileText class="w-4 h-4 text-amber-400 shrink-0" />
-                <span class="truncate">Consulter la fiche de souscription</span>
+                <span class="truncate">{{ languageStore.isEn() ? 'View subscription bulletin' : 'Consulter la fiche de souscription' }}</span>
               </button>
             </div>
           </div>
@@ -511,38 +554,49 @@ onUnmounted(() => {
     </template>
 
     <!-- Premium Verification Status Modal Window -->
-    <div v-if="showStatusModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
-      <!-- Backdrop with glassmorphism blur -->
-      <div @click="showStatusModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
-      
-      <!-- Modal card -->
-      <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
-        <!-- Icon wrapper based on status -->
-        <div 
-          :class="statusModalType === 'success' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'" 
-          class="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
-        >
-          <CheckCircle2 v-if="statusModalType === 'success'" class="w-8 h-8" />
-          <AlertCircle v-else class="w-8 h-8" />
-        </div>
+    <Teleport to="body">
+      <div v-if="showStatusModal" class="fixed inset-0 z-[10000] flex items-end justify-center p-6 sm:items-center">
+        <!-- Backdrop with glassmorphism blur -->
+        <div @click="showStatusModal = false" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300 cursor-pointer"></div>
         
-        <!-- Text details -->
-        <div class="space-y-2">
-          <h3 class="text-lg font-black text-slate-900">{{ statusModalTitle }}</h3>
-          <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
-            {{ statusModalMessage }}
-          </p>
+        <!-- Modal card -->
+        <div class="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl border border-slate-100/50 z-10 animate-in slide-in-from-bottom duration-300 text-center space-y-6">
+          <button 
+            type="button" 
+            @click="showStatusModal = false" 
+            class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+            :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+          >
+            <X class="w-4 h-4" />
+          </button>
+
+          <!-- Icon wrapper based on status -->
+          <div 
+            :class="statusModalType === 'success' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'" 
+            class="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+          >
+            <CheckCircle2 v-if="statusModalType === 'success'" class="w-8 h-8" />
+            <AlertCircle v-else class="w-8 h-8" />
+          </div>
+          
+          <!-- Text details -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-black text-slate-900">{{ statusModalTitle }}</h3>
+            <p class="text-slate-500 font-bold text-xs leading-relaxed px-2">
+              {{ statusModalMessage }}
+            </p>
+          </div>
+          
+          <!-- Primary Action Button -->
+          <button 
+            @click="showStatusModal = false" 
+            :class="statusModalType === 'success' ? 'bg-primary shadow-primary/20' : 'bg-slate-900 shadow-slate-900/20'" 
+            class="w-full text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all text-xs uppercase tracking-wider cursor-pointer"
+          >
+            {{ languageStore.t('close') }}
+          </button>
         </div>
-        
-        <!-- Primary Action Button -->
-        <button 
-          @click="showStatusModal = false"
-          :class="statusModalType === 'success' ? 'bg-primary shadow-primary/20' : 'bg-slate-900 shadow-slate-900/20'"
-          class="w-full text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all text-xs uppercase tracking-wider"
-        >
-          Fermer
-        </button>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>

@@ -14,6 +14,14 @@ import {
   ChevronDown,
   Loader2
 } from 'lucide-vue-next'
+import {
+  getMinExpirationDate,
+  getValidExpirationYears,
+  getValidExpirationMonths,
+  getValidExpirationDays,
+  isExpirationDateValid,
+  getExpirationErrorMessage,
+} from '../utils/idExpiration'
 
 const props = defineEmits(['update:modelValue', 'renewed'])
 defineProps({
@@ -56,39 +64,16 @@ const initDateFromUser = () => {
 
 watch(() => authStore.user, initDateFromUser, { immediate: true })
 
-const monthsList = [
-  { value: '1', label: 'Janvier' },
-  { value: '2', label: 'Février' },
-  { value: '3', label: 'Mars' },
-  { value: '4', label: 'Avril' },
-  { value: '5', label: 'Mai' },
-  { value: '6', label: 'Juin' },
-  { value: '7', label: 'Juillet' },
-  { value: '8', label: 'Août' },
-  { value: '9', label: 'Septembre' },
-  { value: '10', label: 'Octobre' },
-  { value: '11', label: 'Novembre' },
-  { value: '12', label: 'Décembre' }
-]
-
 const expYearsList = computed(() => {
-  const years = []
-  for (let y = currentYear; y <= currentYear + 15; y++) {
-    years.push(String(y))
-  }
-  return years
+  return getValidExpirationYears()
 })
 
-const getDaysInMonth = (month, year) => {
-  if (!month) return 31
-  const m = parseInt(month, 10)
-  const y = parseInt(year, 10) || currentYear
-  return new Date(y, m, 0).getDate()
-}
+const monthsList = computed(() => {
+  return getValidExpirationMonths(expYear.value, languageStore.isEn())
+})
 
 const expDaysList = computed(() => {
-  const maxDay = getDaysInMonth(expMonth.value, expYear.value)
-  return Array.from({ length: maxDay }, (_, i) => String(i + 1))
+  return getValidExpirationDays(expYear.value, expMonth.value)
 })
 
 const expirationDate = computed(() => {
@@ -96,6 +81,37 @@ const expirationDate = computed(() => {
     return `${expYear.value}-${String(expMonth.value).padStart(2, '0')}-${String(expDay.value).padStart(2, '0')}`
   }
   return ''
+})
+
+// Watchers avec auto-clamping pour l'expiration
+watch(expYear, (newYear) => {
+  if (newYear && expMonth.value) {
+    const validMonthValues = monthsList.value.map(m => m.value)
+    if (!validMonthValues.includes(expMonth.value)) {
+      expMonth.value = validMonthValues[0] || ''
+    }
+  }
+  if (validationErrors.value.expiration_piece) {
+    delete validationErrors.value.expiration_piece
+  }
+})
+
+watch(expMonth, (newMonth) => {
+  if (newMonth && expDay.value) {
+    const validDays = expDaysList.value
+    if (!validDays.includes(expDay.value)) {
+      expDay.value = validDays[0] || ''
+    }
+  }
+  if (validationErrors.value.expiration_piece) {
+    delete validationErrors.value.expiration_piece
+  }
+})
+
+watch(expDay, () => {
+  if (validationErrors.value.expiration_piece) {
+    delete validationErrors.value.expiration_piece
+  }
 })
 
 // Files state
@@ -119,7 +135,7 @@ const handleFileUpload = (field, event) => {
   if (!file) return
 
   if (file.size > 8 * 1024 * 1024) {
-    errorMessage.value = 'Le fichier est trop volumineux (maximum 8 Mo).'
+    errorMessage.value = languageStore.isEn() ? 'File is too large (maximum 8 MB).' : 'Le fichier est trop volumineux (maximum 8 Mo).'
     return
   }
 
@@ -195,20 +211,15 @@ const submitRenewal = async () => {
   validationErrors.value = {}
 
   if (!typePiece.value) {
-    validationErrors.value.type_piece = ['Le type de pièce est requis.']
+    validationErrors.value.type_piece = [languageStore.isEn() ? 'ID document type is required.' : 'Le type de pièce est requis.']
   }
   if (!numPiece.value || numPiece.value.trim().length < 3) {
-    validationErrors.value.num_piece = ['Le numéro de la pièce est requis (minimum 3 caractères).']
+    validationErrors.value.num_piece = [languageStore.isEn() ? 'Document number is required (minimum 3 characters).' : 'Le numéro de la pièce est requis (minimum 3 caractères).']
   }
   if (!expirationDate.value) {
-    validationErrors.value.expiration_piece = ['La date d’expiration complète est obligatoire.']
-  } else {
-    const exp = new Date(expirationDate.value)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    if (exp <= today) {
-      validationErrors.value.expiration_piece = ['La nouvelle date d’expiration doit être dans le futur.']
-    }
+    validationErrors.value.expiration_piece = [languageStore.isEn() ? 'Complete expiration date is required.' : 'La date d’expiration complète est obligatoire.']
+  } else if (!isExpirationDateValid(expirationDate.value)) {
+    validationErrors.value.expiration_piece = [getExpirationErrorMessage(languageStore.isEn())]
   }
 
   if (Object.keys(validationErrors.value).length > 0) {
@@ -232,7 +243,7 @@ const submitRenewal = async () => {
       authStore.setUser(response.data.user)
     }
 
-    successMessage.value = 'Votre nouvelle pièce d’identité a été enregistrée avec succès.'
+    successMessage.value = languageStore.isEn() ? 'Your new identity document has been successfully recorded.' : 'Votre nouvelle pièce d’identité a été enregistrée avec succès.'
     props('renewed', response.data?.user)
 
     // Notify other components
@@ -246,7 +257,7 @@ const submitRenewal = async () => {
     if (error.response?.data?.errors) {
       validationErrors.value = error.response.data.errors
     } else {
-      errorMessage.value = error.response?.data?.message || 'Une erreur est survenue lors de la mise à jour.'
+      errorMessage.value = error.response?.data?.message || (languageStore.isEn() ? 'An error occurred during update.' : 'Une erreur est survenue lors de la mise à jour.')
     }
   } finally {
     isSubmitting.value = false
@@ -255,31 +266,37 @@ const submitRenewal = async () => {
 </script>
 
 <template>
-  <div 
-    v-if="modelValue" 
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-  >
+  <Teleport to="body">
     <div 
-      class="bg-white rounded-[32px] p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 space-y-6 text-left relative"
+      v-if="modelValue" 
+      class="fixed inset-0 z-[10000] flex items-center justify-center p-4"
     >
-      <!-- Close button -->
-      <button 
-        type="button" 
+      <div 
         @click="closeModal" 
-        class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+      ></div>
+      <div 
+        class="relative bg-white rounded-[32px] p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 space-y-6 text-left z-10 animate-in zoom-in-95 duration-200"
       >
-        <X class="w-4 h-4" />
-      </button>
+        <!-- Close button -->
+        <button 
+          type="button" 
+          @click="closeModal" 
+          class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+          :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
+        >
+          <X class="w-4 h-4" />
+        </button>
 
       <!-- Header -->
       <div class="space-y-1 pr-8">
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider mb-1">
           <ShieldCheck class="w-3.5 h-3.5 text-amber-600" />
-          Conformité Réglementaire
+          {{ languageStore.isEn() ? 'Regulatory Compliance' : 'Conformité Réglementaire' }}
         </div>
-        <h3 class="text-lg font-black text-slate-900">Renouveler ma pièce d'identité</h3>
+        <h3 class="text-lg font-black text-slate-900">{{ languageStore.isEn() ? 'Renew my ID document' : 'Renouveler ma pièce d\'identité' }}</h3>
         <p class="text-xs text-slate-500 font-medium">
-          Mettez à jour votre document d'identification pour maintenir votre compte PEK actif et conforme.
+          {{ languageStore.isEn() ? 'Update your identity document to keep your PEK account active and compliant.' : 'Mettez à jour votre document d\'identification pour maintenir votre compte PEK actif et conforme.' }}
         </p>
       </div>
 
@@ -305,16 +322,16 @@ const submitRenewal = async () => {
         <!-- Type de pièce -->
         <div class="space-y-1.5">
           <label class="text-[11px] font-black uppercase tracking-wider text-slate-600">
-            Type de pièce d'identité <span class="text-rose-500">*</span>
+            {{ languageStore.isEn() ? 'Identity document type' : 'Type de pièce d\'identité' }} <span class="text-rose-500">*</span>
           </label>
           <div class="relative">
             <select 
               v-model="typePiece"
               class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 font-bold text-xs text-slate-800 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer"
             >
-              <option value="CNI">Carte Nationale d'Identité (CNI)</option>
-              <option value="Passeport">Passeport</option>
-              <option value="Carte Résident">Carte Résident / Carte de Séjour</option>
+              <option value="CNI">{{ languageStore.isEn() ? 'National Identity Card (CNI)' : 'Carte Nationale d\'Identité (CNI)' }}</option>
+              <option value="Passeport">{{ languageStore.isEn() ? 'Passport' : 'Passeport' }}</option>
+              <option value="Carte Résident">{{ languageStore.isEn() ? 'Resident Card / Residence Permit' : 'Carte Résident / Carte de Séjour' }}</option>
             </select>
             <ChevronDown class="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -326,12 +343,12 @@ const submitRenewal = async () => {
         <!-- Numéro de la pièce -->
         <div class="space-y-1.5">
           <label class="text-[11px] font-black uppercase tracking-wider text-slate-600">
-            Numéro de la pièce <span class="text-rose-500">*</span>
+            {{ languageStore.isEn() ? 'Document number' : 'Numéro de la pièce' }} <span class="text-rose-500">*</span>
           </label>
           <input 
             v-model="numPiece"
             type="text" 
-            placeholder="Ex : 100234589 ou N° passeport"
+            :placeholder="languageStore.isEn() ? 'E.g.: 100234589 or Passport No.' : 'Ex : 100234589 ou N° passeport'"
             class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 font-bold text-xs text-slate-800 focus:bg-white focus:border-primary transition-all"
           />
           <p v-if="validationErrors.num_piece" class="text-rose-500 text-[10px] font-semibold mt-1">
@@ -342,7 +359,7 @@ const submitRenewal = async () => {
         <!-- Date d'expiration -->
         <div class="space-y-1.5">
           <label class="text-[11px] font-black uppercase tracking-wider text-slate-600">
-            Nouvelle Date d'expiration <span class="text-rose-500">*</span>
+            {{ languageStore.isEn() ? 'New expiration date' : 'Nouvelle Date d\'expiration' }} <span class="text-rose-500">*</span>
           </label>
           <div class="grid grid-cols-3 gap-2">
             <!-- Jour -->
@@ -351,7 +368,7 @@ const submitRenewal = async () => {
                 v-model="expDay"
                 class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-3 font-bold text-xs text-slate-800 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer"
               >
-                <option value="" disabled>Jour</option>
+                <option value="" disabled>{{ languageStore.isEn() ? 'Day' : 'Jour' }}</option>
                 <option v-for="d in expDaysList" :key="d" :value="d">{{ String(d).padStart(2, '0') }}</option>
               </select>
               <ChevronDown class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -363,7 +380,7 @@ const submitRenewal = async () => {
                 v-model="expMonth"
                 class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-3 font-bold text-xs text-slate-800 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer"
               >
-                <option value="" disabled>Mois</option>
+                <option value="" disabled>{{ languageStore.isEn() ? 'Month' : 'Mois' }}</option>
                 <option v-for="m in monthsList" :key="m.value" :value="m.value">{{ m.label }}</option>
               </select>
               <ChevronDown class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -375,7 +392,7 @@ const submitRenewal = async () => {
                 v-model="expYear"
                 class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-3 font-bold text-xs text-slate-800 focus:bg-white focus:border-primary transition-all appearance-none cursor-pointer"
               >
-                <option value="" disabled>Année</option>
+                <option value="" disabled>{{ languageStore.isEn() ? 'Year' : 'Année' }}</option>
                 <option v-for="y in expYearsList" :key="y" :value="y">{{ y }}</option>
               </select>
               <ChevronDown class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -390,10 +407,10 @@ const submitRenewal = async () => {
         <div class="space-y-1.5 pt-2">
           <div class="flex justify-between items-center">
             <label class="text-[11px] font-black uppercase tracking-wider text-slate-600">
-              Photo / Scan de la pièce (Recto)
+              {{ languageStore.isEn() ? 'Photo / Scan of document (Front)' : 'Photo / Scan de la pièce (Recto)' }}
             </label>
             <span v-if="pieceRecto" class="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-              <CheckCircle2 class="w-3 h-3" /> Fichier prêt
+              <CheckCircle2 class="w-3 h-3" /> {{ languageStore.isEn() ? 'File ready' : 'Fichier prêt' }}
             </span>
           </div>
 
@@ -409,7 +426,7 @@ const submitRenewal = async () => {
             />
             <div class="flex flex-col items-center justify-center gap-1.5 text-slate-500">
               <Upload class="w-5 h-5 text-primary" />
-              <p class="text-xs font-bold text-slate-700">Choisir ou photographier le recto</p>
+              <p class="text-xs font-bold text-slate-700">{{ languageStore.isEn() ? 'Choose or take a photo of the front' : 'Choisir ou photographier le recto' }}</p>
               <p class="text-[10px] text-slate-400">JPG, PNG ou PDF (max 8 Mo)</p>
             </div>
           </div>
@@ -421,7 +438,7 @@ const submitRenewal = async () => {
             <div class="flex items-center gap-2.5">
               <FileText class="w-4 h-4 text-emerald-600" />
               <span class="text-xs font-bold text-slate-700 truncate max-w-[200px]">
-                {{ rectoFileName || 'Document Recto chargé' }}
+                {{ rectoFileName || (languageStore.isEn() ? 'Front document loaded' : 'Document Recto chargé') }}
               </span>
             </div>
             <button 
@@ -438,10 +455,10 @@ const submitRenewal = async () => {
         <div v-if="isVersoRequired" class="space-y-1.5">
           <div class="flex justify-between items-center">
             <label class="text-[11px] font-black uppercase tracking-wider text-slate-600">
-              Photo / Scan de la pièce (Verso)
+              {{ languageStore.isEn() ? 'Photo / Scan of document (Back)' : 'Photo / Scan de la pièce (Verso)' }}
             </label>
             <span v-if="pieceVerso" class="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-              <CheckCircle2 class="w-3 h-3" /> Fichier prêt
+              <CheckCircle2 class="w-3 h-3" /> {{ languageStore.isEn() ? 'File ready' : 'Fichier prêt' }}
             </span>
           </div>
 
@@ -457,7 +474,7 @@ const submitRenewal = async () => {
             />
             <div class="flex flex-col items-center justify-center gap-1.5 text-slate-500">
               <Upload class="w-5 h-5 text-primary" />
-              <p class="text-xs font-bold text-slate-700">Choisir ou photographier le verso</p>
+              <p class="text-xs font-bold text-slate-700">{{ languageStore.isEn() ? 'Choose or take a photo of the back' : 'Choisir ou photographier le verso' }}</p>
               <p class="text-[10px] text-slate-400">JPG, PNG ou PDF (max 8 Mo)</p>
             </div>
           </div>
@@ -469,7 +486,7 @@ const submitRenewal = async () => {
             <div class="flex items-center gap-2.5">
               <FileText class="w-4 h-4 text-emerald-600" />
               <span class="text-xs font-bold text-slate-700 truncate max-w-[200px]">
-                {{ versoFileName || 'Document Verso chargé' }}
+                {{ versoFileName || (languageStore.isEn() ? 'Back document loaded' : 'Document Verso chargé') }}
               </span>
             </div>
             <button 
@@ -490,10 +507,11 @@ const submitRenewal = async () => {
             class="w-full bg-[#8E5E0A] hover:bg-[#724a08] text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-[#8E5E0A]/20 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
           >
             <Loader2 v-if="isSubmitting" class="w-4 h-4 animate-spin" />
-            <span>{{ isSubmitting ? 'Enregistrement en cours...' : 'Enregistrer ma nouvelle pièce' }}</span>
+            <span>{{ isSubmitting ? (languageStore.isEn() ? 'Saving in progress...' : 'Enregistrement en cours...') : (languageStore.isEn() ? 'Save my new document' : 'Enregistrer ma nouvelle pièce') }}</span>
           </button>
         </div>
       </form>
     </div>
   </div>
+  </Teleport>
 </template>

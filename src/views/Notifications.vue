@@ -4,9 +4,12 @@ import { Bell, ChevronLeft, BellOff, ArrowRight, Loader2 } from 'lucide-vue-next
 import { useRouter } from 'vue-router'
 import api from '../api/api'
 import { useAuthStore } from '../stores/auth'
+import { useLanguageStore } from '../stores/language'
+import { translateNotification } from '../locales/notificationTranslator.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
 const notifications = ref([])
 const loading = ref(true)
 
@@ -63,7 +66,7 @@ onMounted(() => {
         <button @click="router.back()" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600 active:scale-95 transition-all">
           <ChevronLeft class="w-6 h-6" />
         </button>
-        <h2 class="text-xl font-bold text-slate-900">Notifications</h2>
+        <h2 class="text-xl font-bold text-slate-900">{{ languageStore.t('notifications_title') }}</h2>
       </header>
 
       <main class="flex-1 flex flex-col p-6">
@@ -77,14 +80,14 @@ onMounted(() => {
         </div>
         
         <div class="space-y-2">
-          <h3 class="text-xl font-bold text-slate-900">Tout est calme ici</h3>
+          <h3 class="text-xl font-bold text-slate-900">{{ languageStore.t('notif_empty_title') }}</h3>
           <p class="text-slate-500 text-sm max-w-[240px] mx-auto leading-relaxed">
-            Vous n'avez aucune notification pour l'instant. Nous vous tiendrons informé de vos investissements.
+            {{ languageStore.t('notif_empty_desc') }}
           </p>
         </div>
 
         <router-link to="/catalog" class="inline-flex items-center gap-2 bg-primary text-white font-bold py-3 px-6 rounded-2xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
-          Découvrir les fonds
+          {{ languageStore.t('notif_discover_funds') }}
           <ArrowRight class="w-4 h-4" />
         </router-link>
       </div>
@@ -96,9 +99,9 @@ onMounted(() => {
             <Bell class="w-5 h-5" />
           </div>
           <div class="space-y-1">
-            <h4 class="font-bold text-slate-900 text-sm">{{ notif.title }}</h4>
-            <p class="text-slate-500 text-xs leading-relaxed">{{ notif.body }}</p>
-            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{{ new Date(notif.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) }}</span>
+            <h4 class="font-bold text-slate-900 text-sm">{{ translateNotification(notif, languageStore.isEn()).title }}</h4>
+            <p class="text-slate-500 text-xs leading-relaxed">{{ translateNotification(notif, languageStore.isEn()).body }}</p>
+            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{{ new Date(notif.created_at).toLocaleString(languageStore.isEn() ? 'en-US' : 'fr-FR', { dateStyle: 'short', timeStyle: 'short' }) }}</span>
           </div>
         </div>
       </div>

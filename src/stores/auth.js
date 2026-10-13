@@ -20,6 +20,11 @@ export const useAuthStore = defineStore('auth', {
     },
     setUser(user) {
       this.user = user
+      if (user && user.locale && ['fr', 'en'].includes(user.locale)) {
+        if (!localStorage.getItem('lang')) {
+          localStorage.setItem('lang', user.locale)
+        }
+      }
     },
     clearAuth() {
       this.user = null
