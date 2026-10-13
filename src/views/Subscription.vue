@@ -81,7 +81,34 @@ const paymentMethod = ref('card')
 const idempotencyKey = ref(null)
 const recordedSubscription = ref(null)
 const paymentPhone = ref('')
-const paymentOptions = ref({ card: true, stripe: true, orange_money: false, mtn_momo: false, fee_basis_points: 100, max_investment: 100000000 })
+const paymentOptions = ref({ card: true, stripe: true, orange_money: false, mtn_momo: false, bank_transfer: true, fee_basis_points: 100, max_investment: 100000000, methods: [] })
+
+const isMethodActiveInBackoffice = (code) => {
+  if (Array.isArray(paymentOptions.value?.methods) && paymentOptions.value.methods.length > 0) {
+    const found = paymentOptions.value.methods.find(m => m.code === code)
+    if (found) return Boolean(found.is_active)
+  }
+  if (code === 'card') return paymentOptions.value?.card !== false
+  if (code === 'bank_transfer') return paymentOptions.value?.bank_transfer !== false
+  if (code === 'orange_money') return paymentOptions.value?.orange_money !== false
+  if (code === 'mtn_momo') return paymentOptions.value?.mtn_momo !== false
+  return true
+}
+
+const isPaymentMethodAvailable = (code) => {
+  if (!code) return false
+  if (!isMethodActiveInBackoffice(code)) return false
+  if (code === 'card') return paymentOptions.value?.card !== false
+  if (code === 'bank_transfer') return paymentOptions.value?.bank_transfer !== false
+  if (code === 'orange_money') return Boolean(paymentOptions.value?.orange_money)
+  if (code === 'mtn_momo') return Boolean(paymentOptions.value?.mtn_momo)
+  return true
+}
+
+const availablePaymentMethods = computed(() => {
+  const all = ['card', 'orange_money', 'mtn_momo', 'bank_transfer']
+  return all.filter(code => isMethodActiveInBackoffice(code))
+})
 
 // Détection automatique de l'opérateur camerounais
 const phoneOperator = computed(() => {
@@ -362,6 +389,11 @@ const fetchData = async () => {
     }
     paymentOptions.value = optionsRes.data
 
+    // Sélection automatique du premier moyen de paiement actif si le moyen actuel est indisponible
+    const selectable = ['card', 'orange_money', 'mtn_momo', 'bank_transfer'].filter(m => isPaymentMethodAvailable(m))
+    if (!selectable.includes(paymentMethod.value) && selectable.length > 0) {
+      paymentMethod.value = selectable[0]
+    }
     const subsList = Array.isArray(subsRes.data?.data) ? subsRes.data.data : (Array.isArray(subsRes.data) ? subsRes.data : [])
     userSubscriptionsCount.value = subsList.filter(s => {
       const st = (s.statut || s.status || '').toLowerCase()
@@ -435,6 +467,13 @@ const handleSubscribe = async () => {
     return
   }
   if (!navigator.onLine) { stripeError.value = 'Une connexion est nécessaire pour initier un paiement.'; showErrorModal.value = true; return }
+  if (!isPaymentMethodAvailable(paymentMethod.value)) {
+    stripeError.value = languageStore.isEn()
+      ? 'This payment method is currently disabled or unavailable. Please choose another one.'
+      : 'Ce moyen de paiement est actuellement désactivé ou indisponible. Veuillez en choisir un autre.'
+    showErrorModal.value = true
+    return
+  }
   const onboardingStatus = authStore.user?.onboarding_status
 
   if (userSubscriptionsCount.value === 0) {
@@ -806,32 +845,55 @@ const handleSubscribe = async () => {
       <!-- Payment Methods -->
       <section class="space-y-4">
         <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest px-1">{{ languageStore.t('sub_payment_method') }}</h3>
-        <div class="grid grid-cols-1 gap-3">
-          <button type="button" @click="paymentMethod = 'card'"
+        <div v-if="availablePaymentMethods.length === 0" class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-center space-y-1">
+          <p class="text-xs font-bold">{{ languageStore.isEn() ? 'No payment method is currently available.' : 'Aucun moyen de paiement n’est actuellement disponible.' }}</p>
+          <p class="text-[10px] text-amber-600">{{ languageStore.isEn() ? 'Please contact support or check back later.' : 'Veuillez contacter le support ou réessayer ultérieurement.' }}</p>
+        </div>
+
+        <div v-else class="grid grid-cols-1 gap-3">
+          <button 
+            v-if="isMethodActiveInBackoffice('card')"
+            type="button" 
+            @click="paymentMethod = 'card'"
+            :disabled="paymentOptions.card === false"
             :class="paymentMethod === 'card' ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-700'"
-            class="p-4 rounded-2xl border-2 flex items-center gap-3 text-left transition-all">
+            class="p-4 rounded-2xl border-2 flex items-center gap-3 text-left transition-all disabled:opacity-50">
             <CreditCard class="w-5 h-5" />
             <div>
               <span class="text-[10px] font-black uppercase tracking-wider">{{ languageStore.t('sub_credit_card') }}</span>
-              <p :class="paymentMethod === 'card' ? 'text-white/70' : 'text-slate-400'" class="text-[10px] mt-1">{{ languageStore.isEn() ? 'Instant payment on Stripe secure checkout.' : 'Paiement immédiat sur la page sécurisée Stripe.' }}</p>
+              <p :class="paymentMethod === 'card' ? 'text-white/70' : 'text-slate-400'" class="text-[10px] mt-1">
+                {{ paymentOptions.card !== false ? (languageStore.isEn() ? 'Instant payment on Stripe secure checkout.' : 'Paiement immédiat sur la page sécurisée Stripe.') : (languageStore.isEn() ? 'Temporarily unavailable.' : 'Temporairement indisponible.') }}
+              </p>
             </div>
           </button>
-          <button v-for="operator in ['orange_money', 'mtn_momo']" :key="operator" type="button" @click="selectPaymentMethod(operator)" :disabled="!paymentOptions[operator]"
-            :class="paymentMethod === operator ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-700'"
-            class="p-4 rounded-2xl border-2 flex items-center gap-3 text-left transition-all disabled:opacity-50">
-            <Smartphone class="w-5 h-5" />
-            <div>
-              <span class="text-[10px] font-black uppercase tracking-wider">{{ operator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</span>
-              <p class="text-[10px] mt-1">{{ paymentOptions[operator] ? (languageStore.isEn() ? 'Payment confirmation on your phone.' : 'Confirmation du paiement sur votre téléphone.') : (languageStore.isEn() ? 'Temporarily unavailable.' : 'Temporairement indisponible.') }}</p>
-            </div>
-          </button>
-          <button type="button" @click="paymentMethod = 'bank_transfer'"
+          <template v-for="operator in ['orange_money', 'mtn_momo']" :key="operator">
+            <button 
+              v-if="isMethodActiveInBackoffice(operator)"
+              type="button" 
+              @click="selectPaymentMethod(operator)" 
+              :disabled="!paymentOptions[operator]"
+              :class="paymentMethod === operator ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-700'"
+              class="p-4 rounded-2xl border-2 flex items-center gap-3 text-left transition-all disabled:opacity-50">
+              <Smartphone class="w-5 h-5" />
+              <div>
+                <span class="text-[10px] font-black uppercase tracking-wider">{{ operator === 'orange_money' ? 'Orange Money' : 'MTN Mobile Money' }}</span>
+                <p class="text-[10px] mt-1">{{ paymentOptions[operator] ? (languageStore.isEn() ? 'Payment confirmation on your phone.' : 'Confirmation du paiement sur votre téléphone.') : (languageStore.isEn() ? 'Temporarily unavailable.' : 'Temporairement indisponible.') }}</p>
+              </div>
+            </button>
+          </template>
+          <button 
+            v-if="isMethodActiveInBackoffice('bank_transfer')"
+            type="button" 
+            @click="paymentMethod = 'bank_transfer'"
+            :disabled="paymentOptions.bank_transfer === false"
             :class="paymentMethod === 'bank_transfer' ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-700'"
-            class="p-4 rounded-2xl border-2 flex items-center gap-3 text-left transition-all">
+            class="p-4 rounded-2xl border-2 flex items-center gap-3 text-left transition-all disabled:opacity-50">
             <Wallet class="w-5 h-5" />
             <div>
               <span class="text-[10px] font-black uppercase tracking-wider">{{ languageStore.t('sub_bank_transfer') }}</span>
-              <p :class="paymentMethod === 'bank_transfer' ? 'text-white/70' : 'text-slate-400'" class="text-[10px] mt-1">{{ languageStore.isEn() ? 'Validation after receipt and reconciliation of funds.' : 'Validation après réception et rapprochement effectif des fonds.' }}</p>
+              <p :class="paymentMethod === 'bank_transfer' ? 'text-white/70' : 'text-slate-400'" class="text-[10px] mt-1">
+                {{ paymentOptions.bank_transfer !== false ? (languageStore.isEn() ? 'Validation after receipt and reconciliation of funds.' : 'Validation après réception et rapprochement effectif des fonds.') : (languageStore.isEn() ? 'Temporarily unavailable.' : 'Temporairement indisponible.') }}
+              </p>
             </div>
           </button>
         </div>
@@ -880,6 +942,7 @@ const handleSubscribe = async () => {
               </span>
             </div>
             <button 
+              v-if="isMethodActiveInBackoffice(phoneOperator) && paymentOptions[phoneOperator]"
               type="button" 
               @click="switchOperatorTo(phoneOperator)"
               class="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-[11px] rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm uppercase tracking-wider"
@@ -1033,7 +1096,7 @@ const handleSubscribe = async () => {
     <div class="fixed bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-md border-t border-slate-100 z-50">
       <button 
         @click="handleSubscribe"
-        :disabled="submitting || !isMinimumMet || (!isPhoneValidForOperator && ['orange_money', 'mtn_momo'].includes(paymentMethod))"
+        :disabled="submitting || !isMinimumMet || (!isPhoneValidForOperator && ['orange_money', 'mtn_momo'].includes(paymentMethod)) || !isPaymentMethodAvailable(paymentMethod)"
         class="w-full bg-primary text-white font-black py-5 rounded-3xl shadow-xl shadow-primary/30 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none transition-all flex items-center justify-center gap-3"
       >
         <Loader2 v-if="submitting" class="w-6 h-6 animate-spin" />
@@ -1043,6 +1106,9 @@ const handleSubscribe = async () => {
       </button>
       <p v-if="!isMinimumMet" class="text-center text-rose-500 text-[10px] font-bold mt-2.5 animate-pulse">
         {{ languageStore.isEn() ? `Minimum threshold of ${Math.max(fund?.min || 0, fund?.vl || 0).toLocaleString()} XAF not reached.` : `Seuil minimum de ${Math.max(fund?.min || 0, fund?.vl || 0).toLocaleString()} XAF non atteint.` }}
+      </p>
+      <p v-else-if="!isPaymentMethodAvailable(paymentMethod)" class="text-center text-rose-500 text-[10px] font-bold mt-2.5">
+        {{ languageStore.isEn() ? 'This payment method is currently unavailable.' : 'Ce moyen de paiement est actuellement indisponible.' }}
       </p>
       <p v-else-if="['orange_money', 'mtn_momo'].includes(paymentMethod) && !isPhoneValidForOperator" class="text-center text-rose-500 text-[10px] font-bold mt-2.5">
         {{ phoneOperatorMismatch ? (languageStore.isEn() ? 'Please correct the number or switch operator.' : 'Veuillez corriger le numéro ou basculer d’opérateur.') : (languageStore.isEn() ? 'Valid 9-digit ' + (paymentMethod === 'orange_money' ? 'Orange (69x, 64x, 655-659)' : 'MTN (67x, 68x, 650-654)') + ' number required.' : 'Numéro ' + (paymentMethod === 'orange_money' ? 'Orange (69x, 64x, 655-659)' : 'MTN (67x, 68x, 650-654)') + ' requis à 9 chiffres.') }}
