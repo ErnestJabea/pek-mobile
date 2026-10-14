@@ -99,15 +99,16 @@ const formatDate = (dateStr) => {
 
 const getNetPlacement = (sub) => {
   if (sub.montant_net !== undefined && sub.montant_net !== null) return Number(sub.montant_net)
+  if (sub.investment_amount !== undefined && sub.investment_amount !== null) return Number(sub.investment_amount)
   const total = Number(sub.montant_total || sub.amount || 0)
-  return Math.round(total / 1.01)
+  return Math.round(total * 0.99)
 }
 
 const getFeesAmount = (sub) => {
+  if (sub.subscription_fee !== undefined && sub.subscription_fee !== null) return Number(sub.subscription_fee)
   if (sub.frais_gestion !== undefined && sub.frais_gestion !== null) return Number(sub.frais_gestion)
-  const net = getNetPlacement(sub)
   const total = Number(sub.montant_total || sub.amount || 0)
-  return Math.max(0, total - net)
+  return Math.round(total * 0.01)
 }
 
 const getTotalAmount = (sub) => {
