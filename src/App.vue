@@ -142,18 +142,6 @@ onUnmounted(() => {
             />
             <div v-else class="text-[10px] text-slate-400 italic">{{ languageStore.isEn() ? 'Generating...' : 'Génération...' }}</div>
           </div>
-          <div class="space-y-2">
-            <p class="text-[11px] font-mono text-slate-600 bg-white/80 py-1.5 px-3 rounded-xl border border-slate-200 select-all font-bold">
-              {{ qrValue }}
-            </p>
-            <button 
-              type="button" 
-              @click="isDesktop = false" 
-              class="text-xs text-amber-800 hover:text-amber-900 underline font-semibold transition-colors"
-            >
-              {{ languageStore.isEn() ? 'Test interface on this screen' : "Tester l'interface sur cet écran" }}
-            </button>
-          </div>
         </div>
       </div>
 
