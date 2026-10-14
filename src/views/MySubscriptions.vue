@@ -280,7 +280,7 @@ onUnmounted(() => {
             <div class="space-y-1">
               <span class="text-[#E8B010] text-[10px] font-black uppercase tracking-widest block">{{ languageStore.isEn() ? 'Total Portfolio Valuation' : 'Portefeuille Total ' }}</span>
               <div class="text-3xl font-black text-white leading-tight">
-                {{ valuation.valorisation_totale.toLocaleString() }} XAF
+                {{ Math.round(Number(valuation.valorisation_totale)).toLocaleString('fr-FR') }} XAF
               </div>
             </div>
             <!-- <div :class="valuation.plus_value_totale >= 0 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border-rose-500/40'" class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black border backdrop-blur-md">
@@ -292,12 +292,12 @@ onUnmounted(() => {
           <div class="grid grid-cols-2 gap-4 pt-4 border-t border-white/10 text-xs">
             <div>
               <span class="text-white/60 text-[10px] font-black uppercase tracking-wider block">{{ languageStore.isEn() ? 'Capital Invested' : 'Total Investi' }}</span>
-              <span class="text-white font-bold text-sm mt-0.5 block">{{ valuation.cout_revient_total.toLocaleString() }} XAF</span>
+              <span class="text-white font-bold text-sm mt-0.5 block">{{ formatCurrency(valuation.cout_revient_total) }} XAF</span>
             </div>
             <div>
               <span class="text-white/60 text-[10px] font-black uppercase tracking-wider block">{{ languageStore.isEn() ? 'Unrealized Gain/Loss' : 'Plus-Value ' }}</span>
               <span :class="valuation.plus_value_totale >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="font-bold text-sm mt-0.5 block">
-                {{ valuation.plus_value_totale >= 0 ? '+' : '' }}{{ valuation.plus_value_totale.toLocaleString() }} XAF
+                {{ valuation.plus_value_totale >= 0 ? '+' : '' }}{{ formatCurrency(valuation.plus_value_totale) }} XAF
               </span>
             </div>
           </div>
@@ -368,7 +368,7 @@ onUnmounted(() => {
               </div>
               <div class="flex justify-between items-center gap-2">
                 <span class="text-slate-400 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">{{ languageStore.isEn() ? 'Current Position Value' : 'Valorisation' }}</span>
-                <span class="text-primary font-black text-sm tabular-nums whitespace-nowrap">{{ formatCurrency(pos.valorisation_actuelle) }} XAF</span>
+                <span class="text-primary font-black text-sm tabular-nums whitespace-nowrap">{{ Math.round(Number(pos.valorisation_actuelle)).toLocaleString('fr-FR') }} XAF</span>
               </div>
             </div>
 
@@ -469,7 +469,7 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <p v-if="sub.valuation_status === 'valued' && sub.nav_date" class="text-xs text-slate-600">{{ languageStore.isEn() ? 'Applied NAV:' : 'VL appliquée :' }} {{ Number(sub.prix_unitaire).toLocaleString(languageStore.isEn() ? 'en-US' : 'fr-FR', { maximumFractionDigits: 4 }) }} XAF — {{ sub.nav_date.slice(0, 10) }}</p>
+            <p v-if="sub.valuation_status === 'valued' && sub.nav_date" class="text-xs text-slate-600">{{ languageStore.isEn() ? 'Applied NAV:' : 'VL appliquée :' }} {{ Number(sub.prix_unitaire).toLocaleString(languageStore.isEn() ? 'en-US' : 'fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF — {{ sub.nav_date.slice(0, 10) }}</p>
             <!-- Bouton premium pour forcer la vérification de paiement -->
             <BankTransferProofs v-if="['bank_transfer', 'virement'].includes(sub.moyen_paiement)" :subscription="sub" />
             <div v-if="sub.mobile_provider" class="text-xs space-y-2 rounded-xl bg-slate-50 p-3">

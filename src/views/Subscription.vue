@@ -715,7 +715,7 @@ const handleSubscribe = async () => {
         <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
           <div>
             <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-1">{{ languageStore.t('my_subs_current_nav') }}</span>
-            <span class="text-primary font-black">{{ fund.vl.toLocaleString() }} XAF</span>
+            <span class="text-primary font-black">{{ Number(fund.vl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF</span>
           </div>
           <div class="text-right">
             <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-1">{{ languageStore.t('risk_level') }}</span>
@@ -1105,7 +1105,7 @@ const handleSubscribe = async () => {
         </template>
       </button>
       <p v-if="!isMinimumMet" class="text-center text-rose-500 text-[10px] font-bold mt-2.5 animate-pulse">
-        {{ languageStore.isEn() ? `Minimum threshold of ${Math.max(fund?.min || 0, fund?.vl || 0).toLocaleString()} XAF not reached.` : `Seuil minimum de ${Math.max(fund?.min || 0, fund?.vl || 0).toLocaleString()} XAF non atteint.` }}
+        {{ languageStore.isEn() ? `Minimum threshold of ${Number(Math.max(fund?.min || 0, fund?.vl || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XAF not reached.` : `Seuil minimum de ${Number(Math.max(fund?.min || 0, fund?.vl || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XAF non atteint.` }}
       </p>
       <p v-else-if="!isPaymentMethodAvailable(paymentMethod)" class="text-center text-rose-500 text-[10px] font-bold mt-2.5">
         {{ languageStore.isEn() ? 'This payment method is currently unavailable.' : 'Ce moyen de paiement est actuellement indisponible.' }}

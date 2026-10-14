@@ -319,7 +319,7 @@ const chartBars = computed(() => {
     return {
       height: percentage,
       label: item.date,
-      displayValue: `${item.vl.toLocaleString()} XAF`
+      displayValue: `${Number(item.vl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XAF`
     }
   })
 })
@@ -426,7 +426,7 @@ onMounted(() => {
             {{ appContentStore.t('home_portfolio_card', 'global_assets', languageStore.isEn() ? 'Global Assets' : 'Actif Global') }}
           </span>
           <div class="text-3xl font-black text-white tracking-tight mt-0.5">
-            {{ (stats?.total_balance || stats?.portfolio?.total_valorisation || 0).toLocaleString() }} <span class="text-lg text-[#E8B010] font-bold">XAF</span>
+            {{ Math.round(Number(stats?.total_balance || stats?.portfolio?.total_valorisation || 0)).toLocaleString('fr-FR') }} <span class="text-lg text-[#E8B010] font-bold">XAF</span>
           </div>
         </div>
 
@@ -454,7 +454,7 @@ onMounted(() => {
               <TrendingUp v-if="(stats?.plus_value ?? stats?.portfolio?.plus_value_totale ?? 0) >= 0" class="w-4 h-4 text-emerald-400 shrink-0" />
               <TrendingDown v-else class="w-4 h-4 text-rose-400 shrink-0" />
               <span :class="['text-sm font-black truncate', (stats?.plus_value ?? stats?.portfolio?.plus_value_totale ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400']">
-                {{ (stats?.plus_value ?? stats?.portfolio?.plus_value_totale ?? 0) >= 0 ? '+' : '' }}{{ (stats?.plus_value ?? stats?.portfolio?.plus_value_totale ?? 0).toLocaleString() }} XAF
+                {{ (stats?.plus_value ?? stats?.portfolio?.plus_value_totale ?? 0) >= 0 ? '+' : '' }}{{ Number(stats?.plus_value ?? stats?.portfolio?.plus_value_totale ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF
               </span>
             </div>
           </div>
@@ -688,7 +688,7 @@ onMounted(() => {
             <div class="flex justify-between items-end">
               <div>
                 <span class="text-slate-400 text-[10px] font-bold block uppercase tracking-tight">{{ languageStore.t('nav_value') }}</span>
-                <span class="text-primary font-black text-lg">{{ parseFloat(fund.vl).toLocaleString() }} XAF</span>
+                <span class="text-primary font-black text-lg">{{ Number(fund.vl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF</span>
               </div>
               <div class="flex gap-2">
                 <button
@@ -776,7 +776,7 @@ onMounted(() => {
 
               <div class="flex items-end justify-between gap-3">
                 <span class="text-slate-900 font-black text-3xl leading-none transition-all">
-                  {{ modalActiveDisplayPoint.vl.toLocaleString() }} XAF
+                  {{ Number(modalActiveDisplayPoint.vl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF
                 </span>
                 <span
                   v-if="modalActiveDisplayPoint.variation !== null"
@@ -837,7 +837,7 @@ onMounted(() => {
                       {{ modalHoveredPoint.fullDate }}
                     </div>
                     <div class="text-[11px] font-black text-white flex items-center justify-center gap-1.5">
-                      <span>{{ modalHoveredPoint.vl.toLocaleString() }} XAF</span>
+                      <span>{{ Number(modalHoveredPoint.vl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF</span>
                       <span :class="modalHoveredPoint.totalVar >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[8px] font-black">
                         {{ modalHoveredPoint.totalVar >= 0 ? '+' : '' }}{{ modalHoveredPoint.totalVar.toFixed(1) }}%
                       </span>
@@ -935,7 +935,7 @@ onMounted(() => {
               </div>
               <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">{{ languageStore.t('nav_value') }}</span>
-                <span class="text-sm font-black text-primary mt-1 block">{{ selectedLatestVl.toLocaleString() }} XAF</span>
+                <span class="text-sm font-black text-primary mt-1 block">{{ Number(selectedLatestVl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF</span>
               </div>
             </div>
           </div>

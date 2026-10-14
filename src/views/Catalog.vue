@@ -341,7 +341,7 @@ const closeProductDetails = () => {
         <div class="pt-4 border-t border-slate-50 space-y-4">
           <div class="text-left">
             <span class="text-slate-400 text-[10px] block uppercase font-black tracking-tighter">{{ languageStore.t('current_nav') }}</span> <br>
-            <span class="text-primary font-black text-2xl leading-none">{{ parseFloat(product.vl).toLocaleString() }} XAF</span>
+            <span class="text-primary font-black text-2xl leading-none">{{ Number(product.vl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF</span>
           </div>
           <div class="flex gap-2">
             <router-link 
@@ -418,7 +418,7 @@ const closeProductDetails = () => {
 
               <div class="flex items-end justify-between gap-3">
                 <span class="text-primary font-black text-3xl leading-none transition-all">
-                  {{ activeDisplayPoint.vl.toLocaleString() }} XAF
+                  {{ Number(activeDisplayPoint.vl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF
                 </span>
                 <span
                   v-if="activeDisplayPoint.variation !== null"
@@ -479,7 +479,7 @@ const closeProductDetails = () => {
                       {{ hoveredPoint.fullDate }}
                     </div>
                     <div class="text-[11px] font-black text-white flex items-center justify-center gap-1.5">
-                      <span>{{ hoveredPoint.vl.toLocaleString() }} XAF</span>
+                      <span>{{ Number(hoveredPoint.vl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF</span>
                       <span :class="hoveredPoint.totalVar >= 0 ? 'text-emerald-400' : 'text-rose-400'" class="text-[8px] font-black">
                         {{ hoveredPoint.totalVar >= 0 ? '+' : '' }}{{ hoveredPoint.totalVar.toFixed(1) }}%
                       </span>
