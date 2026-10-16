@@ -114,6 +114,14 @@ const getFeesAmount = (sub) => {
 const getTotalAmount = (sub) => {
   return Number(sub.montant_total || sub.amount || 0)
 }
+
+const formatCurrency = (val) => {
+  if (val === undefined || val === null || isNaN(Number(val))) return '0,00'
+  return Number(val).toLocaleString('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
 </script>
 
 <template>
@@ -252,21 +260,21 @@ const getTotalAmount = (sub) => {
             <div>
               <span class="text-slate-400 text-[10px] font-bold uppercase block">{{ languageStore.isEn() ? 'Net Placement' : 'Placement Net' }}</span>
               <span class="text-slate-900 font-bold text-xs mt-0.5 block">
-                {{ getNetPlacement(sub).toLocaleString() }} XAF
+                {{ formatCurrency(getNetPlacement(sub)) }} XAF
               </span>
             </div>
 
             <div class="text-right">
               <span class="text-slate-400 text-[10px] font-bold uppercase block">{{ languageStore.isEn() ? 'Entry Fee (1%)' : 'Frais d\'entrée (1%)' }}</span>
               <span class="text-slate-600 font-medium text-xs mt-0.5 block">
-                + {{ getFeesAmount(sub).toLocaleString() }} XAF
+                + {{ formatCurrency(getFeesAmount(sub)) }} XAF
               </span>
             </div>
 
             <div>
               <span class="text-primary text-[10px] font-black uppercase block">{{ languageStore.isEn() ? 'Total Debited' : 'Montant Total Débité' }}</span>
               <span class="text-primary font-black text-sm mt-0.5 block">
-                {{ getTotalAmount(sub).toLocaleString() }} XAF
+                {{ formatCurrency(getTotalAmount(sub)) }} XAF
               </span>
             </div>
 

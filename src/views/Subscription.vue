@@ -412,7 +412,7 @@ const fetchData = async () => {
     paymentPhone.value = initialPhone
 
     if (fund.value) {
-      inputAmount.value = fund.value.vl
+      inputAmount.value = parseFloat(Number(fund.value.vl).toFixed(2))
     } else {
       router.push('/catalog')
     }
@@ -434,6 +434,13 @@ watch(paymentPhone, (val) => {
   }
 })
 
+const formatCurrency2Dec = (val) => {
+  return Number(val || 0).toLocaleString('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
 onMounted(() => {
   fetchData()
 })
@@ -441,17 +448,18 @@ onMounted(() => {
 const totalAmount = computed(() => {
   if (!fund.value) return 0
   if (inputMode.value === 'amount') {
-    return Math.round(inputAmount.value)
+    return parseFloat(Number(inputAmount.value).toFixed(2))
   }
-  return Math.round(parts.value * fund.value.vl)
+  return parseFloat(Number(parts.value * fund.value.vl).toFixed(2))
 })
 
 const fees = computed(() => {
-  return Math.floor((totalAmount.value * paymentOptions.value.fee_basis_points + 5000) / 10000)
+  const basisPoints = paymentOptions.value?.fee_basis_points ?? 100
+  return parseFloat(((totalAmount.value * basisPoints) / 10000).toFixed(2))
 })
 
 const finalAmount = computed(() => {
-  return Number(totalAmount.value) + Number(fees.value)
+  return parseFloat((Number(totalAmount.value) + Number(fees.value)).toFixed(2))
 })
 
 const isMinimumMet = computed(() => {
@@ -664,7 +672,7 @@ const handleSubscribe = async () => {
         </div>
         <div class="pt-2 border-t border-slate-200 flex justify-between items-center">
           <span class="text-slate-400 font-bold uppercase tracking-tighter">{{ languageStore.isEn() ? 'Total amount' : 'Montant total' }}</span>
-          <span class="text-primary font-black">{{ parseFloat(finalAmount).toLocaleString() }} XAF</span>
+          <span class="text-primary font-black">{{ formatCurrency2Dec(finalAmount) }} XAF</span>
         </div>
       </div>
 
@@ -810,12 +818,12 @@ const handleSubscribe = async () => {
               :value="inputAmount"
               @input="onAmountInput"
               type="number" 
-              step="1"
+              step="0.01"
               min="0"
               placeholder="Ex: 50 000"
-              class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 px-8 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
+              class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 pl-8 pr-24 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
             >
-            <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest">XAF</div>
+            <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest pointer-events-none">XAF</div>
           </div>
           <span class="text-[10px] text-slate-400 font-bold block px-2">
             {{ languageStore.isEn() ? 'Approx. ' : 'Soit environ ' }}<strong class="text-primary">{{ parts }} {{ parts > 1 ? languageStore.t('shares') : languageStore.t('share_singular') }}</strong>{{ languageStore.isEn() ? ' to acquire.' : ' à acquérir.' }}
@@ -832,12 +840,12 @@ const handleSubscribe = async () => {
               type="number" 
               step="0.5"
               placeholder="Ex: 5"
-              class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 px-8 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
+              class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 pl-8 pr-28 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
             >
-            <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest">{{ languageStore.t('shares') }}</div>
+            <div class="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 font-black uppercase text-xs tracking-widest pointer-events-none">{{ languageStore.t('shares') }}</div>
           </div>
           <span class="text-[10px] text-slate-400 font-bold block px-2">
-            {{ languageStore.isEn() ? 'Corresponding to an investment of ' : 'Soit un investissement de ' }}<strong class="text-primary">{{ parseFloat(totalAmount).toLocaleString() }} XAF</strong>.
+            {{ languageStore.isEn() ? 'Corresponding to an investment of ' : 'Soit un investissement de ' }}<strong class="text-primary">{{ formatCurrency2Dec(totalAmount) }} XAF</strong>.
           </span>
         </div>
       </section>
@@ -1076,16 +1084,16 @@ const handleSubscribe = async () => {
       <section class="bg-slate-900 rounded-[32px] p-6 text-white space-y-4 shadow-2xl shadow-slate-900/40">
         <div class="flex justify-between items-center text-xs opacity-60">
           <span>{{ languageStore.isEn() ? 'Subtotal' : 'Sous-total' }}</span>
-          <span>{{ parseFloat(totalAmount).toLocaleString() }} XAF</span>
+          <span>{{ formatCurrency2Dec(totalAmount) }} XAF</span>
         </div>
         <div class="flex justify-between items-center text-xs opacity-60">
           <span>{{ languageStore.t('sub_entry_fees') }}</span>
-          <span>{{ parseFloat(fees).toLocaleString() }} XAF</span>
+          <span>{{ formatCurrency2Dec(fees) }} XAF</span>
         </div>
         <div class="pt-4 border-t border-white/10 flex justify-between items-end">
           <div class="space-y-1">
              <span class="text-white/40 text-[10px] font-black uppercase tracking-widest">{{ languageStore.t('sub_total_to_pay') }}</span>
-             <div class="text-2xl font-black text-white leading-none">{{ parseFloat(finalAmount).toLocaleString() }} XAF</div>
+             <div class="text-2xl font-black text-white leading-none">{{ formatCurrency2Dec(finalAmount) }} XAF</div>
           </div>
           <div class="bg-accent text-primary px-3 py-1 rounded-full text-[10px] font-black uppercase">{{ languageStore.isEn() ? 'Secure' : 'Sécurisé' }}</div>
         </div>
@@ -1345,7 +1353,7 @@ const handleSubscribe = async () => {
               </span>
               <h3 class="text-xl font-black text-slate-900">{{ languageStore.isEn() ? 'Validation on your mobile' : 'Validation sur votre mobile' }}</h3>
               <p class="text-xs text-slate-500 font-medium">
-                {{ languageStore.isEn() ? 'A debit request of ' : 'Une demande de débit de ' }}<strong class="text-slate-900 font-black">{{ parseFloat(finalAmount).toLocaleString() }} XAF</strong>{{ languageStore.isEn() ? ' has been sent to ' : ' a été envoyée vers le ' }}<strong class="text-primary font-black">+237 {{ paymentPhone.replace(/\D/g, '') }}</strong>.
+                {{ languageStore.isEn() ? 'A debit request of ' : 'Une demande de débit de ' }}<strong class="text-slate-900 font-black">{{ formatCurrency2Dec(finalAmount) }} XAF</strong>{{ languageStore.isEn() ? ' has been sent to ' : ' a été envoyée vers le ' }}<strong class="text-primary font-black">+237 {{ paymentPhone.replace(/\D/g, '') }}</strong>.
               </p>
             </div>
 
@@ -1426,7 +1434,7 @@ const handleSubscribe = async () => {
               </div>
               <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
                 <span class="text-xs font-bold text-slate-400">{{ languageStore.isEn() ? 'Total amount' : 'Montant total' }}</span>
-                <span class="text-xs font-black text-slate-900">{{ parseFloat(finalAmount).toLocaleString() }} XAF</span>
+                <span class="text-xs font-black text-slate-900">{{ formatCurrency2Dec(finalAmount) }} XAF</span>
               </div>
               <div class="flex items-center justify-between pb-3 border-b border-slate-200/60">
                 <span class="text-xs font-bold text-slate-400">{{ languageStore.isEn() ? 'Value date' : 'Date de valeur' }}</span>

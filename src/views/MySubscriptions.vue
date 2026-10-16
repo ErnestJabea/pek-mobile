@@ -443,15 +443,15 @@ onUnmounted(() => {
             <div class="grid grid-cols-2 gap-3 pt-3 border-t border-slate-50 text-xs">
               <div>
                 <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ languageStore.isEn() ? 'Net Placement' : 'Placement Net' }}</span>
-                <span class="text-slate-900 font-black">{{ (sub.montant_net !== undefined && sub.montant_net !== null ? sub.montant_net : (sub.investment_amount !== undefined && sub.investment_amount !== null ? sub.investment_amount : Math.round(sub.montant_total * 0.99))).toLocaleString() }} XAF</span>
+                <span class="text-slate-900 font-black">{{ formatCurrency(sub.montant_net !== undefined && sub.montant_net !== null ? sub.montant_net : (sub.investment_amount !== undefined && sub.investment_amount !== null ? sub.investment_amount : Math.round(sub.montant_total * 0.99))) }} XAF</span>
               </div>
               <div class="text-right">
                 <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ languageStore.isEn() ? 'Entry Fee (1%)' : 'Frais d\'entrée (1%)' }}</span>
-                <span class="text-slate-600 font-bold">+ {{ (sub.frais_gestion !== undefined && sub.frais_gestion !== null ? sub.frais_gestion : (sub.subscription_fee !== undefined && sub.subscription_fee !== null ? sub.subscription_fee : Math.round(sub.montant_total * 0.01))).toLocaleString() }} XAF</span>
+                <span class="text-slate-600 font-bold">+ {{ formatCurrency(sub.frais_gestion !== undefined && sub.frais_gestion !== null ? sub.frais_gestion : (sub.subscription_fee !== undefined && sub.subscription_fee !== null ? sub.subscription_fee : Math.round(sub.montant_total * 0.01))) }} XAF</span>
               </div>
               <div>
                 <span class="text-primary text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ getEffectiveStatus(sub) === 'Succès' ? (languageStore.isEn() ? 'Amount Paid' : 'Montant payé') : (languageStore.isEn() ? 'Total Amount Due' : 'Montant total à payer') }}</span>
-                <span class="text-primary font-black">{{ parseFloat(sub.montant_total).toLocaleString() }} XAF</span>
+                <span class="text-primary font-black">{{ formatCurrency(sub.montant_total) }} XAF</span>
               </div>
               <div class="text-right">
                 <span class="text-slate-400 text-[10px] block font-black uppercase tracking-tighter mb-0.5">{{ getEffectiveStatus(sub) === 'Succès' ? (languageStore.isEn() ? 'Allocated Shares' : 'Parts attribuées') : (languageStore.isEn() ? 'Estimated Shares' : 'Parts estimées') }}</span>
