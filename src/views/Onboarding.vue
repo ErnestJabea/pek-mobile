@@ -54,6 +54,7 @@ const canvasRef = ref(null)
 const isDrawing = ref(false)
 const hasSigned = ref(false)
 const signatureConfirmed = ref(false)
+const dataRetentionConfirmed = ref(false)
 
 // Nationality selection refs & handlers
 const selectedNationality = ref('Camerounaise')
@@ -1444,12 +1445,23 @@ const clearSignature = () => {
 // Final Submit
 const submitOnboarding = async () => {
   if (!signatureConfirmed.value) {
-    signatureError.value = "Veuillez cocher la case de confirmation légale."
+    signatureError.value = languageStore.isEn() 
+      ? "Please confirm having read the fund regulations." 
+      : "Veuillez cocher la case de confirmation du règlement du fonds."
+    return
+  }
+
+  if (!dataRetentionConfirmed.value) {
+    signatureError.value = languageStore.isEn()
+      ? "Please authorize the retention of your personal data and documents to finalize."
+      : "Veuillez autoriser la conservation de vos informations et pièces justificatives pour finaliser."
     return
   }
 
   if (!hasSigned.value) {
-    signatureError.value = "Veuillez apposer votre signature pour continuer."
+    signatureError.value = languageStore.isEn()
+      ? "Please provide your signature to continue."
+      : "Veuillez apposer votre signature pour continuer."
     return
   }
 
@@ -2127,7 +2139,7 @@ const submitOnboarding = async () => {
 
           <label class="flex items-start gap-3 text-xs font-bold text-slate-700 leading-normal">
             <input v-model="payload.ack_donnees" type="checkbox" @change="clearError('consent')" class="w-4 h-4 text-primary rounded border-slate-300 mt-0.5">
-            <span>{{ languageStore.isEn() ? 'I authorize the secure electronic processing of my data for AML/CFT compliance. *' : 'J\'autorise le traitement informatique sécurisé de mes données dans le cadre de la conformité LAB-FT. *' }}</span>
+            <span>{{ languageStore.isEn() ? 'I authorize KORI Asset Management to securely retain and process my personal data and supporting documents in accordance with regulatory compliance (AML/CFT). *' : 'J\'autorise KORI Asset Management à conserver et traiter de manière sécurisée l\'ensemble de mes informations et pièces justificatives dans le cadre de la conformité réglementaire (LAB/FT). *' }}</span>
           </label>
           <p v-if="validationErrors.consent" id="consent-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
             {{ validationErrors.consent }}
@@ -2160,9 +2172,21 @@ const submitOnboarding = async () => {
           <!-- Legal confirmation statement checkbox -->
           <div class="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
             <label class="flex items-start gap-3 cursor-pointer select-none">
-              <input v-model="signatureConfirmed" type="checkbox" class="w-5 h-5 text-primary rounded border-slate-300 mt-0.5 focus:ring-primary">
+              <input v-model="signatureConfirmed" type="checkbox" class="w-5 h-5 text-primary rounded border-slate-300 mt-0.5 focus:ring-primary cursor-pointer shrink-0">
               <span class="text-slate-700 text-xs font-bold leading-normal">
-                {{ languageStore.isEn() ? 'I declare having read the information document and the management regulations of the KORI SERENITE mutual fund' : 'Je déclare avoir pris connaissance du document d\'information et du règlement de gestion du fonds commun de placement KORI SERENITE' }}
+                {{ languageStore.isEn() ? 'I declare having read the information document and the management regulations of the KORI SERENITE mutual fund *' : 'Je déclare avoir pris connaissance du document d\'information et du règlement de gestion du fonds commun de placement KORI SERENITE *' }}
+              </span>
+            </label>
+          </div>
+
+          <!-- Data retention confirmation statement checkbox -->
+          <div class="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+            <label class="flex items-start gap-3 cursor-pointer select-none">
+              <input v-model="dataRetentionConfirmed" type="checkbox" class="w-5 h-5 text-primary rounded border-slate-300 mt-0.5 focus:ring-primary cursor-pointer shrink-0">
+              <span class="text-slate-700 text-xs font-bold leading-normal">
+                {{ languageStore.isEn() 
+                  ? 'I authorize KORI Asset Management to retain all my personal data and identity documents in compliance with applicable laws and privacy policy. *' 
+                  : 'J\'autorise KORI Asset Management à conserver l\'ensemble de mes informations personnelles et pièces d\'identité dans le strict respect de la réglementation en vigueur et de sa politique de confidentialité. *' }}
               </span>
             </label>
           </div>

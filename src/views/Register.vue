@@ -116,6 +116,7 @@ const form = ref({
   expiration_piece: '',
   password: '',
   password_confirmation: '',
+  consent_data_retention: false,
   otp: ''
 })
 
@@ -256,6 +257,14 @@ const handleNext = async () => {
     } else if (form.value.password !== form.value.password_confirmation) {
       validationErrors.value.password_confirmation = [
         languageStore.isEn() ? 'Passwords do not match.' : 'Les mots de passe ne correspondent pas.'
+      ]
+    }
+
+    if (!form.value.consent_data_retention) {
+      validationErrors.value.consent_data_retention = [
+        languageStore.isEn() 
+          ? 'You must authorize the retention and processing of your personal data to register.' 
+          : 'Vous devez autoriser la conservation et le traitement de vos informations personnelles pour continuer votre inscription.'
       ]
     }
 
@@ -633,6 +642,26 @@ const handleNext = async () => {
           :confirmation="form.password_confirmation"
           :show-confirmation-criteria="true"
         />
+
+        <!-- Case à cocher obligatoire : Conservation et traitement des données personnelles -->
+        <div class="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
+          <label class="flex items-start gap-3 cursor-pointer select-none">
+            <input 
+              v-model="form.consent_data_retention" 
+              type="checkbox" 
+              class="w-5 h-5 text-primary rounded border-slate-300 mt-0.5 focus:ring-primary cursor-pointer shrink-0"
+              @change="clearError('consent_data_retention')"
+            >
+            <span class="text-xs font-bold text-slate-700 leading-normal">
+              {{ languageStore.isEn() 
+                ? 'I authorize KORI Asset Management to retain and process my personal data in accordance with its privacy policy and applicable regulatory obligations. *' 
+                : 'J\'autorise KORI Asset Management à conserver et traiter mes données personnelles conformément à sa politique de confidentialité et aux obligations réglementaires en vigueur. *' }}
+            </span>
+          </label>
+          <p v-if="validationErrors.consent_data_retention" id="consent-data-error" role="alert" class="text-rose-500 text-xs mt-2 ml-1 font-semibold">
+            {{ validationErrors.consent_data_retention[0] }}
+          </p>
+        </div>
       </div>
 
       <div v-else class="space-y-6">
