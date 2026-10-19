@@ -9,6 +9,8 @@ import { useLanguageStore } from '../stores/language'
 const route = useRoute()
 const router = useRouter()
 const languageStore = useLanguageStore()
+const email = ref((route.query.email || '').toString().trim())
+const hasQueryEmail = ref(Boolean(route.query.email))
 const password = ref('')
 const confirmation = ref('')
 const loading = ref(false)
@@ -17,6 +19,11 @@ const success = ref(false)
 
 const submit = async () => {
   error.value = ''
+  const finalEmail = (email.value || (route.query.email || '')).toString().trim()
+  if (!finalEmail) {
+    error.value = languageStore.isEn() ? 'Please provide your email address.' : 'Veuillez renseigner votre adresse e-mail.'
+    return
+  }
   if (password.value.length < 12) {
     error.value = languageStore.isEn() ? 'Password must be at least 12 characters.' : 'Le mot de passe doit contenir au moins 12 caractères.'
     return
@@ -30,9 +37,10 @@ const submit = async () => {
   try {
     await api.post('/reset-password', {
       token: route.params.token,
-      email: route.query.email,
+      email: finalEmail,
       password: password.value,
-      password_confirmation: confirmation.value
+      password_confirmation: confirmation.value,
+      lang: languageStore.isEn() ? 'en' : 'fr'
     })
     success.value = true
   } catch (requestError) {
@@ -59,6 +67,10 @@ const submit = async () => {
 
     <form v-else @submit.prevent="submit" class="space-y-5">
       <p v-if="error" class="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-2xl text-sm">{{ error }}</p>
+      <div v-if="!hasQueryEmail" class="space-y-2">
+        <label class="text-sm font-semibold text-slate-700 ml-1">{{ languageStore.t('email_label') }}</label>
+        <input v-model="email" type="email" autocomplete="email" :placeholder="languageStore.t('email_placeholder')" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4" required>
+      </div>
       <input v-model="password" type="password" autocomplete="new-password" :placeholder="languageStore.t('reset_pwd_placeholder_new')" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4" required>
       <input v-model="confirmation" type="password" autocomplete="new-password" :placeholder="languageStore.t('reset_pwd_placeholder_confirm')" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4" required>
       <PasswordCriteria 

@@ -124,8 +124,8 @@ const phoneOperator = computed(() => {
     if (p2 === '69' || p2 === '64' || ['655', '656', '657', '658', '659'].includes(p3)) {
       return 'orange_money'
     }
-    // MTN Cameroun : 67x, 680-683, 650-654
-    if (p2 === '67' || ['680', '681', '682', '683'].includes(p3) || ['650', '651', '652', '653', '654'].includes(p3)) {
+    // MTN Cameroun : 67x, 68x, 650-654
+    if (p2 === '67' || p2 === '68' || ['650', '651', '652', '653', '654'].includes(p3)) {
       return 'mtn_momo'
     }
     if (p2 === '66') return 'nexttel'

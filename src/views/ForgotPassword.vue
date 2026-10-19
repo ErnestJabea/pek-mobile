@@ -21,7 +21,10 @@ const handleSubmit = async () => {
   error.value = ''
   validationErrors.value = {}
   try {
-    const response = await api.post('/forgot-password', { email: email.value })
+    const response = await api.post('/forgot-password', {
+      email: email.value,
+      lang: languageStore.isEn() ? 'en' : 'fr'
+    })
     success.value = true
   } catch (err) {
     if (err.response?.status === 422) {
