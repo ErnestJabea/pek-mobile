@@ -313,14 +313,216 @@ async function recognizeWithRotations(worker, imageSource, knownOrientation = 0,
 }
 
 /**
+ * Parse Machine Readable Zone (MRZ) - ICAO 9303 standard
+ * Handles TD1 (3 lines of 30 characters - ID card) and TD3 (2 lines of 44 characters - Passport)
+ */
+export function parseMRZ(rawText) {
+  if (!rawText) return null
+
+  const lines = rawText
+    .split(/\r?\n/)
+    .map(line => line.toUpperCase().replace(/[^A-Z0-9<]/g, '').trim())
+    .filter(line => line.includes('<<') || (line.length >= 28 && line.includes('<')))
+
+  // 1. TD3 : Passeport (2 lignes de ~44 caractères)
+  for (let i = 0; i < lines.length - 1; i++) {
+    const l1 = lines[i]
+    const l2 = lines[i + 1]
+
+    if ((l1.startsWith('P<') || l1.startsWith('P')) && l1.length >= 38 && l2.length >= 38) {
+      const docType = 'P'
+      const issuingCountry = l1.substring(2, 5).replace(/</g, '')
+      const nameSection = l1.substring(5).split('<<')
+      const surname = (nameSection[0] || '').replace(/</g, ' ').trim()
+      const givenNames = (nameSection[1] || '').replace(/</g, ' ').trim()
+
+      const docNumber = l2.substring(0, 9).replace(/</g, '')
+      const nationality = l2.substring(10, 13).replace(/</g, '')
+      const dob = l2.substring(13, 19).replace(/</g, '') // YYMMDD
+      const sex = l2.charAt(20)
+      const expirationDate = l2.substring(21, 27).replace(/</g, '') // YYMMDD
+
+      return {
+        format: 'TD3',
+        docType,
+        issuingCountry,
+        surname,
+        givenNames,
+        docNumber,
+        nationality,
+        dob,
+        sex,
+        expirationDate,
+        rawLines: [l1, l2]
+      }
+    }
+  }
+
+  // 2. TD1 : Carte Nationale d'Identité / Titre de Séjour (3 lignes de ~30 caractères)
+  for (let i = 0; i < lines.length - 2; i++) {
+    const l1 = lines[i]
+    const l2 = lines[i + 1]
+    const l3 = lines[i + 2]
+
+    if ((l1.startsWith('I') || l1.startsWith('A') || l1.startsWith('C')) && l1.length >= 26 && l2.length >= 26 && l3.length >= 26) {
+      const docType = 'I'
+      const issuingCountry = l1.substring(2, 5).replace(/</g, '')
+      const docNumber = l1.substring(5, 14).replace(/</g, '')
+
+      const dob = l2.substring(0, 6).replace(/</g, '') // YYMMDD
+      const sex = l2.charAt(7)
+      const expirationDate = l2.substring(8, 14).replace(/</g, '') // YYMMDD
+      const nationality = l2.substring(15, 18).replace(/</g, '')
+
+      const nameSection = l3.split('<<')
+      const surname = (nameSection[0] || '').replace(/</g, ' ').trim()
+      const givenNames = (nameSection[1] || '').replace(/</g, ' ').trim()
+
+      return {
+        format: 'TD1',
+        docType,
+        issuingCountry,
+        surname,
+        givenNames,
+        docNumber,
+        nationality,
+        dob,
+        sex,
+        expirationDate,
+        rawLines: [l1, l2, l3]
+      }
+    }
+  }
+
+  return null
+}
+
+const MONTH_NAMES = {
+  '01': ['JANVIER', 'JAN', 'JANUARY'],
+  '02': ['FEVRIER', 'FEV', 'FEBRUARY', 'FEB'],
+  '03': ['MARS', 'MAR', 'MARCH'],
+  '04': ['AVRIL', 'AVR', 'APRIL', 'APR'],
+  '05': ['MAI', 'MAY'],
+  '06': ['JUIN', 'JUN', 'JUNE'],
+  '07': ['JUILLET', 'JUIL', 'JULY', 'JUL'],
+  '08': ['AOUT', 'AUG', 'AUGUST'],
+  '09': ['SEPTEMBRE', 'SEP', 'SEPTEMBER'],
+  '10': ['OCTOBRE', 'OCT', 'OCTOBER'],
+  '11': ['NOVEMBRE', 'NOV', 'NOVEMBER'],
+  '12': ['DECEMBRE', 'DEC', 'DECEMBER']
+}
+
+function matchDateInText(dateYYYYMMDD, text, mrzYYMMDD = null, isExpiration = false) {
+  if (!dateYYYYMMDD) return null
+  const cleanOcr = normalizeStr(text)
+
+  // 1. Comparaison avec la bande MRZ si présente (Exactitude maximale)
+  if (mrzYYMMDD && mrzYYMMDD.length === 6) {
+    const parts = dateYYYYMMDD.split('-')
+    if (parts.length === 3) {
+      const userYYMMDD = parts[0].slice(-2) + parts[1] + parts[2]
+      if (userYYMMDD === mrzYYMMDD) {
+        return true
+      }
+    }
+  }
+
+  const parts = dateYYYYMMDD.split('-')
+  if (parts.length !== 3) return false
+  const [year, month, day] = parts
+  const shortYear = year.slice(-2)
+
+  // 2. Variations directes
+  const variations = [
+    `${day} ${month} ${year}`,
+    `${day}/${month}/${year}`,
+    `${day}.${month}.${year}`,
+    `${day}-${month}-${year}`,
+    `${year}-${month}-${day}`,
+    `${year}/${month}/${day}`,
+    `${year}.${month}.${day}`,
+    `${day}${month}${year}`,
+    `${year}${month}${day}`,
+    `${day} ${month} ${shortYear}`,
+    `${day}/${month}/${shortYear}`,
+    `${day}.${month}.${shortYear}`,
+    `${day}-${month}-${shortYear}`
+  ]
+
+  for (const v of variations) {
+    if (cleanOcr.includes(normalizeStr(v))) {
+      return true
+    }
+  }
+
+  // 3. Mois en toutes lettres (Français / Anglais)
+  const monthNames = MONTH_NAMES[month] || []
+  for (const mName of monthNames) {
+    if (cleanOcr.includes(mName)) {
+      if (cleanOcr.includes(year) || cleanOcr.includes(day)) {
+        return true
+      }
+    }
+  }
+
+  // 4. Proximité année et jour/mois
+  const hasYear = cleanOcr.includes(year)
+  const hasDay = cleanOcr.includes(day)
+  const hasMonth = cleanOcr.includes(month)
+  if (hasYear && (hasDay || hasMonth)) {
+    return true
+  }
+
+  return false
+}
+
+function matchDocumentType(claimedType, text, mrzData = null) {
+  if (!claimedType) return null
+  const norm = normalizeStr(text)
+
+  if (mrzData) {
+    if (claimedType === 'Passeport' && mrzData.docType === 'P') return true
+    if (claimedType === 'CNI' && mrzData.docType === 'I') return true
+  }
+
+  if (claimedType === 'Passeport') {
+    return norm.includes('PASSEPORT') || norm.includes('PASSPORT') || norm.includes('REPUBLIQUE')
+  }
+
+  if (claimedType === 'CNI') {
+    return norm.includes('CARTE NATIONALE') || norm.includes('IDENTITE') || norm.includes('IDENTITY') || norm.includes('CAMEROUN') || norm.includes('CMR') || norm.includes('NATIONAL')
+  }
+
+  if (claimedType === 'Carte Résident') {
+    return norm.includes('RESIDENT') || norm.includes('SEJOUR') || norm.includes('TITRE')
+  }
+
+  if (claimedType === 'Permis de Conduire') {
+    return norm.includes('PERMIS') || norm.includes('CONDUIRE') || norm.includes('DRIVING')
+  }
+
+  return true
+}
+
+/**
  * Run OCR on ID card (Recto + Verso) and compare extracted text with user fields
  * @param {string} rectoBase64 
  * @param {string} versoBase64 
- * @param {Object} fields - { nom, prenom, dob, num_piece }
+ * @param {Object} fields - { nom, prenom, dob, num_piece, expiration_piece, piece, adresse, employeur }
  * @param {Function} onProgress - status callback
  * @param {number} knownOrientation - orientation from face detector (if known)
+ * @param {string} domicileBase64 - optional proof of address
+ * @param {string} fondsBase64 - optional proof of funds
  */
-export async function verifyIDDocumentOCR(rectoBase64, versoBase64 = null, fields = {}, onProgress = null, knownOrientation = 0) {
+export async function verifyIDDocumentOCR(
+  rectoBase64,
+  versoBase64 = null,
+  fields = {},
+  onProgress = null,
+  knownOrientation = 0,
+  domicileBase64 = null,
+  fondsBase64 = null
+) {
   if (!rectoBase64 && !versoBase64) {
     return {
       success: false,
@@ -354,7 +556,7 @@ export async function verifyIDDocumentOCR(rectoBase64, versoBase64 = null, field
       rawText += '\n' + rectoText
     }
 
-    // 2. Scan Verso (often contains unique ID and expiration date)
+    // 2. Scan Verso (often contains unique ID, expiration date and MRZ line)
     if (versoBase64) {
       const versoText = await recognizeWithRotations(worker, versoBase64, knownOrientation, onProgress)
       rawText += '\n' + versoText
@@ -362,44 +564,117 @@ export async function verifyIDDocumentOCR(rectoBase64, versoBase64 = null, field
 
     const cleanOcr = normalizeStr(rawText)
 
-    // Check Nom
-    const nomMatch = Boolean(fields.nom && tokenMatchesInText(fields.nom, cleanOcr))
+    // 3. Détection de bande MRZ officielle (ICAO 9303)
+    const mrzData = parseMRZ(rawText)
 
-    // Check Prénom
-    const prenomMatch = Boolean(fields.prenom && tokenMatchesInText(fields.prenom, cleanOcr))
+    // 4. Concordance Nom & Prénom (avec gestion des inversions et du MRZ)
+    let nomMatch = false
+    let prenomMatch = false
 
-    // Check Numéro de pièce
+    if (mrzData && mrzData.surname) {
+      nomMatch = Boolean(
+        fields.nom && (
+          tokenMatchesInText(fields.nom, mrzData.surname) ||
+          tokenMatchesInText(fields.nom, mrzData.givenNames)
+        )
+      )
+      prenomMatch = Boolean(
+        fields.prenom && (
+          tokenMatchesInText(fields.prenom, mrzData.givenNames) ||
+          tokenMatchesInText(fields.prenom, mrzData.surname)
+        )
+      )
+    }
+
+    if (!nomMatch && fields.nom) {
+      nomMatch = Boolean(
+        tokenMatchesInText(fields.nom, cleanOcr) ||
+        (fields.prenom && tokenMatchesInText(fields.nom + ' ' + fields.prenom, cleanOcr))
+      )
+    }
+
+    if (!prenomMatch && fields.prenom) {
+      prenomMatch = Boolean(
+        tokenMatchesInText(fields.prenom, cleanOcr) ||
+        (fields.nom && tokenMatchesInText(fields.prenom + ' ' + fields.nom, cleanOcr))
+      )
+    }
+
+    // 5. Concordance Numéro de pièce
     let numPieceMatch = false
     if (fields.num_piece) {
       const cleanNum = normalizeStr(fields.num_piece).replace(/\s+/g, '')
       const compactOcr = cleanOcr.replace(/\s+/g, '')
-      numPieceMatch = cleanNum.length >= 4 && (compactOcr.includes(cleanNum) || tokenMatchesInText(cleanNum, compactOcr))
-    }
 
-    // Check Date de Naissance (ex: "1988-06-20" -> "20", "06", "1988")
-    let dobMatch = false
-    if (fields.dob) {
-      const parts = fields.dob.split('-')
-      if (parts.length === 3) {
-        const [year, month, day] = parts
-        const yearFound = cleanOcr.includes(year)
-        const monthDayFound = cleanOcr.includes(day) || cleanOcr.includes(month)
-        dobMatch = Boolean(yearFound && monthDayFound)
+      if (mrzData && mrzData.docNumber) {
+        const cleanMrzNum = normalizeStr(mrzData.docNumber).replace(/\s+/g, '')
+        numPieceMatch = cleanNum.includes(cleanMrzNum) || cleanMrzNum.includes(cleanNum)
+      }
+
+      if (!numPieceMatch) {
+        numPieceMatch = cleanNum.length >= 4 && (compactOcr.includes(cleanNum) || tokenMatchesInText(cleanNum, compactOcr))
       }
     }
 
-    // Extract potential entities from OCR to aid user or audit
-    const detectedInfo = extractDetectedInfoFromText(cleanOcr)
+    // 6. Concordance Date de Naissance
+    const dobMatch = Boolean(fields.dob && matchDateInText(fields.dob, cleanOcr, mrzData?.dob, false))
 
+    // 7. Concordance Date d'expiration
+    let expirationMatch = null
+    if (fields.expiration_piece) {
+      expirationMatch = Boolean(matchDateInText(fields.expiration_piece, cleanOcr, mrzData?.expirationDate, true))
+    }
+
+    // 8. Concordance Type de document
+    const docTypeMatch = Boolean(matchDocumentType(fields.piece, cleanOcr, mrzData))
+
+    // 9. Vérification facultative du justificatif de domicile (Bloc 4)
+    let domicileMatch = null
+    if (domicileBase64) {
+      try {
+        if (onProgress) onProgress("Vérification du justificatif de domicile...")
+        const domText = await recognizeWithRotations(worker, domicileBase64, 0)
+        const domNorm = normalizeStr(domText)
+        const nomInDom = Boolean(fields.nom && tokenMatchesInText(fields.nom, domNorm))
+        const prenomInDom = Boolean(fields.prenom && tokenMatchesInText(fields.prenom, domNorm))
+        const cityInDom = Boolean(fields.adresse && tokenMatchesInText(fields.adresse, domNorm))
+        const isUtilityBill = domNorm.includes('ENEO') || domNorm.includes('CAMWATER') || domNorm.includes('FACTURE') || domNorm.includes('EAU') || domNorm.includes('ELECTRICITE') || domNorm.includes('RESIDENCE') || domNorm.includes('CERTIFICAT') || domNorm.includes('DOMICILE') || domNorm.includes('RELEVE')
+
+        domicileMatch = (nomInDom || prenomInDom) || (cityInDom && isUtilityBill) || isUtilityBill
+      } catch (domErr) {
+        console.warn('Erreur OCR justificatif domicile:', domErr)
+      }
+    }
+
+    // 10. Vérification facultative du justificatif d'origine des fonds (Bloc 5)
+    let fondsMatch = null
+    if (fondsBase64) {
+      try {
+        if (onProgress) onProgress("Vérification du justificatif d'origine des fonds...")
+        const fondsText = await recognizeWithRotations(worker, fondsBase64, 0)
+        const fondsNorm = normalizeStr(fondsText)
+        const nomInFonds = Boolean(fields.nom && tokenMatchesInText(fields.nom, fondsNorm))
+        const employerInFonds = Boolean(fields.employeur && tokenMatchesInText(fields.employeur, fondsNorm))
+        const isFinancialDoc = fondsNorm.includes('SALAIRE') || fondsNorm.includes('BULLETIN') || fondsNorm.includes('PAIE') || fondsNorm.includes('VIREMENT') || fondsNorm.includes('CONTRAT') || fondsNorm.includes('REVENU') || fondsNorm.includes('IMPOT') || fondsNorm.includes('RCCM') || fondsNorm.includes('HONORAIRE') || fondsNorm.includes('ATTESTATION') || fondsNorm.includes('EMPLOYEUR') || fondsNorm.includes('BANQUE')
+
+        fondsMatch = (nomInFonds && isFinancialDoc) || (employerInFonds && isFinancialDoc) || isFinancialDoc
+      } catch (fondsErr) {
+        console.warn('Erreur OCR justificatif fonds:', fondsErr)
+      }
+    }
+
+    // Calcul du score de conformité
     let matchesCount = 0
     let totalChecked = 0
     if (fields.nom) { totalChecked++; if (nomMatch) matchesCount++ }
     if (fields.prenom) { totalChecked++; if (prenomMatch) matchesCount++ }
-    if (fields.dob) { totalChecked++; if (dobMatch) matchesCount++ }
     if (fields.num_piece) { totalChecked++; if (numPieceMatch) matchesCount++ }
+    if (fields.dob) { totalChecked++; if (dobMatch) matchesCount++ }
+    if (fields.expiration_piece) { totalChecked++; if (expirationMatch) matchesCount++ }
+    if (fields.piece) { totalChecked++; if (docTypeMatch) matchesCount++ }
 
     const ocrConfidence = totalChecked > 0 ? Math.round((matchesCount / totalChecked) * 100) : 0
-    const isValid = ocrConfidence >= 50 || (nomMatch && (prenomMatch || dobMatch || numPieceMatch))
+    const isValid = (mrzData !== null && (nomMatch || numPieceMatch)) || (nomMatch && (prenomMatch || dobMatch || numPieceMatch)) || ocrConfidence >= 60
 
     return {
       success: isValid,
@@ -410,11 +685,16 @@ export async function verifyIDDocumentOCR(rectoBase64, versoBase64 = null, field
       prenomMatch,
       dobMatch,
       numPieceMatch,
-      detectedInfo,
+      expirationMatch,
+      docTypeMatch,
+      domicileMatch,
+      fondsMatch,
+      mrzDetected: Boolean(mrzData),
+      mrzData,
       rawSnippet: rawText.slice(0, 450),
       message: isValid
-        ? `Informations de la CNI concordantes (${ocrConfidence}% de correspondance).`
-        : `Certaines données saisies ne concordent pas avec le texte détecté sur la pièce (${ocrConfidence}%). Vérifiez votre saisie.`
+        ? `Informations fournies concordantes avec vos documents (${ocrConfidence}% de correspondance).`
+        : `Certaines informations fournies ne correspondent pas exactement aux mentions détectées (${ocrConfidence}%). Vérifiez votre saisie.`
     }
   } catch (err) {
     console.error('Erreur analyse OCR:', err)
@@ -426,6 +706,12 @@ export async function verifyIDDocumentOCR(rectoBase64, versoBase64 = null, field
       prenomMatch: false,
       dobMatch: false,
       numPieceMatch: false,
+      expirationMatch: false,
+      docTypeMatch: false,
+      domicileMatch: null,
+      fondsMatch: null,
+      mrzDetected: false,
+      mrzData: null,
       message: "Analyse OCR déléguée à la vérification humaine."
     }
   } finally {

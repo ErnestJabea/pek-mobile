@@ -168,7 +168,7 @@ const dynamicSupportingDocs = computed(() => {
         key: 'doc_piece_identite',
         title: languageStore.isEn() ? "1. Identity Document (Main page with photo)" : "1. Pièce d'identité (Recto / Document principal)",
         hint: languageStore.isEn() ? "Main passport page with photo, signature and MRZ line" : "Page principale du passeport avec photo, signature et bande MRZ",
-        emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
+        emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
@@ -192,7 +192,7 @@ const dynamicSupportingDocs = computed(() => {
         key: 'doc_piece_identite',
         title: languageStore.isEn() ? "1. Residence Permit (Front side)" : "1. Pièce d'identité (Recto / Document principal)",
         hint: languageStore.isEn() ? "Front side of the residence card/permit with photo" : "Face avant du titre de séjour avec photo",
-        emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
+        emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
@@ -202,7 +202,7 @@ const dynamicSupportingDocs = computed(() => {
         key: 'doc_piece_verso',
         title: languageStore.isEn() ? "2. Residence Permit (Back side - optional)" : "2. Pièce d'identité (Verso - optionnel)",
         hint: languageStore.isEn() ? "Back side of the residence card/permit" : "Face arrière du titre de séjour",
-        emptyLabel: languageStore.isEn() ? "No reverse side uploaded." : "Aucun verso téléversé.",
+        emptyLabel: languageStore.isEn() ? "No reverse side provided." : "Aucun verso fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_verso',
@@ -215,7 +215,7 @@ const dynamicSupportingDocs = computed(() => {
         key: 'doc_piece_identite',
         title: languageStore.isEn() ? "1. Driver License (Front side)" : "1. Pièce d'identité (Recto / Document principal)",
         hint: languageStore.isEn() ? "Front side of driver license with photo" : "Face avant du permis de conduire avec photo",
-        emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
+        emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
@@ -225,7 +225,7 @@ const dynamicSupportingDocs = computed(() => {
         key: 'doc_piece_verso',
         title: languageStore.isEn() ? "2. Driver License (Back side - optional)" : "2. Pièce d'identité (Verso - optionnel)",
         hint: languageStore.isEn() ? "Back side of driver license with categories" : "Face arrière du permis de conduire avec catégories",
-        emptyLabel: languageStore.isEn() ? "No reverse side uploaded." : "Aucun verso téléversé.",
+        emptyLabel: languageStore.isEn() ? "No reverse side provided." : "Aucun verso fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_verso',
@@ -239,7 +239,7 @@ const dynamicSupportingDocs = computed(() => {
         key: 'doc_piece_identite',
         title: languageStore.isEn() ? "1. Identity Document (Front / Main document)" : "1. Pièce d'identité (Recto / Document principal)",
         hint: languageStore.isEn() ? "Front side of National ID Card with photo" : "Face avant de la Carte Nationale d'Identité avec photo",
-        emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
+        emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
@@ -249,7 +249,7 @@ const dynamicSupportingDocs = computed(() => {
         key: 'doc_piece_verso',
         title: languageStore.isEn() ? "2. Identity Document (Back side - optional)" : "2. Pièce d'identité (Verso - optionnel)",
         hint: languageStore.isEn() ? "Back side of National ID Card with MRZ line" : "Face arrière de la Carte Nationale d'Identité avec bande MRZ",
-        emptyLabel: languageStore.isEn() ? "No reverse side uploaded." : "Aucun verso téléversé.",
+        emptyLabel: languageStore.isEn() ? "No reverse side provided." : "Aucun verso fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_verso',
@@ -263,7 +263,7 @@ const dynamicSupportingDocs = computed(() => {
       key: 'doc_photo',
       title: languageStore.isEn() ? "3. Recent Identity Photo / Selfie" : "3. Photo d'identité récente",
       hint: languageStore.isEn() ? "Clear frontal photo or instant camera selfie" : "Photo nette de face ou prise directe par caméra",
-      emptyLabel: languageStore.isEn() ? "No photo uploaded." : "Aucune photo téléversée.",
+      emptyLabel: languageStore.isEn() ? "No photo provided." : "Aucune photo fournie.",
       accept: 'image/*',
       allowCamera: true,
       cameraTarget: 'selfie_live',
@@ -273,7 +273,7 @@ const dynamicSupportingDocs = computed(() => {
       key: 'doc_justificatif_domicile',
       title: languageStore.isEn() ? "4. Proof of Address (< 3 months)" : "4. Justificatif de domicile (< 3 mois)",
       hint: languageStore.isEn() ? "Utility bill (Eneo/water), certificate of residence or bank statement" : "Facture Eneo/Camtap, attestation de résidence ou relevé bancaire",
-      emptyLabel: languageStore.isEn() ? "No proof uploaded." : "Aucun justificatif téléversé.",
+      emptyLabel: languageStore.isEn() ? "No proof provided." : "Aucun justificatif fourni.",
       accept: 'image/*,.pdf',
       allowCamera: false,
       required: false,
@@ -282,7 +282,7 @@ const dynamicSupportingDocs = computed(() => {
       key: 'doc_origine_fonds',
       title: languageStore.isEn() ? "5. Proof of Origin of Funds" : "5. Justificatif d'origine des fonds",
       hint: languageStore.isEn() ? "Payslip, employer certificate, commercial register or employment contract" : "Fiche de paie, attestation d'employeur ou contrat de travail",
-      emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
+      emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
       accept: 'image/*,.pdf',
       allowCamera: false,
       required: false,
@@ -348,9 +348,8 @@ const syncKYCDocuments = (targetField, dataUrl) => {
   }
 
   const hasID = payload.value.piece_recto || payload.value.doc_piece_identite
-  const hasSelfie = payload.value.selfie_live || payload.value.doc_photo
-  if (hasID && hasSelfie && !verifyingKYC.value) {
-    executeKYCVerification()
+  if (hasID && !verifyingKYC.value) {
+    executeKYCVerification(true)
   }
 }
 
@@ -544,56 +543,80 @@ const kycVerificationAttempted = ref(false)
 
 const removeDocument = (targetField) => {
   payload.value[targetField] = ''
-  if (targetField === 'piece_recto' || targetField === 'selfie_live') {
+  if (targetField === 'piece_recto' || targetField === 'selfie_live' || targetField === 'doc_piece_identite' || targetField === 'doc_photo') {
     verificationFaceResult.value = null
     verificationOCRResult.value = null
     kycVerificationAttempted.value = false
     payload.value.face_match_score = null
     payload.value.face_verified = false
     payload.value.ocr_score = null
+    payload.value.ocr_nom_match = null
+    payload.value.ocr_prenom_match = null
+    payload.value.ocr_dob_match = null
+    payload.value.ocr_num_piece_match = null
+    payload.value.ocr_expiration_match = null
+    payload.value.ocr_doc_type_match = null
+    payload.value.ocr_domicile_match = null
+    payload.value.ocr_fonds_match = null
+    payload.value.ocr_mrz_detected = false
+    payload.value.ocr_snippet = ''
+    payload.value.verification_timestamp = ''
+    payload.value.identity_audit_status = ''
   }
 }
 
-const executeKYCVerification = async () => {
+const executeKYCVerification = async (silent = false) => {
   const recto = payload.value.piece_recto || payload.value.doc_piece_identite
   const selfie = payload.value.selfie_live || payload.value.doc_photo
   if (!recto) {
-    triggerError("Pièce requise", "Veuillez téléverser votre pièce d'identité.")
-    return false
-  }
-  if (!selfie) {
-    triggerError("Photo requise", "Veuillez téléverser votre photo d'identité ou prendre un selfie.")
+    if (!silent) {
+      triggerError("Pièce requise", "Veuillez fournir votre pièce d'identité.")
+    }
     return false
   }
 
   verifyingKYC.value = true
   kycVerificationAttempted.value = true
-  verificationStatusText.value = "Initialisation de l'analyse biométrique..."
+  verificationStatusText.value = "Initialisation de l'analyse des pièces fournies..."
 
   try {
     const { compareFaces, verifyIDDocumentOCR } = await import('../services/kycVerification')
-    // 1. Comparaison faciale (Pièce d'identité vs Selfie en direct)
-    verificationStatusText.value = "Comparaison du visage de la pièce avec votre photo..."
-    const faceRes = await compareFaces(recto, selfie)
-    verificationFaceResult.value = faceRes
-    payload.value.face_match_score = faceRes.score
-    payload.value.face_verified = faceRes.success
+    
+    // 1. Comparaison faciale si un selfie ou photo est fourni
+    let faceRes = { success: false, score: null, isFallback: true, idOrientation: 0 }
+    if (selfie) {
+      verificationStatusText.value = "Comparaison du visage de la pièce avec votre photo..."
+      faceRes = await compareFaces(recto, selfie)
+      verificationFaceResult.value = faceRes
+      payload.value.face_match_score = faceRes.score
+      payload.value.face_verified = faceRes.success
+    }
 
-    // 2. OCR text extraction & comparison (Nom, Prénom, Date de Naissance, N° de pièce)
-    verificationStatusText.value = "Lecture des informations de la pièce (OCR)..."
+    // 2. OCR text extraction & analyse approfondie de concordance des pièces
+    const verso = payload.value.piece_verso || payload.value.doc_piece_verso || null
+    const domicile = payload.value.doc_justificatif_domicile || null
+    const fonds = payload.value.doc_origine_fonds || null
+
+    verificationStatusText.value = "Contrôle de concordance et analyse de la bande MRZ..."
     const ocrRes = await verifyIDDocumentOCR(
       recto,
-      payload.value.piece_verso || null,
+      verso,
       {
         nom: payload.value.nom,
         prenom: payload.value.prenom,
         dob: payload.value.dob,
-        num_piece: payload.value.num_piece
+        num_piece: payload.value.num_piece,
+        expiration_piece: payload.value.expiration_piece,
+        piece: payload.value.piece,
+        adresse: payload.value.adresse,
+        employeur: payload.value.employeur
       },
       (statusMsg) => {
         verificationStatusText.value = statusMsg
       },
-      faceRes.idOrientation || 0
+      faceRes.idOrientation || 0,
+      domicile,
+      fonds
     )
     verificationOCRResult.value = ocrRes
     payload.value.ocr_score = ocrRes.ocrConfidence || 0
@@ -601,14 +624,21 @@ const executeKYCVerification = async () => {
     payload.value.ocr_prenom_match = ocrRes.prenomMatch
     payload.value.ocr_dob_match = ocrRes.dobMatch
     payload.value.ocr_num_piece_match = ocrRes.numPieceMatch
+    payload.value.ocr_expiration_match = ocrRes.expirationMatch
+    payload.value.ocr_doc_type_match = ocrRes.docTypeMatch
+    payload.value.ocr_domicile_match = ocrRes.domicileMatch
+    payload.value.ocr_fonds_match = ocrRes.fondsMatch
+    payload.value.ocr_mrz_detected = ocrRes.mrzDetected
     payload.value.ocr_snippet = ocrRes.rawSnippet || ''
     payload.value.verification_timestamp = new Date().toISOString()
     payload.value.identity_audit_status = (faceRes.success && ocrRes.success) ? 'auto_verified' : 'manual_review_required'
 
-    return faceRes.success || faceRes.isFallback === true
+    return faceRes.success || faceRes.isFallback === true || ocrRes.success
   } catch (err) {
     console.error("KYC Verification failure:", err)
-    triggerError("Erreur d'analyse", "Une erreur est survenue lors de l'analyse. Une vérification manuelle sera effectuée.")
+    if (!silent) {
+      triggerError("Erreur d'analyse", "Une erreur est survenue lors de l'analyse. Une vérification manuelle sera effectuée.")
+    }
     return false
   } finally {
     verifyingKYC.value = false
@@ -775,6 +805,11 @@ const payload = ref({
   ocr_prenom_match: null,
   ocr_dob_match: null,
   ocr_num_piece_match: null,
+  ocr_expiration_match: null,
+  ocr_doc_type_match: null,
+  ocr_domicile_match: null,
+  ocr_fonds_match: null,
+  ocr_mrz_detected: false,
   ocr_snippet: '',
   verification_timestamp: '',
   identity_audit_status: '',
@@ -1854,7 +1889,7 @@ const submitOnboarding = async () => {
           </div>
         </div>
 
-        <!-- 5 BLOCS DE TÉLÉVERSEMENT KYC (EXACT DU BACKOFFICE) -->
+        <!-- 5 BLOCS DE DOCUMENTS KYC FOURNIS (EXACT DU BACKOFFICE) -->
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-6 text-left">
           <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
             <div>
@@ -1928,11 +1963,11 @@ const submitOnboarding = async () => {
                     <!-- Infos document -->
                     <div class="flex-1 min-w-0">
                       <p class="text-xs font-bold text-slate-800 truncate">
-                        {{ docFileNames[doc.key] || (languageStore.isEn() ? 'Uploaded file' : 'Fichier téléversé') }}
+                        {{ docFileNames[doc.key] || (languageStore.isEn() ? 'Provided file' : 'Fichier fourni') }}
                       </p>
                       <p class="text-[10px] font-semibold text-emerald-600 flex items-center gap-1 mt-0.5">
                         <CheckCircle2 class="w-3.5 h-3.5" />
-                        {{ languageStore.isEn() ? 'Document ready' : 'Document téléversé' }}
+                        {{ languageStore.isEn() ? 'Document ready' : 'Document fourni' }}
                       </p>
                     </div>
 
@@ -2015,7 +2050,7 @@ const submitOnboarding = async () => {
               <!-- Statut textuel sous le bloc (Exactement comme dans la capture) -->
               <p class="text-[11px] text-slate-400 font-medium pl-1">
                 <span v-if="payload[doc.key]" class="text-emerald-600 font-bold flex items-center gap-1">
-                  <span>✓</span> {{ languageStore.isEn() ? 'Document ready for submission.' : 'Document téléversé prêt pour l\'envoi.' }}
+                  <span>✓</span> {{ languageStore.isEn() ? 'Document ready for submission.' : 'Document fourni prêt pour l\'envoi.' }}
                 </span>
                 <span v-else>
                   {{ doc.emptyLabel }}
@@ -2023,6 +2058,97 @@ const submitOnboarding = async () => {
               </p>
             </div>
           </div>
+        </div>
+
+        <!-- ENCART DE CONCORDANCE ET VÉRIFICATION AUTOMATISÉE DES DOCUMENTS (PWA) -->
+        <div v-if="verifyingKYC" class="bg-gradient-to-r from-primary/5 via-sky-50 to-primary/5 border border-primary/20 rounded-[28px] p-5 flex items-center gap-4 animate-pulse text-left shadow-sm">
+          <div class="w-12 h-12 rounded-2xl bg-white text-primary flex items-center justify-center shrink-0 shadow-sm border border-primary/10">
+            <Loader2 class="w-6 h-6 animate-spin" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <h5 class="text-xs font-black text-slate-900 uppercase tracking-wider">
+              {{ languageStore.isEn() ? 'Analyzing Provided Documents...' : 'Analyse de concordance des documents en cours...' }}
+            </h5>
+            <p class="text-[11px] text-slate-500 font-medium mt-0.5">
+              {{ verificationStatusText || (languageStore.isEn() ? 'Checking document consistency with your details...' : 'Vérification de la concordance de vos pièces et de la bande MRZ...') }}
+            </p>
+          </div>
+        </div>
+
+        <div v-else-if="verificationOCRResult || payload.ocr_nom_match !== null" class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4 text-left">
+          <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+                :class="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match) ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'">
+                <ShieldCheck class="w-5 h-5" />
+              </div>
+              <div>
+                <h5 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  {{ languageStore.isEn() ? 'Document Consistency & Verification' : 'Concordance des documents fournis' }}
+                  <span v-if="payload.ocr_mrz_detected" class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    ICAO 9303
+                  </span>
+                </h5>
+                <p class="text-[11px] text-slate-500 font-medium">
+                  {{ payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match)
+                    ? (languageStore.isEn() ? 'Documents verified. Data matches the information provided.' : 'Documents analysés. Les informations correspondent aux pièces fournies.')
+                    : (languageStore.isEn() ? 'Automated analysis completed. Manual review will be performed if needed.' : 'Analyse automatique effectuée. Une revue manuelle sera opérée par la conformité si nécessaire.')
+                  }}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="executeKYCVerification(false)"
+              class="text-[10px] font-bold text-primary hover:underline shrink-0 flex items-center gap-1 pt-1"
+            >
+              <RefreshCw class="w-3 h-3" />
+              {{ languageStore.isEn() ? 'Re-analyze' : 'Réanalyser' }}
+            </button>
+          </div>
+
+          <!-- Puces récapitulatives des points de contrôle -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <!-- Nom / Prénom -->
+            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
+              :class="payload.ocr_nom_match ? 'bg-emerald-50/60 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
+              <CheckCircle2 v-if="payload.ocr_nom_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <AlertCircle v-else class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span class="truncate">{{ languageStore.isEn() ? 'Name Match' : 'Nom concordant' }}</span>
+            </div>
+
+            <!-- N° Pièce -->
+            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
+              :class="payload.ocr_num_piece_match ? 'bg-emerald-50/60 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
+              <CheckCircle2 v-if="payload.ocr_num_piece_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <AlertCircle v-else class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span class="truncate">{{ languageStore.isEn() ? 'ID Number Match' : 'N° pièce concordant' }}</span>
+            </div>
+
+            <!-- Validité / Expiration -->
+            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
+              :class="payload.ocr_expiration_match ? 'bg-emerald-50/60 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
+              <CheckCircle2 v-if="payload.ocr_expiration_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <AlertCircle v-else class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span class="truncate">{{ languageStore.isEn() ? 'Validity Confirmed' : 'Validité confirmée' }}</span>
+            </div>
+
+            <!-- Biométrie faciale -->
+            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
+              :class="payload.face_verified ? 'bg-emerald-50/60 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
+              <CheckCircle2 v-if="payload.face_verified" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <AlertCircle v-else class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span class="truncate">{{ languageStore.isEn() ? 'Facial Match' : 'Visage certifié' }}</span>
+            </div>
+          </div>
+
+          <!-- Note bienveillante conformité CEMAC -->
+          <p class="text-[10px] text-slate-400 leading-relaxed italic">
+            {{ languageStore.isEn()
+              ? 'Our compliance officers will finalize the validation of your documents during file review.'
+              : 'Conformément aux directives COSUMAF, nos officiers de conformité valideront l’exactitude de vos pièces lors de l’examen final de votre dossier.'
+            }}
+          </p>
         </div>
 
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">

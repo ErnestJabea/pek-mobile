@@ -179,7 +179,7 @@ export const translations = {
     sub_bank_name: "Banque :",
     sub_account_holder: "Titulaire :",
     sub_iban_rib: "RIB / IBAN :",
-    sub_upload_proof: "Téléverser la preuve de virement",
+    sub_upload_proof: "Fournir la preuve de virement",
 
     // --- My Subscriptions ---
     my_subs_title: "Mes Placements",
