@@ -739,11 +739,22 @@ const onNatureClientChange = () => {
     payload.value.situation_mat = ''
     clearError('civ')
     clearError('situation_mat')
+    if (!payload.value.dob && dobDay.value && dobMonth.value && dobYear.value) {
+      payload.value.dob = `${dobYear.value}-${String(dobMonth.value).padStart(2, '0')}-${String(dobDay.value).padStart(2, '0')}`
+    }
   } else {
     payload.value.categorie_client = 'Particulier'
     if (!payload.value.situation_mat) payload.value.situation_mat = 'Célibataire'
     if (!payload.value.civ) payload.value.civ = 'M.'
     clearError('rccm')
+    if (payload.value.dob) {
+      const parts = payload.value.dob.split('-')
+      if (parts.length === 3) {
+        dobYear.value = parts[0]
+        dobMonth.value = String(parseInt(parts[1]))
+        dobDay.value = String(parseInt(parts[2]))
+      }
+    }
   }
 }
 
@@ -1234,17 +1245,34 @@ const expDay = ref('')
 const expMonth = ref('')
 const expYear = ref('')
 
-// Max year for DOB is current year - 21 (and let's go back 100 years)
+// Max year for DOB is current year - 21 for physique, or currentYear for morale
 const currentYear = new Date().getFullYear()
+const todayDateString = computed(() => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+})
+
 const dobYearsList = computed(() => {
   const years = []
-  const maxYear = currentYear - 21
+  const maxYear = payload.value.nature_client === 'personne_morale' ? currentYear : currentYear - 21
   const minYear = currentYear - 100
   for (let y = maxYear; y >= minYear; y--) {
     years.push(String(y))
   }
   return years
 })
+
+const onCorporateDateChange = () => {
+  clearError('dob')
+  if (payload.value.dob) {
+    const parts = payload.value.dob.split('-')
+    if (parts.length === 3) {
+      dobYear.value = parts[0]
+      dobMonth.value = String(parseInt(parts[1]))
+      dobDay.value = String(parseInt(parts[2]))
+    }
+  }
+}
 
 // Expiration years: valid year to valid year + 30
 const expYearsList = computed(() => {
@@ -1858,7 +1886,22 @@ const submitOnboarding = async () => {
               <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">
                 {{ payload.nature_client === 'personne_morale' ? (languageStore.isEn() ? 'Date of Incorporation *' : 'Date de création / immatriculation *') : (languageStore.isEn() ? 'Date of Birth *' : 'Date de Naissance *') }}
               </label>
-              <div class="grid grid-cols-3 gap-2">
+              <!-- Pour Personne Morale : Un champ direct avec sélecteur de date (input type="date") -->
+              <div v-if="payload.nature_client === 'personne_morale'" class="relative">
+                <input 
+                  type="date" 
+                  v-model="payload.dob" 
+                  :max="todayDateString"
+                  @change="onCorporateDateChange"
+                  @input="clearError('dob')"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all cursor-pointer"
+                  :aria-invalid="validationErrors.dob ? 'true' : 'false'"
+                  :aria-describedby="validationErrors.dob ? 'dob-error' : null"
+                />
+              </div>
+
+              <!-- Pour Personne Physique : Sélecteurs Jour / Mois / Année (avec limite 21 ans) -->
+              <div v-else class="grid grid-cols-3 gap-2">
                 <!-- Jour -->
                 <select v-model="dobDay" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
                   <option value="" disabled>{{ languageStore.isEn() ? 'Day' : 'Jour' }}</option>
