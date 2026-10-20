@@ -647,19 +647,32 @@ const executeKYCVerification = async (silent = false) => {
 }
 
 const personnePhysiqueCategories = [
-  'Particulier',
-  'Professionnel',
-  'Institutionnel'
+  'Salarié secteur privé',
+  'Salarié secteur public',
+  'Profession libérale',
+  'Commerçant / entrepreneur',
+  'Agent des organismes internationaux',
+  'Chômeur'
 ]
 
 const availableClientCategories = computed(() => {
-  return [...personnePhysiqueCategories]
+  const list = [...personnePhysiqueCategories]
+  const currentCat = payload.value.categorie_client
+  if (
+    currentCat && 
+    currentCat !== 'Personne Morale' && 
+    currentCat !== 'Personne Physique' && 
+    !list.includes(currentCat)
+  ) {
+    list.push(currentCat)
+  }
+  return list
 })
 
 const onNatureClientChange = () => {
   payload.value.nature_client = 'personne_physique'
-  if (!payload.value.categorie_client || !personnePhysiqueCategories.includes(payload.value.categorie_client)) {
-    payload.value.categorie_client = 'Particulier'
+  if (!payload.value.categorie_client || (!personnePhysiqueCategories.includes(payload.value.categorie_client) && payload.value.categorie_client !== 'Particulier')) {
+    payload.value.categorie_client = 'Salarié secteur privé'
   }
   if (!payload.value.situation_mat) payload.value.situation_mat = 'Célibataire'
   if (!payload.value.civ) payload.value.civ = 'M.'
@@ -679,14 +692,24 @@ const formatCategory = (cat) => {
   if (!cat) return ''
   if (!languageStore.isEn()) {
     switch (cat) {
-      case 'Particulier': return 'Particulier (Recommandé)'
+      case 'Salarié secteur privé': return 'Salarié secteur privé'
+      case 'Salarié secteur public': return 'Salarié secteur public'
+      case 'Profession libérale': return 'Profession libérale'
+      case 'Commerçant / entrepreneur': return 'Commerçant / entrepreneur'
+      case 'Agent des organismes internationaux': return 'Agent des organismes internationaux'
+      case 'Chômeur': return 'Chômeur / Sans emploi'
+      case 'Particulier': return 'Particulier'
       default: return cat
     }
   }
   switch (cat) {
-    case 'Particulier': return 'Individual (Recommended)'
-    case 'Professionnel': return 'Professional'
-    case 'Institutionnel': return 'Institutional'
+    case 'Salarié secteur privé': return 'Private Sector Employee'
+    case 'Salarié secteur public': return 'Public Sector Employee'
+    case 'Agent des organismes internationaux': return 'International Organization Official'
+    case 'Profession libérale': return 'Self-Employed / Liberal Professional'
+    case 'Commerçant / entrepreneur': return 'Trader / Entrepreneur'
+    case 'Chômeur': return 'Unemployed'
+    case 'Particulier': return 'Individual'
     default: return cat
   }
 }
@@ -730,7 +753,7 @@ const formatIncomeSourceLabel = (key) => {
 // Support des compléments d'informations pour les dossiers déjà finalisés / validés
 const serverNeedsCategory = ref(false)
 const updatingMissingCategory = ref(false)
-const missingCategoryValue = ref('Particulier')
+const missingCategoryValue = ref('Salarié secteur privé')
 const missingCategorySuccess = ref(false)
 
 const submitMissingCategory = async () => {
@@ -760,7 +783,7 @@ const payload = ref({
   // KYC Step
   civ: 'M.',
   nature_client: 'personne_physique',
-  categorie_client: 'Particulier',
+  categorie_client: 'Salarié secteur privé',
   nom: '',
   prenom: '',
   nat: 'Camerounaise',
@@ -850,10 +873,10 @@ const initSession = async () => {
     if (!payload.value.tel) payload.value.tel = authStore.user.phone || ''
     if (authStore.user.country) payload.value.pays_residence = authStore.user.country
     payload.value.nature_client = 'personne_physique'
-    if (authStore.user.categorie_client && personnePhysiqueCategories.includes(authStore.user.categorie_client)) {
+    if (authStore.user.categorie_client && (personnePhysiqueCategories.includes(authStore.user.categorie_client) || authStore.user.categorie_client === 'Particulier')) {
       payload.value.categorie_client = authStore.user.categorie_client
     } else {
-      payload.value.categorie_client = 'Particulier'
+      payload.value.categorie_client = 'Salarié secteur privé'
     }
   }
 
@@ -909,13 +932,13 @@ const initSession = async () => {
             if (payload.value.doc_photo) docFileNames.value.doc_photo = 'Photo récente (enregistrée)'
             if (payload.value.doc_origine_fonds) docFileNames.value.doc_origine_fonds = 'Origine des fonds (enregistré)'
             payload.value.nature_client = 'personne_physique'
-            if (!payload.value.categorie_client || !personnePhysiqueCategories.includes(payload.value.categorie_client)) {
-              payload.value.categorie_client = 'Particulier'
+            if (!payload.value.categorie_client || (!personnePhysiqueCategories.includes(payload.value.categorie_client) && payload.value.categorie_client !== 'Particulier')) {
+              payload.value.categorie_client = 'Salarié secteur privé'
             }
           }
         }
         const existingCat = authStore.user?.categorie_client || serverSession?.payload?.categorie_client
-        const normalizedCat = (existingCat && personnePhysiqueCategories.includes(existingCat)) ? existingCat : 'Particulier'
+        const normalizedCat = (existingCat && (personnePhysiqueCategories.includes(existingCat) || existingCat === 'Particulier')) ? existingCat : 'Salarié secteur privé'
         serverNeedsCategory.value = response.data.needs_category === true || !normalizedCat
         if (normalizedCat) {
           missingCategoryValue.value = normalizedCat
@@ -1299,22 +1322,15 @@ const nextStep = async () => {
     const birthDate = new Date(payload.value.dob)
     const today = new Date()
 
-    if (isMorale) {
-      if (birthDate > today) {
-        validationErrors.value.dob = "La date de création ne peut pas être dans le futur."
-        return
-      }
-    } else {
-      let age = today.getFullYear() - birthDate.getFullYear()
-      const monthDiff = today.getMonth() - birthDate.getMonth()
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--
-      }
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
 
-      if (age < 21) {
-        validationErrors.value.dob = "Vous devez être âgé d'au moins 21 ans pour procéder à l'onboarding."
-        return
-      }
+    if (age < 21) {
+      validationErrors.value.dob = "Vous devez être âgé d'au moins 21 ans pour procéder à l'onboarding."
+      return
     }
     const targetStep = identityRequired.value ? 'identity' : 'risk'
     if (!await syncWithServer(targetStep)) return
@@ -2612,10 +2628,7 @@ const submitOnboarding = async () => {
             </p>
             <div class="relative">
               <select v-model="missingCategoryValue" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
-                <option value="Particulier">{{ languageStore.isEn() ? 'Individual (Recommended)' : 'Particulier (Recommandé)' }}</option>
-                <option value="Entreprises non financières">{{ languageStore.isEn() ? 'Non-Financial Corporates (SME, LLC)' : 'Entreprises non financières (SARL, SA, PME)' }}</option>
-                <option value="Professionnel">{{ languageStore.isEn() ? 'Professional' : 'Professionnel' }}</option>
-                <option value="Institutionnel">{{ languageStore.isEn() ? 'Institutional' : 'Institutionnel' }}</option>
+                <option v-for="cat in availableClientCategories" :key="cat" :value="cat">{{ formatCategory(cat) }}</option>
               </select>
               <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
