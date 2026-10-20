@@ -166,29 +166,43 @@ const dynamicSupportingDocs = computed(() => {
     idDocs = [
       {
         key: 'doc_piece_identite',
-        title: "Passeport — Page d'identité avec photo",
-        hint: "Page principale du passeport avec photo, signature et bande MRZ",
+        title: languageStore.isEn() ? "1. Identity Document (Main page with photo)" : "1. Pièce d'identité (Recto / Document principal)",
+        hint: languageStore.isEn() ? "Main passport page with photo, signature and MRZ line" : "Page principale du passeport avec photo, signature et bande MRZ",
+        emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
+        required: true,
+      },
+      {
+        key: 'doc_piece_verso',
+        title: languageStore.isEn() ? "2. Identity Document (Reverse - not required)" : "2. Pièce d'identité (Verso - non requis)",
+        hint: languageStore.isEn() ? "Passports do not have a reverse side" : "Le passeport n'a pas de face arrière",
+        emptyLabel: languageStore.isEn() ? "Not required for a passport." : "Non requis pour un passeport.",
+        accept: 'image/*,.pdf',
+        allowCamera: false,
+        cameraTarget: 'piece_verso',
         required: false,
+        disabled: true,
       }
     ]
   } else if (pieceType === 'Carte Résident') {
     idDocs = [
       {
         key: 'doc_piece_identite',
-        title: "Titre de séjour — Recto (Face avant)",
-        hint: "Face avant de la carte / titre de séjour avec photo",
+        title: languageStore.isEn() ? "1. Residence Permit (Front side)" : "1. Pièce d'identité (Recto / Document principal)",
+        hint: languageStore.isEn() ? "Front side of the residence card/permit with photo" : "Face avant du titre de séjour avec photo",
+        emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
-        required: false,
+        required: true,
       },
       {
         key: 'doc_piece_verso',
-        title: "Titre de séjour — Verso (Face arrière)",
-        hint: "Face arrière de la carte / titre de séjour",
+        title: languageStore.isEn() ? "2. Residence Permit (Back side - optional)" : "2. Pièce d'identité (Verso - optionnel)",
+        hint: languageStore.isEn() ? "Back side of the residence card/permit" : "Face arrière du titre de séjour",
+        emptyLabel: languageStore.isEn() ? "No reverse side uploaded." : "Aucun verso téléversé.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_verso',
@@ -199,17 +213,19 @@ const dynamicSupportingDocs = computed(() => {
     idDocs = [
       {
         key: 'doc_piece_identite',
-        title: "Permis de conduire — Recto (Face avant)",
-        hint: "Face avant du permis de conduire avec photo",
+        title: languageStore.isEn() ? "1. Driver License (Front side)" : "1. Pièce d'identité (Recto / Document principal)",
+        hint: languageStore.isEn() ? "Front side of driver license with photo" : "Face avant du permis de conduire avec photo",
+        emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
-        required: false,
+        required: true,
       },
       {
         key: 'doc_piece_verso',
-        title: "Permis de conduire — Verso (Face arrière)",
-        hint: "Face arrière du permis de conduire avec catégories",
+        title: languageStore.isEn() ? "2. Driver License (Back side - optional)" : "2. Pièce d'identité (Verso - optionnel)",
+        hint: languageStore.isEn() ? "Back side of driver license with categories" : "Face arrière du permis de conduire avec catégories",
+        emptyLabel: languageStore.isEn() ? "No reverse side uploaded." : "Aucun verso téléversé.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_verso',
@@ -221,17 +237,19 @@ const dynamicSupportingDocs = computed(() => {
     idDocs = [
       {
         key: 'doc_piece_identite',
-        title: "CNI — Recto (Face avant avec photo)",
-        hint: "Face avant de la Carte Nationale d'Identité",
+        title: languageStore.isEn() ? "1. Identity Document (Front / Main document)" : "1. Pièce d'identité (Recto / Document principal)",
+        hint: languageStore.isEn() ? "Front side of National ID Card with photo" : "Face avant de la Carte Nationale d'Identité avec photo",
+        emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
-        required: false,
+        required: true,
       },
       {
         key: 'doc_piece_verso',
-        title: "CNI — Verso (Face arrière)",
-        hint: "Face arrière de la Carte Nationale d'Identité avec bande MRZ",
+        title: languageStore.isEn() ? "2. Identity Document (Back side - optional)" : "2. Pièce d'identité (Verso - optionnel)",
+        hint: languageStore.isEn() ? "Back side of National ID Card with MRZ line" : "Face arrière de la Carte Nationale d'Identité avec bande MRZ",
+        emptyLabel: languageStore.isEn() ? "No reverse side uploaded." : "Aucun verso téléversé.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_verso',
@@ -243,8 +261,9 @@ const dynamicSupportingDocs = computed(() => {
   const commonDocs = [
     {
       key: 'doc_photo',
-      title: "Photo d'identité récente / Selfie",
-      hint: "Photo nette de face ou prise directe par caméra",
+      title: languageStore.isEn() ? "3. Recent Identity Photo / Selfie" : "3. Photo d'identité récente",
+      hint: languageStore.isEn() ? "Clear frontal photo or instant camera selfie" : "Photo nette de face ou prise directe par caméra",
+      emptyLabel: languageStore.isEn() ? "No photo uploaded." : "Aucune photo téléversée.",
       accept: 'image/*',
       allowCamera: true,
       cameraTarget: 'selfie_live',
@@ -252,16 +271,18 @@ const dynamicSupportingDocs = computed(() => {
     },
     {
       key: 'doc_justificatif_domicile',
-      title: "Justificatif de domicile (< 3 mois)",
-      hint: "Facture Eneo/Camtap, attestation de résidence ou relevé bancaire",
+      title: languageStore.isEn() ? "4. Proof of Address (< 3 months)" : "4. Justificatif de domicile (< 3 mois)",
+      hint: languageStore.isEn() ? "Utility bill (Eneo/water), certificate of residence or bank statement" : "Facture Eneo/Camtap, attestation de résidence ou relevé bancaire",
+      emptyLabel: languageStore.isEn() ? "No proof uploaded." : "Aucun justificatif téléversé.",
       accept: 'image/*,.pdf',
       allowCamera: false,
       required: false,
     },
     {
       key: 'doc_origine_fonds',
-      title: "Justificatif d'origine des fonds",
-      hint: "Fiche de paie, attestation d'employeur ou contrat de travail",
+      title: languageStore.isEn() ? "5. Proof of Origin of Funds" : "5. Justificatif d'origine des fonds",
+      hint: languageStore.isEn() ? "Payslip, employer certificate, commercial register or employment contract" : "Fiche de paie, attestation d'employeur ou contrat de travail",
+      emptyLabel: languageStore.isEn() ? "No document uploaded." : "Aucun document téléversé.",
       accept: 'image/*,.pdf',
       allowCamera: false,
       required: false,
@@ -423,6 +444,14 @@ const removeSupportingDoc = (field) => {
   } else if (field === 'doc_photo') {
     removeDocument('selfie_live')
   }
+}
+
+const getDocPreviewUrl = (key) => {
+  const val = payload.value[key] || ''
+  if (!val) return ''
+  if (val.startsWith('data:image')) return val
+  if (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('/')) return val
+  return ''
 }
 
 const openCamera = async (target) => {
@@ -832,10 +861,26 @@ const initSession = async () => {
             if (payload.value.piece_recto && !payload.value.doc_piece_identite) {
               payload.value.doc_piece_identite = payload.value.piece_recto
             }
+            if (payload.value.piece_verso && !payload.value.doc_piece_verso) {
+              payload.value.doc_piece_verso = payload.value.piece_verso
+            }
             if (payload.value.selfie_live && !payload.value.doc_photo) {
               payload.value.doc_photo = payload.value.selfie_live
             }
+            if (serverSession.doc_piece_identite && !payload.value.doc_piece_identite) {
+              payload.value.doc_piece_identite = serverSession.doc_piece_identite
+            }
+            if (serverSession.doc_justificatif_domicile && !payload.value.doc_justificatif_domicile) {
+              payload.value.doc_justificatif_domicile = serverSession.doc_justificatif_domicile
+            }
+            if (serverSession.doc_photo && !payload.value.doc_photo) {
+              payload.value.doc_photo = serverSession.doc_photo
+            }
+            if (serverSession.doc_origine_fonds && !payload.value.doc_origine_fonds) {
+              payload.value.doc_origine_fonds = serverSession.doc_origine_fonds
+            }
             if (payload.value.doc_piece_identite) docFileNames.value.doc_piece_identite = 'Pièce d’identité (enregistrée)'
+            if (payload.value.doc_piece_verso) docFileNames.value.doc_piece_verso = 'Verso de la pièce (enregistré)'
             if (payload.value.doc_justificatif_domicile) docFileNames.value.doc_justificatif_domicile = 'Justificatif de domicile (enregistré)'
             if (payload.value.doc_photo) docFileNames.value.doc_photo = 'Photo récente (enregistrée)'
             if (payload.value.doc_origine_fonds) docFileNames.value.doc_origine_fonds = 'Origine des fonds (enregistré)'
@@ -1806,6 +1851,177 @@ const submitOnboarding = async () => {
             <p v-if="validationErrors.expiration_piece" id="expiration_piece-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.expiration_piece }}
             </p>
+          </div>
+        </div>
+
+        <!-- 5 BLOCS DE TÉLÉVERSEMENT KYC (EXACT DU BACKOFFICE) -->
+        <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-6 text-left">
+          <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <div>
+              <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                <FileText class="w-4 h-4 text-primary" />
+                {{ languageStore.isEn() ? 'KYC Supporting Documents' : 'Documents & Justificatifs KYC' }}
+              </h4>
+              <p class="text-[11px] text-slate-400 font-medium mt-0.5">
+                {{ languageStore.isEn() ? 'Import the requested documents into their respective areas (JPG, PNG, PDF).' : 'Importez les pièces demandées dans leurs espaces et blocs respectifs (JPG, PNG, PDF).' }}
+              </p>
+            </div>
+            <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary">5 Blocs</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div
+              v-for="(doc, idx) in dynamicSupportingDocs"
+              :key="doc.key"
+              class="space-y-2"
+              :class="{ 'md:col-span-2': idx === 4 }"
+            >
+              <!-- Titre et indicateur de statut -->
+              <div class="flex items-center justify-between pl-1">
+                <label class="text-xs font-black text-slate-800 tracking-tight">
+                  {{ doc.title }}
+                </label>
+                <span
+                  class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
+                  :class="doc.required ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-400'"
+                >
+                  {{ doc.required ? (languageStore.isEn() ? 'Required' : 'Requis') : (languageStore.isEn() ? 'Optional' : 'Optionnel') }}
+                </span>
+              </div>
+
+              <!-- Zone de Dépôt / Drag & Drop -->
+              <div
+                @dragover.prevent="!doc.disabled && (dragActive[doc.key] = true)"
+                @dragleave.prevent="dragActive[doc.key] = false"
+                @drop.prevent="!doc.disabled && handleFileDrop($event, doc.key)"
+                class="relative border-2 border-dashed rounded-2xl p-5 text-center transition-all flex flex-col items-center justify-center min-h-[140px]"
+                :class="[
+                  doc.disabled ? 'bg-slate-100/60 border-slate-200 cursor-not-allowed opacity-60' :
+                  payload[doc.key] ? 'border-emerald-300 bg-emerald-50/30' :
+                  dragActive[doc.key] ? 'border-primary bg-primary/5 scale-[1.01]' : 'border-slate-200 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300'
+                ]"
+              >
+                <!-- Input file caché -->
+                <input
+                  :ref="(el) => registerFileInput(el, doc.key)"
+                  type="file"
+                  :accept="doc.accept || 'image/*,.pdf'"
+                  class="hidden"
+                  :disabled="doc.disabled"
+                  @change="handleFileInputChange($event, doc.key)"
+                />
+
+                <!-- ÉTAT 1 : Document déjà chargé -->
+                <div v-if="payload[doc.key]" class="w-full space-y-3">
+                  <div class="flex items-center gap-3 bg-white p-3 rounded-xl border border-emerald-100 shadow-sm text-left">
+                    <!-- Aperçu Image ou Icône PDF -->
+                    <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                      <img
+                        v-if="getDocPreviewUrl(doc.key)"
+                        :src="getDocPreviewUrl(doc.key)"
+                        alt="Aperçu"
+                        class="w-full h-full object-cover"
+                      />
+                      <FileText v-else class="w-6 h-6 text-primary" />
+                    </div>
+
+                    <!-- Infos document -->
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-bold text-slate-800 truncate">
+                        {{ docFileNames[doc.key] || (languageStore.isEn() ? 'Uploaded file' : 'Fichier téléversé') }}
+                      </p>
+                      <p class="text-[10px] font-semibold text-emerald-600 flex items-center gap-1 mt-0.5">
+                        <CheckCircle2 class="w-3.5 h-3.5" />
+                        {{ languageStore.isEn() ? 'Document ready' : 'Document téléversé' }}
+                      </p>
+                    </div>
+
+                    <!-- Bouton Supprimer -->
+                    <button
+                      type="button"
+                      @click="removeSupportingDoc(doc.key)"
+                      class="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-all shrink-0 active:scale-95"
+                      :title="languageStore.isEn() ? 'Remove document' : 'Supprimer le document'"
+                    >
+                      <Trash2 class="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <!-- Actions secondaires de remplacement -->
+                  <div class="flex items-center justify-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      @click="triggerBrowse(doc.key)"
+                      class="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Upload class="w-3.5 h-3.5" />
+                      {{ languageStore.isEn() ? 'Replace file' : 'Remplacer le fichier' }}
+                    </button>
+                    <span v-if="doc.allowCamera" class="text-slate-300">•</span>
+                    <button
+                      v-if="doc.allowCamera"
+                      type="button"
+                      @click="openCamera(doc.cameraTarget)"
+                      class="text-[11px] font-bold text-slate-600 hover:text-slate-800 flex items-center gap-1"
+                    >
+                      <Camera class="w-3.5 h-3.5" />
+                      {{ languageStore.isEn() ? 'Retake photo' : 'Reprendre une photo' }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- ÉTAT 2 : Aucun document (Faites glisser vos fichiers ou Parcourir) -->
+                <div v-else-if="!doc.disabled" class="space-y-3 py-1">
+                  <div class="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-400 flex items-center justify-center mx-auto shadow-sm">
+                    <Upload class="w-5 h-5 text-slate-500" />
+                  </div>
+
+                  <div class="space-y-1">
+                    <p class="text-xs font-semibold text-slate-600">
+                      {{ languageStore.isEn() ? 'Drag your files or' : 'Faites glisser vos fichiers ou' }}
+                      <button
+                        type="button"
+                        @click="triggerBrowse(doc.key)"
+                        class="text-primary font-bold hover:underline ml-1 cursor-pointer"
+                      >
+                        {{ languageStore.isEn() ? 'Browse' : 'Parcourir' }}
+                      </button>
+                    </p>
+                    <p class="text-[10px] text-slate-400 font-medium">
+                      {{ doc.hint }}
+                    </p>
+                  </div>
+
+                  <!-- Bouton caméra rapide si autorisé -->
+                  <div v-if="doc.allowCamera" class="pt-1">
+                    <button
+                      type="button"
+                      @click="openCamera(doc.cameraTarget)"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-[11px] font-bold text-slate-700 hover:border-primary/40 hover:text-primary transition-all shadow-sm active:scale-95"
+                    >
+                      <Camera class="w-3.5 h-3.5 text-primary" />
+                      {{ languageStore.isEn() ? 'Take photo directly' : 'Prendre une photo en direct' }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- ÉTAT 3 : Désactivé (ex: Verso d'un passeport) -->
+                <div v-else class="space-y-1 py-3 text-slate-400">
+                  <p class="text-xs font-bold">{{ languageStore.isEn() ? 'No reverse side required' : 'Aucun verso requis pour ce type de pièce' }}</p>
+                  <p class="text-[10px]">{{ languageStore.isEn() ? 'The main identity page of the passport is sufficient.' : 'La page principale avec photo et bande MRZ est suffisante.' }}</p>
+                </div>
+              </div>
+
+              <!-- Statut textuel sous le bloc (Exactement comme dans la capture) -->
+              <p class="text-[11px] text-slate-400 font-medium pl-1">
+                <span v-if="payload[doc.key]" class="text-emerald-600 font-bold flex items-center gap-1">
+                  <span>✓</span> {{ languageStore.isEn() ? 'Document ready for submission.' : 'Document téléversé prêt pour l\'envoi.' }}
+                </span>
+                <span v-else>
+                  {{ doc.emptyLabel }}
+                </span>
+              </p>
+            </div>
           </div>
         </div>
 
