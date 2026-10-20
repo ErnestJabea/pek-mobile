@@ -533,7 +533,8 @@ export async function verifyIDDocumentOCR(
 
   let worker = null
   try {
-    if (onProgress) onProgress("Initialisation de la reconnaissance de texte (OCR)...")
+    let currentDocMeta = { docKey: 'piece_recto', docTitle: "Pièce d'identité (Recto)" }
+    if (onProgress) onProgress("Initialisation du moteur de reconnaissance OCR...", { ...currentDocMeta, progress: 5 })
 
     worker = await createWorker(['fra', 'eng'], 1, {
       workerPath: '/ocr/worker.min.js',
@@ -543,7 +544,11 @@ export async function verifyIDDocumentOCR(
       logger: m => {
         if (onProgress && m.status === 'recognizing text') {
           const pct = Math.round((m.progress || 0) * 100)
-          onProgress(`Lecture des mentions de la pièce... ${pct}%`)
+          onProgress(`Lecture des mentions (${currentDocMeta.docTitle})... ${pct}%`, {
+            ...currentDocMeta,
+            progress: pct,
+            status: m.status
+          })
         }
       }
     })
@@ -552,14 +557,20 @@ export async function verifyIDDocumentOCR(
 
     // 1. Scan Recto
     if (rectoBase64) {
-      const rectoText = await recognizeWithRotations(worker, rectoBase64, knownOrientation, onProgress)
+      currentDocMeta = { docKey: 'piece_recto', docTitle: "Pièce d'identité (Recto)" }
+      if (onProgress) onProgress("Lecture de la pièce d'identité (Recto)...", { ...currentDocMeta, progress: 10, status: 'started' })
+      const rectoText = await recognizeWithRotations(worker, rectoBase64, knownOrientation)
       rawText += '\n' + rectoText
+      if (onProgress) onProgress("Pièce d'identité (Recto) analysée.", { ...currentDocMeta, progress: 100, status: 'completed' })
     }
 
     // 2. Scan Verso (often contains unique ID, expiration date and MRZ line)
     if (versoBase64) {
-      const versoText = await recognizeWithRotations(worker, versoBase64, knownOrientation, onProgress)
+      currentDocMeta = { docKey: 'piece_verso', docTitle: "Pièce d'identité (Verso & MRZ)" }
+      if (onProgress) onProgress("Lecture de la pièce d'identité (Verso & MRZ)...", { ...currentDocMeta, progress: 10, status: 'started' })
+      const versoText = await recognizeWithRotations(worker, versoBase64, knownOrientation)
       rawText += '\n' + versoText
+      if (onProgress) onProgress("Pièce d'identité (Verso) analysée.", { ...currentDocMeta, progress: 100, status: 'completed' })
     }
 
     const cleanOcr = normalizeStr(rawText)
@@ -632,7 +643,8 @@ export async function verifyIDDocumentOCR(
     let domicileMatch = null
     if (domicileBase64) {
       try {
-        if (onProgress) onProgress("Vérification du justificatif de domicile...")
+        currentDocMeta = { docKey: 'doc_justificatif_domicile', docTitle: "Justificatif de domicile" }
+        if (onProgress) onProgress("Vérification du justificatif de domicile...", { ...currentDocMeta, progress: 15, status: 'started' })
         const domText = await recognizeWithRotations(worker, domicileBase64, 0)
         const domNorm = normalizeStr(domText)
         const nomInDom = Boolean(fields.nom && tokenMatchesInText(fields.nom, domNorm))
@@ -641,6 +653,7 @@ export async function verifyIDDocumentOCR(
         const isUtilityBill = domNorm.includes('ENEO') || domNorm.includes('CAMWATER') || domNorm.includes('FACTURE') || domNorm.includes('EAU') || domNorm.includes('ELECTRICITE') || domNorm.includes('RESIDENCE') || domNorm.includes('CERTIFICAT') || domNorm.includes('DOMICILE') || domNorm.includes('RELEVE')
 
         domicileMatch = (nomInDom || prenomInDom) || (cityInDom && isUtilityBill) || isUtilityBill
+        if (onProgress) onProgress("Justificatif de domicile analysé.", { ...currentDocMeta, progress: 100, status: 'completed' })
       } catch (domErr) {
         console.warn('Erreur OCR justificatif domicile:', domErr)
       }
@@ -650,7 +663,8 @@ export async function verifyIDDocumentOCR(
     let fondsMatch = null
     if (fondsBase64) {
       try {
-        if (onProgress) onProgress("Vérification du justificatif d'origine des fonds...")
+        currentDocMeta = { docKey: 'doc_origine_fonds', docTitle: "Origine des fonds" }
+        if (onProgress) onProgress("Vérification du justificatif d'origine des fonds...", { ...currentDocMeta, progress: 15, status: 'started' })
         const fondsText = await recognizeWithRotations(worker, fondsBase64, 0)
         const fondsNorm = normalizeStr(fondsText)
         const nomInFonds = Boolean(fields.nom && tokenMatchesInText(fields.nom, fondsNorm))
@@ -658,6 +672,7 @@ export async function verifyIDDocumentOCR(
         const isFinancialDoc = fondsNorm.includes('SALAIRE') || fondsNorm.includes('BULLETIN') || fondsNorm.includes('PAIE') || fondsNorm.includes('VIREMENT') || fondsNorm.includes('CONTRAT') || fondsNorm.includes('REVENU') || fondsNorm.includes('IMPOT') || fondsNorm.includes('RCCM') || fondsNorm.includes('HONORAIRE') || fondsNorm.includes('ATTESTATION') || fondsNorm.includes('EMPLOYEUR') || fondsNorm.includes('BANQUE')
 
         fondsMatch = (nomInFonds && isFinancialDoc) || (employerInFonds && isFinancialDoc) || isFinancialDoc
+        if (onProgress) onProgress("Justificatif d'origine des fonds analysé.", { ...currentDocMeta, progress: 100, status: 'completed' })
       } catch (fondsErr) {
         console.warn('Erreur OCR justificatif fonds:', fondsErr)
       }
