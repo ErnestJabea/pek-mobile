@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronLeft, User, UserCheck, ChevronDown, ShieldCheck, HelpCircle, FileText, CheckCircle2, AlertCircle, PenTool, WifiOff, RefreshCw, Loader2, ArrowRight, Camera, Upload, Trash2, X } from 'lucide-vue-next'
+import { ChevronLeft, User, UserCheck, ChevronDown, ShieldCheck, ShieldAlert, HelpCircle, FileText, CheckCircle2, XCircle, AlertCircle, PenTool, WifiOff, RefreshCw, Loader2, ArrowRight, Camera, Upload, Trash2, X } from 'lucide-vue-next'
 import api from '../api/api'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
@@ -1911,7 +1911,7 @@ const submitOnboarding = async () => {
                 {{ languageStore.isEn() ? 'Import the requested documents into their respective areas (JPG, PNG, PDF).' : 'Importez les pièces demandées dans leurs espaces et blocs respectifs (JPG, PNG, PDF).' }}
               </p>
             </div>
-            <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary">5 Blocs</span>
+            <!-- <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary">5 Blocs</span> -->
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -2089,8 +2089,9 @@ const submitOnboarding = async () => {
           <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                :class="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match) ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'">
-                <ShieldCheck class="w-5 h-5" />
+                :class="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match) ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'">
+                <ShieldCheck v-if="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match)" class="w-5 h-5" />
+                <ShieldAlert v-else class="w-5 h-5" />
               </div>
               <div>
                 <h5 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -2102,7 +2103,7 @@ const submitOnboarding = async () => {
                 <p class="text-[11px] text-slate-500 font-medium">
                   {{ payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match)
                     ? (languageStore.isEn() ? 'Documents verified. Data matches the information provided.' : 'Documents analysés. Les informations correspondent aux pièces fournies.')
-                    : (languageStore.isEn() ? 'Automated analysis completed. Manual review will be performed if needed.' : 'Analyse automatique effectuée. Une revue manuelle sera opérée par la conformité si nécessaire.')
+                    : (languageStore.isEn() ? 'Discrepancies detected. Manual review will be performed by compliance if needed.' : 'Des non-concordances ont été relevées. Une revue manuelle sera opérée par la conformité si nécessaire.')
                   }}
                 </p>
               </div>
@@ -2117,38 +2118,58 @@ const submitOnboarding = async () => {
             </button>
           </div>
 
-          <!-- Puces récapitulatives des points de contrôle -->
+          <!-- Puces récapitulatives des points de contrôle : Vert si correct, Rouge si non correct -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <!-- Nom / Prénom -->
-            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
-              :class="payload.ocr_nom_match ? 'bg-emerald-50/60 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
+            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition-all"
+              :class="payload.ocr_nom_match ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' : 'bg-rose-50 border-rose-300 text-rose-800 shadow-sm'">
               <CheckCircle2 v-if="payload.ocr_nom_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <AlertCircle v-else class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span class="truncate">{{ languageStore.isEn() ? 'Name Match' : 'Nom concordant' }}</span>
+              <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span class="truncate">
+                {{ payload.ocr_nom_match 
+                  ? (languageStore.isEn() ? 'Name Match' : 'Nom concordant') 
+                  : (languageStore.isEn() ? 'Name Mismatch' : 'Nom non concordant') 
+                }}
+              </span>
             </div>
 
             <!-- N° Pièce -->
-            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
-              :class="payload.ocr_num_piece_match ? 'bg-emerald-50/60 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
+            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition-all"
+              :class="payload.ocr_num_piece_match ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' : 'bg-rose-50 border-rose-300 text-rose-800 shadow-sm'">
               <CheckCircle2 v-if="payload.ocr_num_piece_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <AlertCircle v-else class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span class="truncate">{{ languageStore.isEn() ? 'ID Number Match' : 'N° pièce concordant' }}</span>
+              <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span class="truncate">
+                {{ payload.ocr_num_piece_match 
+                  ? (languageStore.isEn() ? 'ID Number Match' : 'N° pièce concordant') 
+                  : (languageStore.isEn() ? 'ID Number Mismatch' : 'N° pièce non concordant') 
+                }}
+              </span>
             </div>
 
             <!-- Validité / Expiration -->
-            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
-              :class="payload.ocr_expiration_match ? 'bg-emerald-50/60 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
+            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition-all"
+              :class="payload.ocr_expiration_match ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' : 'bg-rose-50 border-rose-300 text-rose-800 shadow-sm'">
               <CheckCircle2 v-if="payload.ocr_expiration_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <AlertCircle v-else class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span class="truncate">{{ languageStore.isEn() ? 'Validity Confirmed' : 'Validité confirmée' }}</span>
+              <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span class="truncate">
+                {{ payload.ocr_expiration_match 
+                  ? (languageStore.isEn() ? 'Validity Confirmed' : 'Validité confirmée') 
+                  : (languageStore.isEn() ? 'Validity Unconfirmed' : 'Validité non confirmée') 
+                }}
+              </span>
             </div>
 
             <!-- Biométrie faciale -->
-            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
-              :class="payload.face_verified ? 'bg-emerald-50/60 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'">
+            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition-all"
+              :class="payload.face_verified ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' : 'bg-rose-50 border-rose-300 text-rose-800 shadow-sm'">
               <CheckCircle2 v-if="payload.face_verified" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <AlertCircle v-else class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span class="truncate">{{ languageStore.isEn() ? 'Facial Match' : 'Visage certifié' }}</span>
+              <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span class="truncate">
+                {{ payload.face_verified 
+                  ? (languageStore.isEn() ? 'Facial Match' : 'Visage certifié') 
+                  : (languageStore.isEn() ? 'Face Unconfirmed' : 'Visage non certifié') 
+                }}
+              </span>
             </div>
           </div>
 
