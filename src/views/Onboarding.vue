@@ -706,20 +706,26 @@ const personnePhysiqueCategories = [
 ]
 
 const personneMoraleCategories = [
-  'Personne Morale',
+  'Entreprises non financières',
   'Institutionnel',
   'Professionnel',
-  'Entreprises non financières',
   'Banques / Établissements financiers',
   'OPC / Sociétés de gestion'
 ]
 
 const availableClientCategories = computed(() => {
-  const list = payload.value.nature_client === 'personne_morale'
+  const isMorale = payload.value.nature_client === 'personne_morale'
+  const list = isMorale
     ? [...personneMoraleCategories]
     : [...personnePhysiqueCategories]
-  if (payload.value.categorie_client && !list.includes(payload.value.categorie_client)) {
-    list.unshift(payload.value.categorie_client)
+  const currentCat = payload.value.categorie_client
+  if (
+    currentCat && 
+    currentCat !== 'Personne Morale' && 
+    currentCat !== 'Personne Physique' && 
+    !list.includes(currentCat)
+  ) {
+    list.unshift(currentCat)
   }
   return list
 })
@@ -728,13 +734,13 @@ const onNatureClientChange = () => {
   clearError('nature_client')
   clearError('categorie_client')
   if (payload.value.nature_client === 'personne_morale') {
-    payload.value.categorie_client = personneMoraleCategories[0]
+    payload.value.categorie_client = 'Entreprises non financières'
     payload.value.civ = ''
     payload.value.situation_mat = ''
     clearError('civ')
     clearError('situation_mat')
   } else {
-    payload.value.categorie_client = personnePhysiqueCategories[0]
+    payload.value.categorie_client = 'Particulier'
     if (!payload.value.situation_mat) payload.value.situation_mat = 'Célibataire'
     if (!payload.value.civ) payload.value.civ = 'M.'
     clearError('rccm')
@@ -743,7 +749,13 @@ const onNatureClientChange = () => {
 
 const formatCategory = (cat) => {
   if (!cat) return ''
-  if (!languageStore.isEn()) return cat
+  if (!languageStore.isEn()) {
+    switch (cat) {
+      case 'Entreprises non financières': return 'Entreprises non financières (Sociétés, PME, SARL, SA)'
+      case 'Particulier': return 'Particulier (Recommandé)'
+      default: return cat
+    }
+  }
   switch (cat) {
     case 'Salarié secteur public': return 'Public Sector Employee'
     case 'Salarié secteur privé': return 'Private Sector Employee'
@@ -754,14 +766,13 @@ const formatCategory = (cat) => {
     case 'Particulier': return 'Individual (Recommended)'
     case 'Professionnel': return 'Professional'
     case 'Institutionnel': return 'Institutional'
-    case 'Personne Morale': return 'Corporate Entity'
     case 'Banques': return 'Banks'
     case 'OPC': return 'UCITS / Investment Funds'
     case 'Caisses de dépôt et consignation (CDC)': return 'Deposit and Consignment Funds (CDC)'
     case 'Autres institutions financières': return 'Other Financial Institutions'
     case 'Sociétés de bourse': return 'Brokerage Firms'
     case "Société de gestion d'OPC": return 'Asset Management Company'
-    case 'Entreprises non financières': return 'Non-Financial Corporates'
+    case 'Entreprises non financières': return 'Non-Financial Corporates (SME, LLC, Corp)'
     case 'Banques / Établissements financiers': return 'Banks / Financial Institutions'
     case 'OPC / Sociétés de gestion': return 'UCITS / Asset Managers'
     default: return cat
@@ -932,7 +943,11 @@ const initSession = async () => {
         ? 'personne_morale' 
         : 'personne_physique'
     }
-    if (authStore.user.categorie_client) payload.value.categorie_client = authStore.user.categorie_client
+    if (authStore.user.categorie_client) {
+      payload.value.categorie_client = authStore.user.categorie_client === 'Personne Morale'
+        ? 'Entreprises non financières'
+        : authStore.user.categorie_client
+    }
   }
 
   const mapRevenus = {
@@ -986,12 +1001,16 @@ const initSession = async () => {
             if (payload.value.doc_justificatif_domicile) docFileNames.value.doc_justificatif_domicile = 'Justificatif de domicile (enregistré)'
             if (payload.value.doc_photo) docFileNames.value.doc_photo = 'Photo récente (enregistrée)'
             if (payload.value.doc_origine_fonds) docFileNames.value.doc_origine_fonds = 'Origine des fonds (enregistré)'
+            if (payload.value.nature_client === 'personne_morale' && (!payload.value.categorie_client || payload.value.categorie_client === 'Personne Morale')) {
+              payload.value.categorie_client = 'Entreprises non financières'
+            }
           }
         }
         const existingCat = authStore.user?.categorie_client || serverSession?.payload?.categorie_client
-        serverNeedsCategory.value = response.data.needs_category === true || !existingCat
-        if (existingCat) {
-          missingCategoryValue.value = existingCat
+        const normalizedCat = existingCat === 'Personne Morale' ? 'Entreprises non financières' : existingCat
+        serverNeedsCategory.value = response.data.needs_category === true || !normalizedCat
+        if (normalizedCat) {
+          missingCategoryValue.value = normalizedCat
         }
       }
     } catch (e) {
@@ -2724,9 +2743,9 @@ const submitOnboarding = async () => {
             <div class="relative">
               <select v-model="missingCategoryValue" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-xs font-bold text-slate-900 focus:border-primary outline-none transition-all appearance-none cursor-pointer">
                 <option value="Particulier">{{ languageStore.isEn() ? 'Individual (Recommended)' : 'Particulier (Recommandé)' }}</option>
+                <option value="Entreprises non financières">{{ languageStore.isEn() ? 'Non-Financial Corporates (SME, LLC)' : 'Entreprises non financières (SARL, SA, PME)' }}</option>
                 <option value="Professionnel">{{ languageStore.isEn() ? 'Professional' : 'Professionnel' }}</option>
                 <option value="Institutionnel">{{ languageStore.isEn() ? 'Institutional' : 'Institutionnel' }}</option>
-                <option value="Personne Morale">{{ languageStore.isEn() ? 'Corporate entity' : 'Personne Morale' }}</option>
               </select>
               <ChevronDown class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
