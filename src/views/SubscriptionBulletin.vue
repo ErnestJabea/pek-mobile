@@ -300,6 +300,9 @@ onBeforeUnmount(() => {
                 <img v-if="data?.signature_client" :src="data.signature_client" alt="Signature Client" />
               </div>
               <div class="signature-nom">{{ data?.nom_complet }}</div>
+              <div v-if="data?.representant_legal" class="text-[9px] text-[#5E3208] -mt-0.5 mb-0.5">
+                (Représentée par {{ data.representant_legal }})
+              </div>
               <div class="signature-date">Date : {{ data?.date_valeur }}</div>
             </td>
             <td style="width: 4%;"></td>

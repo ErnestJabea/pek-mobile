@@ -158,6 +158,59 @@ const cameraError = ref(null)
 
 // Supporting documents configuration (matching Backoffice & KYC requirements)
 const dynamicSupportingDocs = computed(() => {
+  if (payload.value.nature_client === 'personne_morale') {
+    return [
+      {
+        key: 'doc_piece_identite',
+        title: languageStore.isEn() ? "1. Legal Representative ID (Front / Main)" : "1. Pièce d'identité du représentant légal (Recto)",
+        hint: languageStore.isEn() ? "National ID Card or Passport of the legal representative with photo" : "Face avant de la CNI ou page principale du passeport du représentant légal",
+        emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
+        accept: 'image/*,.pdf',
+        allowCamera: true,
+        cameraTarget: 'piece_recto',
+        required: true,
+      },
+      {
+        key: 'doc_piece_verso',
+        title: languageStore.isEn() ? "2. Legal Representative ID (Reverse - optional)" : "2. Pièce d'identité du représentant légal (Verso)",
+        hint: languageStore.isEn() ? "Reverse side of the representative's ID card" : "Face arrière de la pièce d'identité du représentant légal",
+        emptyLabel: languageStore.isEn() ? "No reverse side provided." : "Aucun verso fourni.",
+        accept: 'image/*,.pdf',
+        allowCamera: true,
+        cameraTarget: 'piece_verso',
+        required: false,
+      },
+      {
+        key: 'doc_photo',
+        title: languageStore.isEn() ? "3. Trade Register (RCCM) or Certified Articles" : "3. Registre du Commerce (RCCM) ou Statuts notariés",
+        hint: languageStore.isEn() ? "RCCM extract (< 3 months), notarized statutes or registration declaration (DFE)" : "Extrait RCCM officiel (< 3 mois), statuts notariés certifiés ou déclaration d'existence (DFE)",
+        emptyLabel: languageStore.isEn() ? "No corporate register provided." : "Aucun extrait RCCM fourni.",
+        accept: 'image/*,.pdf',
+        allowCamera: true,
+        cameraTarget: 'doc_photo',
+        required: true,
+      },
+      {
+        key: 'doc_justificatif_domicile',
+        title: languageStore.isEn() ? "4. Proof of Head Office Address (< 3 months)" : "4. Justificatif de Siège Social (< 3 mois)",
+        hint: languageStore.isEn() ? "Commercial lease contract, corporate utility bill (Eneo/water) or location plan" : "Bail commercial, facture Eneo/eau au nom de l'entreprise ou plan de localisation certifié",
+        emptyLabel: languageStore.isEn() ? "No head office proof provided." : "Aucun justificatif de siège social fourni.",
+        accept: 'image/*,.pdf',
+        allowCamera: false,
+        required: false,
+      },
+      {
+        key: 'doc_origine_fonds',
+        title: languageStore.isEn() ? "5. Corporate Financial Proof / Origin of Funds" : "5. Justificatif Financier de l'Entreprise",
+        hint: languageStore.isEn() ? "Certified balance sheet, tax declaration (DFE) or corporate bank statement (< 3 months)" : "Dernier bilan certifié, déclaration fiscale d'existence (DFE) ou relevé de compte bancaire entreprise",
+        emptyLabel: languageStore.isEn() ? "No financial document provided." : "Aucun justificatif financier fourni.",
+        accept: 'image/*,.pdf',
+        allowCamera: false,
+        required: false,
+      }
+    ]
+  }
+
   const pieceType = payload.value.piece || 'CNI'
   
   let idDocs = []
@@ -676,8 +729,15 @@ const onNatureClientChange = () => {
   clearError('categorie_client')
   if (payload.value.nature_client === 'personne_morale') {
     payload.value.categorie_client = personneMoraleCategories[0]
+    payload.value.civ = ''
+    payload.value.situation_mat = ''
+    clearError('civ')
+    clearError('situation_mat')
   } else {
     payload.value.categorie_client = personnePhysiqueCategories[0]
+    if (!payload.value.situation_mat) payload.value.situation_mat = 'Célibataire'
+    if (!payload.value.civ) payload.value.civ = 'M.'
+    clearError('rccm')
   }
 }
 
@@ -780,6 +840,7 @@ const payload = ref({
   categorie_client: 'Particulier',
   nom: '',
   prenom: '',
+  rccm: '',
   nat: 'Camerounaise',
   dob: '',
   lieu_naiss: '',
@@ -866,6 +927,12 @@ const initSession = async () => {
     if (!payload.value.email) payload.value.email = authStore.user.email || ''
     if (!payload.value.tel) payload.value.tel = authStore.user.phone || ''
     if (authStore.user.country) payload.value.pays_residence = authStore.user.country
+    if (authStore.user.nature_client) {
+      payload.value.nature_client = authStore.user.nature_client.toLowerCase().includes('morale') 
+        ? 'personne_morale' 
+        : 'personne_physique'
+    }
+    if (authStore.user.categorie_client) payload.value.categorie_client = authStore.user.categorie_client
   }
 
   const mapRevenus = {
@@ -1254,23 +1321,28 @@ const nextStep = async () => {
   try {
   
   if (currentStep.value === 'kyc') {
-    if (!payload.value.civ) {
+    const isMorale = payload.value.nature_client === 'personne_morale'
+
+    if (!isMorale && !payload.value.civ) {
       validationErrors.value.civ = "La civilité est obligatoire."
     }
     if (!payload.value.nom || payload.value.nom.trim() === '') {
-      validationErrors.value.nom = "Le nom est obligatoire."
+      validationErrors.value.nom = isMorale ? "La raison sociale est obligatoire." : "Le nom est obligatoire."
     }
     if (!payload.value.prenom || payload.value.prenom.trim() === '') {
-      validationErrors.value.prenom = "Le prénom est obligatoire."
+      validationErrors.value.prenom = isMorale ? "Le représentant légal est obligatoire." : "Le prénom est obligatoire."
     }
-    if (!payload.value.situation_mat) {
+    if (isMorale && (!payload.value.rccm || payload.value.rccm.trim() === '')) {
+      validationErrors.value.rccm = "Le numéro RCCM est obligatoire."
+    }
+    if (!isMorale && !payload.value.situation_mat) {
       validationErrors.value.situation_mat = "La situation matrimoniale est obligatoire."
     }
     if (!payload.value.dob) {
-      validationErrors.value.dob = "La date de naissance est obligatoire."
+      validationErrors.value.dob = isMorale ? "La date de création / immatriculation est obligatoire." : "La date de naissance est obligatoire."
     }
     if (!payload.value.lieu_naiss || payload.value.lieu_naiss.trim() === '') {
-      validationErrors.value.lieu_naiss = "Le lieu de naissance est obligatoire."
+      validationErrors.value.lieu_naiss = isMorale ? "La ville du siège social / lieu d'immatriculation est obligatoire." : "Le lieu de naissance est obligatoire."
     }
     if (!payload.value.nat) {
       validationErrors.value.nat = "La nationalité est obligatoire."
@@ -1282,7 +1354,7 @@ const nextStep = async () => {
       validationErrors.value.email = "L'adresse e-mail est obligatoire."
     }
     if (!payload.value.adresse || payload.value.adresse.trim() === '') {
-      validationErrors.value.adresse = "L'adresse de résidence est obligatoire."
+      validationErrors.value.adresse = isMorale ? "L'adresse du siège social est obligatoire." : "L'adresse de résidence est obligatoire."
     }
     if (!payload.value.piece) {
       validationErrors.value.piece = "Le type de pièce est obligatoire."
@@ -1298,25 +1370,29 @@ const nextStep = async () => {
       validationErrors.value.expiration_piece = getExpirationErrorMessage(languageStore.isEn())
     }
 
-    // Les pièces justificatives KYC sont facultatives pour fluidifier l'onboarding
-    // Le backoffice pourra demander les documents manquants lors de la revue manuelle
-
     if (Object.keys(validationErrors.value).length > 0) {
       return
     }
 
-    // Check age >= 21
     const birthDate = new Date(payload.value.dob)
     const today = new Date()
-    let age = today.getFullYear() - birthDate.getFullYear()
-    const monthDiff = today.getMonth() - birthDate.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--
-    }
 
-    if (age < 21) {
-      validationErrors.value.dob = "Vous devez être âgé d'au moins 21 ans pour procéder à l'onboarding."
-      return
+    if (isMorale) {
+      if (birthDate > today) {
+        validationErrors.value.dob = "La date de création ne peut pas être dans le futur."
+        return
+      }
+    } else {
+      let age = today.getFullYear() - birthDate.getFullYear()
+      const monthDiff = today.getMonth() - birthDate.getMonth()
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--
+      }
+
+      if (age < 21) {
+        validationErrors.value.dob = "Vous devez être âgé d'au moins 21 ans pour procéder à l'onboarding."
+        return
+      }
     }
     const targetStep = identityRequired.value ? 'identity' : 'risk'
     if (!await syncWithServer(targetStep)) return
@@ -1672,8 +1748,20 @@ const submitOnboarding = async () => {
         </div>
 
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
-          <!-- Civilité -->
+          <!-- Nature du client (Personne Physique vs Personne Morale) -->
           <div class="space-y-2 text-left">
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Client Nature *' : 'Nature du client *' }}</label>
+            <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
+              <button type="button" @click="payload.nature_client = 'personne_physique'; onNatureClientChange()" :class="payload.nature_client === 'personne_physique' ? 'bg-primary text-white shadow-sm font-black' : 'text-slate-600 font-bold'" class="flex-1 py-2.5 px-3 rounded-lg text-xs uppercase transition-all">{{ languageStore.isEn() ? 'Natural Person' : 'Personne Physique' }}</button>
+              <button type="button" @click="payload.nature_client = 'personne_morale'; onNatureClientChange()" :class="payload.nature_client === 'personne_morale' ? 'bg-primary text-white shadow-sm font-black' : 'text-slate-600 font-bold'" class="flex-1 py-2.5 px-3 rounded-lg text-xs uppercase transition-all">{{ languageStore.isEn() ? 'Corporate Entity' : 'Personne Morale' }}</button>
+            </div>
+            <p v-if="validationErrors.nature_client" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+              {{ validationErrors.nature_client }}
+            </p>
+          </div>
+
+          <!-- Civilité (Uniquement pour Personne Physique) -->
+          <div v-if="payload.nature_client !== 'personne_morale'" class="space-y-2 text-left">
             <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Civility *' : 'Civilité *' }}</label>
             <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
               <button type="button" @click="payload.civ = 'M.'; clearError('civ')" :class="payload.civ === 'M.' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Mr.' : 'Monsieur' }}</button>
@@ -1681,18 +1769,6 @@ const submitOnboarding = async () => {
             </div>
             <p v-if="validationErrors.civ" id="civ-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.civ }}
-            </p>
-          </div>
-
-          <!-- Nature du client (Personne Physique vs Personne Morale) -->
-          <div class="space-y-2 text-left">
-            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Client Nature *' : 'Nature du client *' }}</label>
-            <div class="flex bg-slate-100 p-1 rounded-xl gap-1">
-              <button type="button" @click="payload.nature_client = 'personne_physique'; onNatureClientChange()" :class="payload.nature_client === 'personne_physique' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Natural Person' : 'Personne Physique' }}</button>
-              <button type="button" @click="payload.nature_client = 'personne_morale'; onNatureClientChange()" :class="payload.nature_client === 'personne_morale' ? 'bg-primary text-white shadow-sm' : 'text-slate-500'" class="flex-1 py-2.5 px-3 rounded-lg text-xs font-black uppercase transition-all">{{ languageStore.isEn() ? 'Corporate Entity' : 'Personne Morale' }}</button>
-            </div>
-            <p v-if="validationErrors.nature_client" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
-              {{ validationErrors.nature_client }}
             </p>
           </div>
 
@@ -1710,26 +1786,41 @@ const submitOnboarding = async () => {
             </p>
           </div>
 
-          <!-- Nom et Prénom -->
-          <div class="grid grid-cols-2 gap-4">
+          <!-- Identité : Nom / Raison Sociale et Prénom / Représentant Légal -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Last Name *' : 'Nom *' }}</label>
-              <input v-model="payload.nom" @blur="clearError('nom')" @input="clearError('nom')" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.nom ? 'true' : 'false'" :aria-describedby="validationErrors.nom ? 'nom-error' : null">
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">
+                {{ payload.nature_client === 'personne_morale' ? (languageStore.isEn() ? 'Company Name / Business Name *' : 'Raison Sociale / Dénomination *') : (languageStore.isEn() ? 'Last Name *' : 'Nom *') }}
+              </label>
+              <input v-model="payload.nom" @blur="clearError('nom')" @input="clearError('nom')" type="text" :placeholder="payload.nature_client === 'personne_morale' ? 'Ex: E-JABBING SARL' : 'Ex: KAMGA'" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.nom ? 'true' : 'false'" :aria-describedby="validationErrors.nom ? 'nom-error' : null">
               <p v-if="validationErrors.nom" id="nom-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
                 {{ validationErrors.nom }}
               </p>
             </div>
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'First Name *' : 'Prénom *' }}</label>
-              <input v-model="payload.prenom" @blur="clearError('prenom')" @input="clearError('prenom')" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.prenom ? 'true' : 'false'" :aria-describedby="validationErrors.prenom ? 'prenom-error' : null">
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">
+                {{ payload.nature_client === 'personne_morale' ? (languageStore.isEn() ? 'Legal Representative (Full Name & Title) *' : 'Représentant Légal (Nom, Prénom & Qualité) *') : (languageStore.isEn() ? 'First Name *' : 'Prénom *') }}
+              </label>
+              <input v-model="payload.prenom" @blur="clearError('prenom')" @input="clearError('prenom')" type="text" :placeholder="payload.nature_client === 'personne_morale' ? 'Ex: Jean DUPONT (Gérant)' : 'Ex: Jean'" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.prenom ? 'true' : 'false'" :aria-describedby="validationErrors.prenom ? 'prenom-error' : null">
               <p v-if="validationErrors.prenom" id="prenom-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
                 {{ validationErrors.prenom }}
               </p>
             </div>
           </div>
 
-          <!-- Situation Matrimoniale -->
-          <div class="space-y-2 text-left">
+          <!-- N° RCCM (Uniquement pour Personne Morale) -->
+          <div v-if="payload.nature_client === 'personne_morale'" class="space-y-2 text-left">
+            <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">
+              {{ languageStore.isEn() ? 'Trade Register (RCCM) *' : 'N° RCCM (Registre du Commerce) *' }}
+            </label>
+            <input v-model="payload.rccm" @blur="clearError('rccm')" @input="clearError('rccm')" type="text" placeholder="Ex: RC/DLA/2023/B/1234" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.rccm ? 'true' : 'false'" :aria-describedby="validationErrors.rccm ? 'rccm-error' : null">
+            <p v-if="validationErrors.rccm" id="rccm-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+              {{ validationErrors.rccm }}
+            </p>
+          </div>
+
+          <!-- Situation Matrimoniale (Uniquement pour Personne Physique) -->
+          <div v-if="payload.nature_client !== 'personne_morale'" class="space-y-2 text-left">
             <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Marital Status *' : 'Situation Matrimoniale *' }}</label>
             <select v-model="payload.situation_mat" @change="clearError('situation_mat')" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.situation_mat ? 'true' : 'false'" :aria-describedby="validationErrors.situation_mat ? 'situation_mat-error' : null">
               <option value="Célibataire">{{ languageStore.isEn() ? 'Single' : 'Célibataire' }}</option>
@@ -1742,10 +1833,12 @@ const submitOnboarding = async () => {
             </p>
           </div>
 
-          <!-- Date de naissance et Lieu -->
+          <!-- Date de naissance / création et Lieu -->
           <div class="space-y-4">
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Date of Birth *' : 'Date de Naissance *' }}</label>
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">
+                {{ payload.nature_client === 'personne_morale' ? (languageStore.isEn() ? 'Date of Incorporation *' : 'Date de création / immatriculation *') : (languageStore.isEn() ? 'Date of Birth *' : 'Date de Naissance *') }}
+              </label>
               <div class="grid grid-cols-3 gap-2">
                 <!-- Jour -->
                 <select v-model="dobDay" class="bg-slate-50 border border-slate-100 rounded-2xl py-3 px-3 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all text-center">
@@ -1769,8 +1862,10 @@ const submitOnboarding = async () => {
             </div>
             
             <div class="space-y-2 text-left">
-              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Place of Birth *' : 'Lieu Naissance *' }}</label>
-              <input v-model="payload.lieu_naiss" @blur="clearError('lieu_naiss')" @input="clearError('lieu_naiss')" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.lieu_naiss ? 'true' : 'false'" :aria-describedby="validationErrors.lieu_naiss ? 'lieu_naiss-error' : null">
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">
+                {{ payload.nature_client === 'personne_morale' ? (languageStore.isEn() ? 'Head Office City / Registration Place *' : "Ville du Siège / Lieu d'immatriculation *") : (languageStore.isEn() ? 'Place of Birth *' : 'Lieu Naissance *') }}
+              </label>
+              <input v-model="payload.lieu_naiss" @blur="clearError('lieu_naiss')" @input="clearError('lieu_naiss')" type="text" :placeholder="payload.nature_client === 'personne_morale' ? 'Ex: Douala' : 'Ex: Yaoundé'" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all" :aria-invalid="validationErrors.lieu_naiss ? 'true' : 'false'" :aria-describedby="validationErrors.lieu_naiss ? 'lieu_naiss-error' : null">
               <p v-if="validationErrors.lieu_naiss" id="lieu_naiss-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
                 {{ validationErrors.lieu_naiss }}
               </p>
@@ -2151,7 +2246,7 @@ const submitOnboarding = async () => {
           </p>
         </div>
 
-        <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
+        <div v-if="payload.nature_client !== 'personne_morale'" class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
           <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">{{ languageStore.isEn() ? 'Occupation' : 'Profession' }}</h4>
           
           <div class="space-y-4">
@@ -2162,6 +2257,16 @@ const submitOnboarding = async () => {
             <div class="space-y-2 text-left">
               <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Employer (Optional)' : 'Employeur (Optionnel)' }}</label>
               <input v-model="payload.employeur" type="text" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all">
+            </div>
+          </div>
+        </div>
+        <div v-else class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
+          <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">{{ languageStore.isEn() ? 'Company Business Sector' : 'Secteur d\'activité de l\'Entreprise' }}</h4>
+          
+          <div class="space-y-4">
+            <div class="space-y-2 text-left">
+              <label class="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">{{ languageStore.isEn() ? 'Activity / Sector (Optional)' : 'Activité / Secteur (Optionnel)' }}</label>
+              <input v-model="payload.secteur" type="text" :placeholder="languageStore.isEn() ? 'Ex: Commerce, Construction, IT...' : 'Ex: Commerce, BTP, Télécoms, Services...'" class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-900 focus:border-primary outline-none transition-all font-semibold">
             </div>
           </div>
         </div>

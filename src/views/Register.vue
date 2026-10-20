@@ -103,8 +103,10 @@ const clearError = (field) => {
 }
 
 const form = ref({
+  nature_client: 'personne_physique',
   first_name: '',
   last_name: '',
+  rccm: '',
   email: '',
   phone_prefix: '+237',
   phone: '',
@@ -219,10 +221,25 @@ const handleNext = async () => {
   if (step.value === 1) {
     // Frontend validation for registration required fields
     if (!form.value.first_name || form.value.first_name.trim() === '') {
-      validationErrors.value.first_name = [languageStore.isEn() ? 'First name is required.' : 'Le prénom est obligatoire.']
+      validationErrors.value.first_name = [
+        form.value.nature_client === 'personne_morale'
+          ? (languageStore.isEn() ? 'Legal representative name is required.' : 'Le nom du représentant légal est obligatoire.')
+          : (languageStore.isEn() ? 'First name is required.' : 'Le prénom est obligatoire.')
+      ]
     }
     if (!form.value.last_name || form.value.last_name.trim() === '') {
-      validationErrors.value.last_name = [languageStore.isEn() ? 'Last name is required.' : 'Le nom est obligatoire.']
+      validationErrors.value.last_name = [
+        form.value.nature_client === 'personne_morale'
+          ? (languageStore.isEn() ? 'Company name is required.' : 'La raison sociale est obligatoire.')
+          : (languageStore.isEn() ? 'Last name is required.' : 'Le nom est obligatoire.')
+      ]
+    }
+    if (form.value.nature_client === 'personne_morale') {
+      if (!form.value.rccm || form.value.rccm.trim() === '') {
+        validationErrors.value.rccm = [
+          languageStore.isEn() ? 'Trade register number (RCCM) is required.' : 'Le numéro RCCM est obligatoire.'
+        ]
+      }
     }
     if (!form.value.email || form.value.email.trim() === '') {
       validationErrors.value.email = [languageStore.isEn() ? 'Email address is required.' : 'L\'adresse e-mail est obligatoire.']
@@ -347,21 +364,101 @@ const handleNext = async () => {
       </div>
 
       <div v-if="step === 1" class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('first_name_label') }}</label>
-            <input v-model="form.first_name" @blur="clearError('first_name')" @input="clearError('first_name')" type="text" placeholder="Jean" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.first_name ? 'true' : 'false'" :aria-describedby="validationErrors.first_name ? 'first_name-error' : null">
-            <p v-if="validationErrors.first_name" id="first_name-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
-              {{ validationErrors.first_name[0] }}
-            </p>
+        <!-- Nature du client (Personne Physique vs Personne Morale) -->
+        <div class="space-y-2 text-left">
+          <label class="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
+            {{ languageStore.isEn() ? 'Client Nature *' : 'Nature du client *' }}
+          </label>
+          <div class="flex bg-slate-100 p-1 rounded-2xl gap-1">
+            <button 
+              type="button" 
+              @click="form.nature_client = 'personne_physique'; clearError('nature_client')" 
+              :class="form.nature_client === 'personne_physique' ? 'bg-primary text-white shadow-sm font-black' : 'text-slate-600 font-bold'" 
+              class="flex-1 py-3 px-3 rounded-xl text-xs uppercase transition-all"
+            >
+              {{ languageStore.isEn() ? 'Natural Person' : 'Personne Physique' }}
+            </button>
+            <button 
+              type="button" 
+              @click="form.nature_client = 'personne_morale'; clearError('nature_client')" 
+              :class="form.nature_client === 'personne_morale' ? 'bg-primary text-white shadow-sm font-black' : 'text-slate-600 font-bold'" 
+              class="flex-1 py-3 px-3 rounded-xl text-xs uppercase transition-all"
+            >
+              {{ languageStore.isEn() ? 'Corporate Entity' : 'Personne Morale' }}
+            </button>
           </div>
-          <div class="space-y-2">
-            <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('last_name_label') }}</label>
-            <input v-model="form.last_name" @blur="clearError('last_name')" @input="clearError('last_name')" type="text" placeholder="Dupont" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 focus:bg-white focus:border-primary transition-all" required :aria-invalid="validationErrors.last_name ? 'true' : 'false'" :aria-describedby="validationErrors.last_name ? 'last_name-error' : null">
+        </div>
+
+        <!-- Identité : Nom / Raison Sociale et Prénom / Représentant Légal -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Si Personne Morale : Raison Sociale -->
+          <div class="space-y-2 text-left" :class="{ 'sm:col-span-2': form.nature_client === 'personne_morale' }">
+            <label class="text-sm font-bold text-slate-700 ml-1">
+              {{ form.nature_client === 'personne_morale' 
+                ? (languageStore.isEn() ? 'Company Name / Business Name *' : 'Raison Sociale / Dénomination *') 
+                : languageStore.t('last_name_label') 
+              }}
+            </label>
+            <input 
+              v-model="form.last_name" 
+              @blur="clearError('last_name')" 
+              @input="clearError('last_name')" 
+              type="text" 
+              :placeholder="form.nature_client === 'personne_morale' ? 'Ex: E-JABBING SARL' : 'Dupont'" 
+              class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 focus:bg-white focus:border-primary transition-all font-semibold" 
+              required 
+              :aria-invalid="validationErrors.last_name ? 'true' : 'false'" 
+              :aria-describedby="validationErrors.last_name ? 'last_name-error' : null"
+            >
             <p v-if="validationErrors.last_name" id="last_name-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
               {{ validationErrors.last_name[0] }}
             </p>
           </div>
+
+          <!-- Prénom / Représentant légal -->
+          <div class="space-y-2 text-left" :class="{ 'sm:col-span-2': form.nature_client === 'personne_morale' }">
+            <label class="text-sm font-bold text-slate-700 ml-1">
+              {{ form.nature_client === 'personne_morale' 
+                ? (languageStore.isEn() ? 'Legal Representative (Full Name & Title) *' : 'Représentant Légal (Nom, Prénom & Qualité) *') 
+                : languageStore.t('first_name_label') 
+              }}
+            </label>
+            <input 
+              v-model="form.first_name" 
+              @blur="clearError('first_name')" 
+              @input="clearError('first_name')" 
+              type="text" 
+              :placeholder="form.nature_client === 'personne_morale' ? 'Ex: Paul DUPONT (Gérant)' : 'Jean'" 
+              class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 focus:bg-white focus:border-primary transition-all font-semibold" 
+              required 
+              :aria-invalid="validationErrors.first_name ? 'true' : 'false'" 
+              :aria-describedby="validationErrors.first_name ? 'first_name-error' : null"
+            >
+            <p v-if="validationErrors.first_name" id="first_name-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+              {{ validationErrors.first_name[0] }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Champ N° RCCM si Personne Morale -->
+        <div v-if="form.nature_client === 'personne_morale'" class="space-y-2 text-left">
+          <label class="text-sm font-bold text-slate-700 ml-1">
+            {{ languageStore.isEn() ? 'Trade Register Number (RCCM) *' : 'N° RCCM (Registre du Commerce) *' }}
+          </label>
+          <input 
+            v-model="form.rccm" 
+            @blur="clearError('rccm')" 
+            @input="clearError('rccm')" 
+            type="text" 
+            placeholder="Ex: RC/DLA/2023/B/1234" 
+            class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 focus:bg-white focus:border-primary transition-all font-semibold" 
+            required 
+            :aria-invalid="validationErrors.rccm ? 'true' : 'false'" 
+            :aria-describedby="validationErrors.rccm ? 'rccm-error' : null"
+          >
+          <p v-if="validationErrors.rccm" id="rccm-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
+            {{ validationErrors.rccm[0] }}
+          </p>
         </div>
 
         <div class="space-y-2">
@@ -433,22 +530,36 @@ const handleNext = async () => {
           </p>
         </div>
 
-        <div class="space-y-2 text-left">
+        <div v-if="form.nature_client !== 'personne_morale'" class="space-y-2 text-left">
           <label class="text-sm font-bold text-slate-700 ml-1">{{ languageStore.t('employer_label') }}</label>
           <div class="relative">
             <User class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input v-model="form.employer" @blur="clearError('employer')" @input="clearError('employer')" type="text" :placeholder="languageStore.isEn() ? 'Company / Self-employed' : 'Entreprise / Auto-entrepreneur'" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all" :aria-invalid="validationErrors.employer ? 'true' : 'false'" :aria-describedby="validationErrors.employer ? 'employer-error' : null">
+            <input v-model="form.employer" @blur="clearError('employer')" @input="clearError('employer')" type="text" :placeholder="languageStore.isEn() ? 'Company / Self-employed' : 'Entreprise / Auto-entrepreneur'" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all font-semibold" :aria-invalid="validationErrors.employer ? 'true' : 'false'" :aria-describedby="validationErrors.employer ? 'employer-error' : null">
           </div>
           <p v-if="validationErrors.employer" id="employer-error" role="alert" class="text-rose-500 text-xs mt-1 ml-1 font-semibold">
             {{ validationErrors.employer[0] }}
           </p>
+        </div>
+        <div v-else class="space-y-2 text-left">
+          <label class="text-sm font-bold text-slate-700 ml-1">
+            {{ languageStore.isEn() ? 'Company Business Sector (Optional)' : 'Secteur d\'activité de l\'entreprise (Optionnel)' }}
+          </label>
+          <div class="relative">
+            <User class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input v-model="form.employer" @blur="clearError('employer')" @input="clearError('employer')" type="text" :placeholder="languageStore.isEn() ? 'Ex: Commerce, Construction, IT...' : 'Ex: Commerce, BTP, Télécoms, Services...'" class="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 focus:bg-white focus:border-primary transition-all font-semibold">
+          </div>
         </div>
 
         <!-- Section Pièce d'identité (Informations) -->
         <div class="p-4 bg-slate-50 border-2 border-slate-100 rounded-3xl space-y-4 text-left">
           <div class="flex items-center gap-2 text-slate-800 font-bold text-sm">
             <FileText class="w-4 h-4 text-primary" />
-            <span>{{ languageStore.isEn() ? 'Identity Document' : "Pièce d'identification" }}</span>
+            <span>
+              {{ form.nature_client === 'personne_morale' 
+                ? (languageStore.isEn() ? 'Legal Representative ID Document' : 'Pièce d\'identité du représentant légal') 
+                : (languageStore.isEn() ? 'Identity Document' : "Pièce d'identification") 
+              }}
+            </span>
           </div>
 
           <div class="grid grid-cols-1 gap-4">
