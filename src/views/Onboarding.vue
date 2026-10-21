@@ -355,11 +355,17 @@ const syncKYCDocuments = (targetField, dataUrl) => {
   kycVerificationCompleted.value = true
 }
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 Mo
+
 const processFileObject = (file, targetField) => {
   if (!file) return
 
-  if (file.size > 8 * 1024 * 1024) {
-    triggerError('Fichier trop volumineux', 'La taille maximale autorisée est de 8 Mo.')
+  if (file.size > MAX_FILE_SIZE) {
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(1)
+    const errorMsg = languageStore.isEn()
+      ? `The file "${file.name}" (${sizeInMB} MB) exceeds the maximum allowed limit of 5 MB. Please select or compress a smaller file.`
+      : `Le fichier « ${file.name} » (${sizeInMB} Mo) dépasse la taille maximale autorisée de 5 Mo. Veuillez choisir ou compresser un fichier de 5 Mo maximum.`
+    triggerError(languageStore.isEn() ? 'File too large (Max 5 MB)' : 'Fichier trop volumineux (Max 5 Mo)', errorMsg)
     return
   }
 
@@ -481,6 +487,47 @@ const getDocPreviewUrl = (key) => {
   return ''
 }
 
+const cameraInputRefs = ref({})
+const registerCameraInput = (el, target) => {
+  if (el) cameraInputRefs.value[target] = el
+}
+
+const handleCameraCapture = (targetField, e) => {
+  const file = e.target.files?.[0]
+  if (file) {
+    if (targetField === 'piece_recto' || targetField === 'doc_piece_identite') {
+      docFileNames.value.doc_piece_identite = languageStore.isEn() ? 'ID Photo (Camera)' : 'Photo Recto (Caméra)'
+      processFileObject(file, 'piece_recto')
+    } else if (targetField === 'piece_verso' || targetField === 'doc_piece_verso') {
+      docFileNames.value.doc_piece_verso = languageStore.isEn() ? 'ID Photo Reverse (Camera)' : 'Photo Verso (Caméra)'
+      processFileObject(file, 'piece_verso')
+    } else if (targetField === 'selfie_live' || targetField === 'doc_photo') {
+      docFileNames.value.doc_photo = languageStore.isEn() ? 'Live Selfie (Camera)' : 'Photo récente / Selfie (Caméra)'
+      processFileObject(file, 'selfie_live')
+    } else {
+      processFileObject(file, targetField)
+    }
+  }
+  e.target.value = ''
+}
+
+const triggerCameraCapture = (target) => {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768
+  const hasSecureWebRTC = window.isSecureContext && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+
+  // Sur smartphone ou en environnement local HTTP non sécurisé, l'input natif capture ouvre directement l'appareil photo du téléphone
+  if (isMobile || !hasSecureWebRTC) {
+    const el = cameraInputRefs.value[target]
+    if (el) {
+      el.click()
+      return
+    }
+  }
+
+  // Sur ordinateur de bureau avec support WebRTC sécurisé, ouvrir la webcam en direct
+  openCamera(target)
+}
+
 const openCamera = async (target) => {
   activeCameraTarget.value = target
   cameraError.value = null
@@ -498,6 +545,12 @@ const openCamera = async (target) => {
   }
 
   try {
+    if (!window.isSecureContext && !location.hostname.includes('localhost') && location.hostname !== '127.0.0.1') {
+      throw new Error(languageStore.isEn()
+        ? 'Direct browser video stream requires HTTPS. Use the phone camera button below.'
+        : 'La vidéo directe dans le navigateur requiert une connexion HTTPS. Utilisez le bouton appareil photo ci-dessous.'
+      )
+    }
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
       mediaStream.value = stream
@@ -512,11 +565,17 @@ const openCamera = async (target) => {
         }
       }, 100)
     } else {
-      throw new Error('Caméra non disponible sur cet appareil.')
+      throw new Error(languageStore.isEn()
+        ? 'Camera not accessible directly. Open phone camera app.'
+        : 'Caméra non accessible directement dans le navigateur. Ouvrez l’appareil photo du téléphone.'
+      )
     }
   } catch (err) {
     console.error('Camera access error:', err)
-    cameraError.value = "Impossible d'activer la caméra. Vérifiez les autorisations du navigateur ou importez un fichier."
+    cameraError.value = err.message || (languageStore.isEn()
+      ? 'Unable to access browser camera. Open phone camera below.'
+      : 'Impossible d’activer la caméra du navigateur. Ouvrez l’appareil photo ci-dessous.'
+    )
   } finally {
     cameraLoading.value = false
   }
@@ -1909,7 +1968,7 @@ const submitOnboarding = async () => {
                 {{ languageStore.isEn() ? 'KYC Supporting Documents' : 'Documents & Justificatifs KYC' }}
               </h4>
               <p class="text-[11px] text-slate-400 font-medium mt-0.5">
-                {{ languageStore.isEn() ? 'Import the requested documents into their respective areas (JPG, PNG, PDF).' : 'Importez les pièces demandées dans leurs espaces et blocs respectifs (JPG, PNG, PDF).' }}
+                {{ languageStore.isEn() ? 'Import the requested documents into their respective areas (JPG, PNG, PDF — Max 5 MB per file).' : 'Importez les pièces demandées dans leurs espaces respectifs (JPG, PNG, PDF — Max 5 Mo par fichier).' }}
               </p>
             </div>
             <!-- <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary">5 Blocs</span> -->
@@ -1927,12 +1986,17 @@ const submitOnboarding = async () => {
                 <label class="text-xs font-black text-slate-800 tracking-tight">
                   {{ doc.title }}
                 </label>
-                <span
-                  class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
-                  :class="doc.required ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-400'"
-                >
-                  {{ doc.required ? (languageStore.isEn() ? 'Required' : 'Requis') : (languageStore.isEn() ? 'Optional' : 'Optionnel') }}
-                </span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-500">
+                    Max 5 Mo
+                  </span>
+                  <span
+                    class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
+                    :class="doc.required ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-400'"
+                  >
+                    {{ doc.required ? (languageStore.isEn() ? 'Required' : 'Requis') : (languageStore.isEn() ? 'Optional' : 'Optionnel') }}
+                  </span>
+                </div>
               </div>
 
               <!-- Zone de Dépôt / Drag & Drop -->
@@ -1947,7 +2011,7 @@ const submitOnboarding = async () => {
                   dragActive[doc.key] ? 'border-primary bg-primary/5 scale-[1.01]' : 'border-slate-200 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300'
                 ]"
               >
-                <!-- Input file caché -->
+                <!-- Input file standard -->
                 <input
                   :ref="(el) => registerFileInput(el, doc.key)"
                   type="file"
@@ -1955,6 +2019,18 @@ const submitOnboarding = async () => {
                   class="hidden"
                   :disabled="doc.disabled"
                   @change="handleFileInputChange($event, doc.key)"
+                />
+
+                <!-- Input caméra natif direct (ouvre instantanément l'appareil photo du smartphone) -->
+                <input
+                  v-if="doc.allowCamera"
+                  :ref="(el) => registerCameraInput(el, doc.cameraTarget || doc.key)"
+                  type="file"
+                  accept="image/*"
+                  :capture="doc.cameraTarget === 'selfie_live' ? 'user' : 'environment'"
+                  class="hidden"
+                  :disabled="doc.disabled"
+                  @change="handleCameraCapture(doc.cameraTarget || doc.key, $event)"
                 />
 
                 <!-- ÉTAT 1 : Document déjà chargé -->
@@ -1998,7 +2074,7 @@ const submitOnboarding = async () => {
                     <button
                       type="button"
                       @click="triggerBrowse(doc.key)"
-                      class="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+                      class="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <Upload class="w-3.5 h-3.5" />
                       {{ languageStore.isEn() ? 'Replace file' : 'Remplacer le fichier' }}
@@ -2007,8 +2083,8 @@ const submitOnboarding = async () => {
                     <button
                       v-if="doc.allowCamera"
                       type="button"
-                      @click="openCamera(doc.cameraTarget)"
-                      class="text-[11px] font-bold text-slate-600 hover:text-slate-800 flex items-center gap-1"
+                      @click="triggerCameraCapture(doc.cameraTarget || doc.key)"
+                      class="text-[11px] font-bold text-slate-600 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
                     >
                       <Camera class="w-3.5 h-3.5" />
                       {{ languageStore.isEn() ? 'Retake photo' : 'Reprendre une photo' }}
@@ -2036,14 +2112,17 @@ const submitOnboarding = async () => {
                     <p class="text-[10px] text-slate-400 font-medium">
                       {{ doc.hint }}
                     </p>
+                    <p class="text-[10px] text-slate-400 font-bold">
+                      Formats : JPG, PNG, PDF • Max 5 Mo
+                    </p>
                   </div>
 
                   <!-- Bouton caméra rapide si autorisé -->
                   <div v-if="doc.allowCamera" class="pt-1">
                     <button
                       type="button"
-                      @click="openCamera(doc.cameraTarget)"
-                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-[11px] font-bold text-slate-700 hover:border-primary/40 hover:text-primary transition-all shadow-sm active:scale-95"
+                      @click="triggerCameraCapture(doc.cameraTarget || doc.key)"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-[11px] font-bold text-slate-700 hover:border-primary/40 hover:text-primary transition-all shadow-sm active:scale-95 cursor-pointer"
                     >
                       <Camera class="w-3.5 h-3.5 text-primary" />
                       {{ languageStore.isEn() ? 'Take photo directly' : 'Prendre une photo en direct' }}
@@ -2643,27 +2722,49 @@ const submitOnboarding = async () => {
     <!-- Camera Capture Modal -->
     <Teleport to="body">
       <div v-if="showCameraModal" class="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
-        <div class="relative bg-white rounded-[32px] p-6 max-w-sm w-full space-y-4 shadow-2xl border border-slate-100 flex flex-col items-center">
+        <div class="relative bg-white rounded-[32px] p-6 max-w-sm w-full space-y-4 shadow-2xl border border-slate-100 flex flex-col items-center text-center">
           <div class="w-full flex items-center justify-between">
             <h4 class="text-sm font-black text-slate-900">
               {{ activeCameraTarget === 'selfie_live' ? (languageStore.isEn() ? 'Take Selfie' : 'Prendre un selfie') : (languageStore.isEn() ? 'Capture Document' : 'Capturer le document') }}
             </h4>
-            <button @click="closeCamera" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+            <button @click="closeCamera" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors cursor-pointer">
               <X class="w-4 h-4" />
             </button>
           </div>
 
-          <div class="relative w-full aspect-4/3 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center">
+          <div class="relative w-full aspect-4/3 bg-slate-950 rounded-2xl overflow-hidden flex flex-col items-center justify-center p-4">
             <Loader2 v-if="cameraLoading" class="w-8 h-8 text-white animate-spin" />
-            <p v-if="cameraError" class="text-rose-400 text-xs text-center p-4 font-semibold">{{ cameraError }}</p>
-            <video ref="cameraVideoRef" autoplay playsinline muted class="w-full h-full object-cover"></video>
+            
+            <div v-else-if="cameraError" class="text-center space-y-3 px-2 z-10 w-full flex flex-col items-center">
+              <div class="w-12 h-12 rounded-full bg-rose-500/15 text-rose-400 flex items-center justify-center border border-rose-500/30">
+                <Camera class="w-6 h-6" />
+              </div>
+              <div class="space-y-1">
+                <p class="text-white text-xs font-bold leading-snug">
+                  {{ languageStore.isEn() ? 'Direct Camera Stream Unavailable' : 'Caméra directe indisponible' }}
+                </p>
+                <p class="text-slate-400 text-[11px] leading-relaxed">
+                  {{ cameraError }}
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="closeCamera(); if (cameraInputRefs[activeCameraTarget]) cameraInputRefs[activeCameraTarget].click()"
+                class="w-full py-2.5 px-4 rounded-xl bg-primary hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer"
+              >
+                <Camera class="w-4 h-4" />
+                {{ languageStore.isEn() ? 'Open Phone Camera' : 'Ouvrir l’appareil photo du téléphone' }}
+              </button>
+            </div>
+
+            <video v-show="!cameraLoading && !cameraError" ref="cameraVideoRef" autoplay playsinline muted class="w-full h-full object-cover"></video>
           </div>
 
           <div class="w-full flex gap-3">
-            <button type="button" @click="closeCamera" class="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs uppercase transition-colors">
+            <button type="button" @click="closeCamera" class="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs uppercase transition-colors cursor-pointer">
               {{ languageStore.isEn() ? 'Cancel' : 'Annuler' }}
             </button>
-            <button type="button" @click="capturePhoto" :disabled="cameraLoading || Boolean(cameraError)" class="flex-1 py-3 rounded-2xl bg-primary hover:bg-slate-800 text-white font-bold text-xs uppercase flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 disabled:bg-slate-300">
+            <button type="button" @click="capturePhoto" :disabled="cameraLoading || Boolean(cameraError)" class="flex-1 py-3 rounded-2xl bg-primary hover:bg-slate-800 text-white font-bold text-xs uppercase flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 disabled:bg-slate-300 cursor-pointer">
               <Camera class="w-4 h-4" />
               {{ languageStore.isEn() ? 'Capture' : 'Capturer' }}
             </button>

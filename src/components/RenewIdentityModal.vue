@@ -134,8 +134,8 @@ const handleFileUpload = (field, event) => {
   const file = event.target.files?.[0]
   if (!file) return
 
-  if (file.size > 8 * 1024 * 1024) {
-    errorMessage.value = languageStore.isEn() ? 'File is too large (maximum 8 MB).' : 'Le fichier est trop volumineux (maximum 8 Mo).'
+  if (file.size > 5 * 1024 * 1024) {
+    errorMessage.value = languageStore.isEn() ? 'File is too large (maximum 5 MB).' : 'Le fichier est trop volumineux (maximum 5 Mo).'
     return
   }
 
@@ -427,7 +427,7 @@ const submitRenewal = async () => {
             <div class="flex flex-col items-center justify-center gap-1.5 text-slate-500">
               <Upload class="w-5 h-5 text-primary" />
               <p class="text-xs font-bold text-slate-700">{{ languageStore.isEn() ? 'Choose or take a photo of the front' : 'Choisir ou photographier le recto' }}</p>
-              <p class="text-[10px] text-slate-400">JPG, PNG ou PDF (max 8 Mo)</p>
+              <p class="text-[10px] text-slate-400">JPG, PNG ou PDF (max 5 Mo)</p>
             </div>
           </div>
 
@@ -475,7 +475,7 @@ const submitRenewal = async () => {
             <div class="flex flex-col items-center justify-center gap-1.5 text-slate-500">
               <Upload class="w-5 h-5 text-primary" />
               <p class="text-xs font-bold text-slate-700">{{ languageStore.isEn() ? 'Choose or take a photo of the back' : 'Choisir ou photographier le verso' }}</p>
-              <p class="text-[10px] text-slate-400">JPG, PNG ou PDF (max 8 Mo)</p>
+              <p class="text-[10px] text-slate-400">JPG, PNG ou PDF (max 5 Mo)</p>
             </div>
           </div>
 
