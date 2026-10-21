@@ -336,6 +336,18 @@ export const translations = {
     onboarding_save_continue: "Enregistrer et continuer",
     onboarding_sign_btn: "Signer et finaliser",
     onboarding_clear_sign: "Effacer la signature",
+
+    // --- Erreurs & Limitations ---
+    throttle_pwd_error: "Vous avez effectué plusieurs demandes de mot de passe consécutives. Par mesure de sécurité pour votre compte, veuillez patienter quelques instants avant de réessayer.",
+    throttle_login_error: "Plusieurs tentatives de connexion consécutives ont été constatées. Par mesure de sécurité pour votre compte, veuillez patienter un instant avant de vous reconnecter.",
+    throttle_register_error: "Plusieurs tentatives d'inscription ont été effectuées. Par mesure de sécurité, veuillez patienter un instant avant de renouveler votre inscription.",
+    throttle_otp_error: "Vous avez demandé ou saisi trop de codes de vérification consécutifs. Par sécurité, veuillez patienter un instant avant de demander un nouveau code.",
+    throttle_generic_error: "Vous avez effectué trop de tentatives consécutives. Par mesure de sécurité, veuillez patienter un moment avant de réessayer.",
+    network_error: "Impossible de joindre le serveur. Veuillez vérifier votre connexion internet et réessayer.",
+    server_error: "Le service est momentanément indisponible. Veuillez réessayer dans quelques instants.",
+    invalid_credentials_error: "Adresse e-mail ou mot de passe incorrect.",
+    session_expired_error: "Votre session a expiré. Veuillez vous reconnecter.",
+    invalid_token_error: "Ce lien de réinitialisation est invalide ou a expiré. Veuillez faire une nouvelle demande.",
   },
   en: {
     // --- Welcome / Slides ---
@@ -674,5 +686,17 @@ export const translations = {
     onboarding_save_continue: "Save & Continue",
     onboarding_sign_btn: "Sign & Finalize",
     onboarding_clear_sign: "Clear Signature",
+
+    // --- Errors & Rate Limits ---
+    throttle_pwd_error: "You have made several consecutive password requests. For your account security, please wait a few moments before trying again.",
+    throttle_login_error: "Too many consecutive sign-in attempts were detected. For your account security, please wait a moment before trying again.",
+    throttle_register_error: "Multiple registration attempts were detected. For security reasons, please wait a moment before submitting your registration again.",
+    throttle_otp_error: "Too many verification code attempts were made. For security reasons, please wait a moment before requesting or entering a new code.",
+    throttle_generic_error: "Too many consecutive attempts. For your security, please wait a moment before trying again.",
+    network_error: "Unable to reach the server. Please check your internet connection and try again.",
+    server_error: "Service temporarily unavailable. Please try again in a few moments.",
+    invalid_credentials_error: "Invalid email or password.",
+    session_expired_error: "Your session has expired. Please sign in again.",
+    invalid_token_error: "This reset link is invalid or has expired. Please request a new one.",
   }
 }

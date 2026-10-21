@@ -5,6 +5,7 @@ import { Lock, Loader2, CheckCircle2 } from 'lucide-vue-next'
 import api from '../api/api'
 import PasswordCriteria from '../components/PasswordCriteria.vue'
 import { useLanguageStore } from '../stores/language'
+import { formatErrorMessage } from '../utils/formatError'
 
 const route = useRoute()
 const router = useRouter()
@@ -44,7 +45,7 @@ const submit = async () => {
     })
     success.value = true
   } catch (requestError) {
-    error.value = requestError.response?.data?.message || (languageStore.isEn() ? 'This link is invalid or expired.' : 'Ce lien est invalide ou expiré.')
+    error.value = formatErrorMessage(requestError, languageStore.isEn() ? 'This link is invalid or expired.' : 'Ce lien est invalide ou expiré.')
   } finally {
     loading.value = false
   }

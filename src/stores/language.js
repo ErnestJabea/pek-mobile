@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { translations } from '../locales/translations'
+import { translations } from '../locales/translations.js'
 
 import api from '../api/api'
 

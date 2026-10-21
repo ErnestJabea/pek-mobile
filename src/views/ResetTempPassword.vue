@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
+import { formatErrorMessage } from '../utils/formatError'
 import { Lock, Eye, EyeOff, Loader2, CheckCircle2, ShieldAlert } from 'lucide-vue-next'
 import api from '../api/api'
 import PasswordCriteria from '../components/PasswordCriteria.vue'
@@ -55,7 +56,7 @@ const handleSubmit = async () => {
     if (err.response?.status === 422) {
       validationErrors.value = err.response.data.errors || {}
     } else {
-      error.value = err.response?.data?.message || (languageStore.isEn() ? 'An error occurred while resetting password.' : 'Une erreur est survenue lors de la réinitialisation.')
+      error.value = formatErrorMessage(err, languageStore.isEn() ? 'An error occurred while resetting password.' : 'Une erreur est survenue lors de la réinitialisation.')
     }
   } finally {
     loading.value = false

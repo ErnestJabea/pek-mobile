@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import { formatErrorMessage } from '../utils/formatError'
 
 const rawBase = (import.meta.env.VITE_API_URL || '/api/v1').trim()
 const baseURL = rawBase.endsWith('/') ? rawBase.slice(0, -1) : rawBase
@@ -33,10 +34,15 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Interceptor to handle 401 / 419 session expiration errors
+// Interceptor to handle 401 / 419 session expiration errors and humanize error messages
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Humanisation et traduction bilingue claire des erreurs d'API (429 Trop de tentatives, 500, etc.)
+    if (error.response?.data?.message) {
+      error.response.data.message = formatErrorMessage(error, error.response.data.message)
+    }
+
     if (error.response?.status === 403 && error.response.data?.code === 'PASSWORD_CHANGE_REQUIRED'
       && window.location.pathname !== '/reset-temp-password') {
       window.location.href = '/reset-temp-password'
@@ -62,6 +68,5 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
-
 
 export default api

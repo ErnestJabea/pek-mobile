@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Mail, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-vue-next'
 import { useLanguageStore } from '../stores/language'
+import { formatErrorMessage } from '../utils/formatError'
 import api from '../api/api'
 import LanguageSelector from '../components/LanguageSelector.vue'
 import logoImg from '../assets/logo.png'
@@ -30,7 +31,7 @@ const handleSubmit = async () => {
     if (err.response?.status === 422) {
       validationErrors.value = err.response.data.errors || {}
     } else {
-      error.value = err.response?.data?.message || (languageStore.isEn() ? 'No account found with this email.' : 'Aucun compte trouvé avec cet email.')
+      error.value = formatErrorMessage(err, languageStore.isEn() ? 'No account found with this email.' : 'Aucun compte trouvé avec cet email.')
     }
   } finally {
     loading.value = false

@@ -3,6 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
+import { formatErrorMessage } from '../utils/formatError'
 import { 
   User, UserCheck, Mail, Phone, MapPin, Globe, LogOut, ChevronRight, ChevronDown, 
   ShieldCheck, Bell, CreditCard, Edit3, Save, X, Loader2, Building2, Lock, Eye, EyeOff, 
@@ -299,7 +300,7 @@ const handleUpdatePassword = async () => {
     } else {
       passwordMessage.value = { 
         type: 'error', 
-        text: languageStore.isEn() ? 'Error changing password.' : (err.response?.data?.message || 'Erreur lors du changement de mot de passe.') 
+        text: formatErrorMessage(err, languageStore.isEn() ? 'Error changing password.' : 'Erreur lors du changement de mot de passe.') 
       }
     }
   } finally {
@@ -325,7 +326,7 @@ const handleUpdate = async () => {
     } else {
       message.value = { 
         type: 'error', 
-        text: languageStore.isEn() ? 'Update error.' : (err.response?.data?.message || 'Erreur de mise à jour') 
+        text: formatErrorMessage(err, languageStore.isEn() ? 'Update error.' : 'Erreur de mise à jour') 
       }
     }
   } finally {

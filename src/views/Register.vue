@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
+import { formatErrorMessage } from '../utils/formatError'
 import { ChevronLeft, ChevronDown, User, Mail, Phone, Lock, ArrowRight, ShieldCheck, MapPin, Globe, Loader2, Eye, EyeOff, FileText } from 'lucide-vue-next'
 import api from '../api/api'
 import { countries } from '../data/countries'
@@ -206,7 +207,7 @@ const handleResendOtp = async () => {
     challengeId.value = response.data.challenge_id
     // Optionnel: afficher un message de succès (toast ou autre)
   } catch (err) {
-    error.value = err.response?.data?.message || (languageStore.isEn() ? 'Error sending code' : 'Erreur lors de l\'envoi du code')
+    error.value = formatErrorMessage(err, languageStore.isEn() ? 'Error sending code' : 'Erreur lors de l\'envoi du code')
   } finally {
     loading.value = false
   }
@@ -312,13 +313,13 @@ const handleNext = async () => {
       validationErrors.value = err.response.data.errors || {}
       if (err.response.data.message && !err.response.data.errors) {
         if (step.value === 2) {
-          validationErrors.value.code = [err.response.data.message]
+          validationErrors.value.code = [formatErrorMessage(err.response.data.message)]
         } else {
-          error.value = err.response.data.message
+          error.value = formatErrorMessage(err.response.data.message)
         }
       }
     } else {
-      error.value = err.response?.data?.message || (languageStore.isEn() ? 'An error occurred' : 'Une erreur est survenue')
+      error.value = formatErrorMessage(err, languageStore.isEn() ? 'An error occurred' : 'Une erreur est survenue')
     }
   } finally {
     loading.value = false

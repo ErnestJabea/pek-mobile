@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
+import { formatErrorMessage } from '../utils/formatError'
 import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, ChevronLeft } from 'lucide-vue-next'
 import api from '../api/api'
 import LanguageSelector from '../components/LanguageSelector.vue'
@@ -100,13 +101,13 @@ const handleLogin = async () => {
       validationErrors.value = err.response.data.errors || {}
       if (err.response.data.message && !err.response.data.errors) {
         if (step.value === 2) {
-          validationErrors.value.code = [err.response.data.message]
+          validationErrors.value.code = [formatErrorMessage(err.response.data.message)]
         } else {
-          error.value = err.response.data.message
+          error.value = formatErrorMessage(err.response.data.message)
         }
       }
     } else {
-      error.value = err.response?.data?.message || (languageStore.isEn() ? 'Login failed' : 'Erreur lors de la connexion')
+      error.value = formatErrorMessage(err, languageStore.isEn() ? 'Login failed' : 'Erreur lors de la connexion')
       if (err.response?.status === 403) {
         showVerificationLink.value = true
       }
@@ -124,7 +125,7 @@ const handleResendOtp = async () => {
     const response = await api.post('/resend-otp', { email: email.value })
     challengeId.value = response.data.challenge_id
   } catch (err) {
-    error.value = err.response?.data?.message || (languageStore.isEn() ? 'Error sending code' : 'Erreur lors de l\'envoi du code')
+    error.value = formatErrorMessage(err, languageStore.isEn() ? 'Error sending code' : 'Erreur lors de l\'envoi du code')
   } finally {
     loading.value = false
   }
