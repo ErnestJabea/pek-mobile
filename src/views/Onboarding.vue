@@ -166,13 +166,13 @@ const dynamicSupportingDocs = computed(() => {
     idDocs = [
       {
         key: 'doc_piece_identite',
-        title: languageStore.isEn() ? "1. Identity Document (Main page with photo)" : "1. Pièce d'identité (Recto / Document principal)",
+        title: languageStore.isEn() ? "1. Identity Document (Passport)" : "1. Pièce d'identité (Passeport)",
         hint: languageStore.isEn() ? "Main passport page with photo, signature and MRZ line" : "Page principale du passeport avec photo, signature et bande MRZ",
         emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
-        required: true,
+        required: false,
       },
       {
         key: 'doc_piece_verso',
@@ -190,17 +190,17 @@ const dynamicSupportingDocs = computed(() => {
     idDocs = [
       {
         key: 'doc_piece_identite',
-        title: languageStore.isEn() ? "1. Residence Permit (Front side)" : "1. Pièce d'identité (Recto / Document principal)",
+        title: languageStore.isEn() ? "1. Residence Permit (Front)" : "1. Pièce d'identité (Titre de séjour - Recto)",
         hint: languageStore.isEn() ? "Front side of the residence card/permit with photo" : "Face avant du titre de séjour avec photo",
         emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
-        required: true,
+        required: false,
       },
       {
         key: 'doc_piece_verso',
-        title: languageStore.isEn() ? "2. Residence Permit (Back side - optional)" : "2. Pièce d'identité (Verso - optionnel)",
+        title: languageStore.isEn() ? "2. Residence Permit (Back)" : "2. Pièce d'identité (Titre de séjour - Verso)",
         hint: languageStore.isEn() ? "Back side of the residence card/permit" : "Face arrière du titre de séjour",
         emptyLabel: languageStore.isEn() ? "No reverse side provided." : "Aucun verso fourni.",
         accept: 'image/*,.pdf',
@@ -213,17 +213,17 @@ const dynamicSupportingDocs = computed(() => {
     idDocs = [
       {
         key: 'doc_piece_identite',
-        title: languageStore.isEn() ? "1. Driver License (Front side)" : "1. Pièce d'identité (Recto / Document principal)",
+        title: languageStore.isEn() ? "1. Driver License (Front)" : "1. Pièce d'identité (Permis - Recto)",
         hint: languageStore.isEn() ? "Front side of driver license with photo" : "Face avant du permis de conduire avec photo",
         emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
-        required: true,
+        required: false,
       },
       {
         key: 'doc_piece_verso',
-        title: languageStore.isEn() ? "2. Driver License (Back side - optional)" : "2. Pièce d'identité (Verso - optionnel)",
+        title: languageStore.isEn() ? "2. Driver License (Back)" : "2. Pièce d'identité (Permis - Verso)",
         hint: languageStore.isEn() ? "Back side of driver license with categories" : "Face arrière du permis de conduire avec catégories",
         emptyLabel: languageStore.isEn() ? "No reverse side provided." : "Aucun verso fourni.",
         accept: 'image/*,.pdf',
@@ -237,17 +237,17 @@ const dynamicSupportingDocs = computed(() => {
     idDocs = [
       {
         key: 'doc_piece_identite',
-        title: languageStore.isEn() ? "1. Identity Document (Front / Main document)" : "1. Pièce d'identité (Recto / Document principal)",
+        title: languageStore.isEn() ? "1. Identity Document (Front)" : "1. Pièce d'identité (Recto)",
         hint: languageStore.isEn() ? "Front side of National ID Card with photo" : "Face avant de la Carte Nationale d'Identité avec photo",
         emptyLabel: languageStore.isEn() ? "No document provided." : "Aucun document fourni.",
         accept: 'image/*,.pdf',
         allowCamera: true,
         cameraTarget: 'piece_recto',
-        required: true,
+        required: false,
       },
       {
         key: 'doc_piece_verso',
-        title: languageStore.isEn() ? "2. Identity Document (Back side - optional)" : "2. Pièce d'identité (Verso - optionnel)",
+        title: languageStore.isEn() ? "2. Identity Document (Back)" : "2. Pièce d'identité (Verso)",
         hint: languageStore.isEn() ? "Back side of National ID Card with MRZ line" : "Face arrière de la Carte Nationale d'Identité avec bande MRZ",
         emptyLabel: languageStore.isEn() ? "No reverse side provided." : "Aucun verso fourni.",
         accept: 'image/*,.pdf',
@@ -1380,12 +1380,6 @@ const nextStep = async () => {
       return
     }
 
-    const recto = payload.value.piece_recto || payload.value.doc_piece_identite
-    if (!recto) {
-      triggerError("Pièce requise", "Veuillez fournir votre pièce d'identité (Recto) avant de continuer.")
-      return
-    }
-
     const targetStep = identityRequired.value ? 'identity' : 'risk'
     if (!await syncWithServer(targetStep)) return
     currentStep.value = targetStep
@@ -1981,22 +1975,21 @@ const submitOnboarding = async () => {
               class="space-y-2"
               :class="{ 'md:col-span-2': idx === 4 }"
             >
-              <!-- Titre et indicateur de statut -->
-              <div class="flex items-center justify-between pl-1">
-                <label class="text-xs font-black text-slate-800 tracking-tight">
-                  {{ doc.title }}
-                </label>
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-500">
-                    Max 5 Mo
-                  </span>
-                  <span
-                    class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
-                    :class="doc.required ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-400'"
-                  >
-                    {{ doc.required ? (languageStore.isEn() ? 'Required' : 'Requis') : (languageStore.isEn() ? 'Optional' : 'Optionnel') }}
+              <!-- Titre, format & indicateur de statut -->
+              <div class="flex items-start justify-between gap-3 pl-1">
+                <div class="space-y-0.5 min-w-0">
+                  <label class="text-xs font-black text-slate-900 tracking-tight leading-snug block">
+                    {{ doc.title }}
+                  </label>
+                  <span class="text-[10px] font-semibold text-slate-400 block">
+                    {{ languageStore.isEn() ? 'JPG, PNG, PDF (Max 5 MB)' : 'JPG, PNG, PDF (Max 5 Mo)' }}
                   </span>
                 </div>
+                <span
+                  class="shrink-0 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 whitespace-nowrap shadow-2xs"
+                >
+                  {{ doc.disabled ? (languageStore.isEn() ? 'Not required' : 'Non requis') : (languageStore.isEn() ? 'Optional' : 'Optionnel') }}
+                </span>
               </div>
 
               <!-- Zone de Dépôt / Drag & Drop -->
@@ -2111,9 +2104,6 @@ const submitOnboarding = async () => {
                     </p>
                     <p class="text-[10px] text-slate-400 font-medium">
                       {{ doc.hint }}
-                    </p>
-                    <p class="text-[10px] text-slate-400 font-bold">
-                      Formats : JPG, PNG, PDF • Max 5 Mo
                     </p>
                   </div>
 
