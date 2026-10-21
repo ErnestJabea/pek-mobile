@@ -1,8 +1,11 @@
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 
+const rawBase = (import.meta.env.VITE_API_URL || '/api/v1').trim()
+const baseURL = rawBase.endsWith('/') ? rawBase.slice(0, -1) : rawBase
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
+  baseURL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -10,8 +13,17 @@ const api = axios.create({
   }
 })
 
-// Interceptor to add token & language header
+// Interceptor to normalize URL paths, add token & language header
 api.interceptors.request.use((config) => {
+  if (config.url) {
+    // Si baseURL contient déjà /api/v1 et que l'URL commence par /api/v1/
+    if (baseURL.endsWith('/api/v1') && config.url.startsWith('/api/v1/')) {
+      config.url = config.url.slice(7)
+    } else if (baseURL.endsWith('/api') && config.url.startsWith('/api/')) {
+      config.url = config.url.slice(4)
+    }
+  }
+
   const token = localStorage.getItem('token')
   if (token && token !== 'cookie_session') {
     config.headers.Authorization = `Bearer ${token}`

@@ -43,6 +43,11 @@ export default defineConfig(({ mode }) => {
         changeOrigin: true,
         secure: true,
       },
+      '/v1': {
+        target: apiTarget,
+        changeOrigin: true,
+        secure: true,
+      },
       '/storage': {
         target: apiTarget,
         changeOrigin: true,
