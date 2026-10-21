@@ -17,17 +17,10 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
       // Vérifier immédiatement si une nouvelle version est disponible sur le serveur
       registration.update().catch(() => {})
 
-      // Vérifier à chaque fois que l'utilisateur rouvre l'application mobile (mise en avant)
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          registration.update().catch(() => {})
-        }
-      })
-
-      // Vérification périodique toutes les 15 minutes si l'application reste active
+      // Vérification périodique toutes les 30 minutes si l'application reste active
       setInterval(() => {
         registration.update().catch(() => {})
-      }, 15 * 60 * 1000)
+      }, 30 * 60 * 1000)
 
       // Si un worker est déjà en attente, le pousser à s'activer sans attendre
       if (registration.waiting) {
@@ -47,9 +40,14 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     }).catch(() => {})
   })
 
-  // Recharger automatiquement l'application pour charger la nouvelle version
+  // Recharger l'application pour charger la nouvelle version uniquement hors des parcours sensibles
   let isRefreshing = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    const isSensitiveFlow = window.location.pathname.includes('/onboarding') || window.location.pathname.includes('/subscription')
+    if (isSensitiveFlow) {
+      // Préserver la saisie utilisateur et éviter tout rechargement lors d'upload ou de prise de photo
+      return
+    }
     if (!isRefreshing) {
       isRefreshing = true
       window.location.reload()
