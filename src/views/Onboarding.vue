@@ -327,24 +327,29 @@ const triggerBrowse = (field) => {
 }
 
 const syncKYCDocuments = (targetField, dataUrl) => {
-  if (targetField === 'doc_piece_identite') {
+  if (targetField === 'doc_piece_identite' || targetField === 'piece_recto') {
     payload.value.piece_recto = dataUrl
-    clearError('piece_recto')
-  } else if (targetField === 'piece_recto') {
     payload.value.doc_piece_identite = dataUrl
+    clearError('piece_recto')
     clearError('doc_piece_identite')
-  } else if (targetField === 'doc_piece_verso') {
+    docBlobUrls.value.piece_recto = dataUrl
+    docBlobUrls.value.doc_piece_identite = dataUrl
+  } else if (targetField === 'doc_piece_verso' || targetField === 'piece_verso') {
     payload.value.piece_verso = dataUrl
-    clearError('piece_verso')
-  } else if (targetField === 'piece_verso') {
     payload.value.doc_piece_verso = dataUrl
+    clearError('piece_verso')
     clearError('doc_piece_verso')
-  } else if (targetField === 'doc_photo') {
+    docBlobUrls.value.piece_verso = dataUrl
+    docBlobUrls.value.doc_piece_verso = dataUrl
+  } else if (targetField === 'doc_photo' || targetField === 'selfie_live') {
     payload.value.selfie_live = dataUrl
-    clearError('selfie_live')
-  } else if (targetField === 'selfie_live') {
     payload.value.doc_photo = dataUrl
+    clearError('selfie_live')
     clearError('doc_photo')
+    docBlobUrls.value.selfie_live = dataUrl
+    docBlobUrls.value.doc_photo = dataUrl
+  } else {
+    docBlobUrls.value[targetField] = dataUrl
   }
 
   kycVerificationCompleted.value = false
@@ -442,11 +447,37 @@ const removeSupportingDoc = (field) => {
   }
 }
 
+const docBlobUrls = ref({})
+const loadingDocBlobs = ref({})
+
+const loadDocumentBlob = async (key) => {
+  if (docBlobUrls.value[key]) return docBlobUrls.value[key]
+  if (loadingDocBlobs.value[key]) return null
+  loadingDocBlobs.value[key] = true
+  try {
+    const res = await api.get(`/onboarding/document/${key}`, { responseType: 'blob' })
+    if (res.data && res.data.type !== 'application/pdf') {
+      const url = URL.createObjectURL(res.data)
+      docBlobUrls.value[key] = url
+      return url
+    }
+  } catch (e) {
+    // Non bloquant si non existant
+  } finally {
+    loadingDocBlobs.value[key] = false
+  }
+  return null
+}
+
 const getDocPreviewUrl = (key) => {
   const val = payload.value[key] || ''
   if (!val) return ''
-  if (val.startsWith('data:image')) return val
-  if (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('/')) return val
+  if (val.startsWith('data:image') || val.startsWith('blob:')) return val
+  if (docBlobUrls.value[key]) return docBlobUrls.value[key]
+  if (val.startsWith('http://') || val.startsWith('https://')) return val
+  if (val.startsWith('secure_onboardings/') || val.includes('/')) {
+    loadDocumentBlob(key)
+  }
   return ''
 }
 
@@ -631,6 +662,13 @@ const continueToNextStepAfterModal = async () => {
 
 const removeDocument = (targetField) => {
   payload.value[targetField] = ''
+  delete docBlobUrls.value[targetField]
+  if (targetField === 'piece_recto') delete docBlobUrls.value.doc_piece_identite
+  if (targetField === 'doc_piece_identite') delete docBlobUrls.value.piece_recto
+  if (targetField === 'piece_verso') delete docBlobUrls.value.doc_piece_verso
+  if (targetField === 'doc_piece_verso') delete docBlobUrls.value.piece_verso
+  if (targetField === 'selfie_live') delete docBlobUrls.value.doc_photo
+  if (targetField === 'doc_photo') delete docBlobUrls.value.selfie_live
   kycVerificationCompleted.value = false
   if (targetField === 'piece_recto' || targetField === 'selfie_live' || targetField === 'doc_piece_identite' || targetField === 'doc_photo') {
     verificationFaceResult.value = null
@@ -655,8 +693,24 @@ const removeDocument = (targetField) => {
 }
 
 const executeKYCVerification = async (silent = false) => {
-  const recto = payload.value.piece_recto || payload.value.doc_piece_identite
-  const selfie = payload.value.selfie_live || payload.value.doc_photo
+  const resolveDocSrc = async (key, fallbackKey = null) => {
+    let val = payload.value[key] || (fallbackKey ? payload.value[fallbackKey] : null)
+    if (!val) return null
+    if (val.startsWith('data:') || val.startsWith('blob:')) return val
+    if (docBlobUrls.value[key]) return docBlobUrls.value[key]
+    if (fallbackKey && docBlobUrls.value[fallbackKey]) return docBlobUrls.value[fallbackKey]
+    try {
+      const loaded = await loadDocumentBlob(key)
+      if (loaded) return loaded
+      if (fallbackKey) return await loadDocumentBlob(fallbackKey)
+    } catch (e) {
+      // non-bloquant
+    }
+    return val
+  }
+
+  const recto = await resolveDocSrc('piece_recto', 'doc_piece_identite')
+  const selfie = await resolveDocSrc('selfie_live', 'doc_photo')
   if (!recto) {
     if (!silent) {
       triggerError("Pièce requise", "Veuillez fournir votre pièce d'identité.")
@@ -685,9 +739,9 @@ const executeKYCVerification = async (silent = false) => {
   try {
     const { compareFaces, verifyIDDocumentOCR } = await import('../services/kycVerification')
     
-    const verso = payload.value.piece_verso || payload.value.doc_piece_verso || null
-    const domicile = payload.value.doc_justificatif_domicile || null
-    const fonds = payload.value.doc_origine_fonds || null
+    const verso = await resolveDocSrc('piece_verso', 'doc_piece_verso')
+    const domicile = await resolveDocSrc('doc_justificatif_domicile')
+    const fonds = await resolveDocSrc('doc_origine_fonds')
 
     let faceRes = { success: false, score: null, isFallback: true, idOrientation: 0 }
 
@@ -1110,6 +1164,13 @@ const initSession = async () => {
             if (payload.value.doc_justificatif_domicile) docFileNames.value.doc_justificatif_domicile = 'Justificatif de domicile (enregistré)'
             if (payload.value.doc_photo) docFileNames.value.doc_photo = 'Photo récente (enregistrée)'
             if (payload.value.doc_origine_fonds) docFileNames.value.doc_origine_fonds = 'Origine des fonds (enregistré)'
+
+            const preloadDocKeys = ['doc_piece_identite', 'piece_recto', 'doc_piece_verso', 'piece_verso', 'doc_justificatif_domicile', 'doc_photo', 'selfie_live', 'doc_origine_fonds']
+            preloadDocKeys.forEach(k => {
+              if (payload.value[k] && typeof payload.value[k] === 'string' && !payload.value[k].startsWith('data:')) {
+                loadDocumentBlob(k)
+              }
+            })
             payload.value.nature_client = 'personne_physique'
             if (!payload.value.categorie_client || (!personnePhysiqueCategories.includes(payload.value.categorie_client) && payload.value.categorie_client !== 'Particulier')) {
               payload.value.categorie_client = 'Salarié secteur privé'
