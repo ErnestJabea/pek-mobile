@@ -61,7 +61,7 @@ onMounted(() => {
   appContentStore.fetchContents()
   const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   qrValue.value = isLocalHost
-    ? `http://192.168.1.40:${window.location.port || '5173'}`
+    ? `http://192.168.30.130:${window.location.port || '5173'}`
     : window.location.href
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
