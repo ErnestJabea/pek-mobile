@@ -1772,6 +1772,12 @@ const submitOnboarding = async () => {
       signature: signatureData
     })
     
+    if (response.data?.session?.status) {
+      onboardingSessionStatus.value = response.data.session.status
+    } else {
+      onboardingSessionStatus.value = 'completed'
+    }
+    
     // Fetch updated user to refresh authStore (contains updated onboarding status)
     try {
       const userRes = await api.get('/user')
@@ -2266,17 +2272,14 @@ const submitOnboarding = async () => {
         <div v-if="verificationOCRResult || payload.ocr_nom_match !== null" class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4 text-left">
           <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+              <!-- <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
                 :class="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match) ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'">
                 <ShieldCheck v-if="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match)" class="w-5 h-5" />
                 <ShieldAlert v-else class="w-5 h-5" />
-              </div>
+              </div> -->
               <div>
                 <h5 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  {{ languageStore.isEn() ? 'Document Consistency & Verification' : 'Concordance des documents fournis' }}
-                  <span v-if="payload.ocr_mrz_detected" class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                    ICAO 9303
-                  </span>
+                  {{ languageStore.isEn() ? 'Documents Verification' : 'Verification documents' }}
                 </h5>
                 <p class="text-[11px] text-slate-500 font-medium">
                   {{ payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match)
@@ -2759,7 +2762,7 @@ const submitOnboarding = async () => {
         >
           <CheckCircle2 v-if="onboardingSessionStatus === 'validated'" class="w-10 h-10 text-emerald-500" />
           <AlertCircle v-else-if="onboardingSessionStatus === 'rejected'" class="w-10 h-10 text-amber-500" />
-          <Loader2 v-else class="w-10 h-10 text-blue-400 animate-spin" />
+          <Clock v-else class="w-10 h-10 text-blue-500" />
         </div>
         
         <div class="space-y-2">
@@ -2986,14 +2989,14 @@ const submitOnboarding = async () => {
 
           <!-- Header -->
           <div class="flex items-start gap-3.5 pr-8">
-            <div 
+            <!-- <div 
               class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors"
               :class="verifyingKYC ? 'bg-blue-50 text-blue-600 animate-pulse' : (payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match) ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')"
             >
               <Loader2 v-if="verifyingKYC" class="w-6 h-6 animate-spin text-primary" />
               <ShieldCheck v-else-if="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match)" class="w-6 h-6" />
               <ShieldAlert v-else class="w-6 h-6" />
-            </div>
+            </div> -->
             <div>
               <span class="text-[10px] font-black uppercase tracking-widest text-primary">
                 {{ verifyingKYC ? (languageStore.isEn() ? 'Automated Verification' : 'Vérification automatisée') : (languageStore.isEn() ? 'Analysis Completed' : 'Contrôle documentaire') }}
@@ -3001,13 +3004,13 @@ const submitOnboarding = async () => {
               <h3 class="text-base font-black text-slate-900">
                 {{ verifyingKYC 
                   ? (languageStore.isEn() ? 'Checking your documents...' : 'Vérification de vos pièces en cours...') 
-                  : (languageStore.isEn() ? 'Consistency check completed' : 'Concordance des documents analysée') 
+                  : (languageStore.isEn() ? 'Consistency check completed' : 'Analyse des documents soumis') 
                 }}
               </h3>
               <p class="text-xs text-slate-500 font-medium">
                 {{ verifyingKYC 
                   ? (languageStore.isEn() ? 'AI OCR & biometric analysis of each document provided.' : 'Analyse OCR & biométrique des justificatifs fournis.') 
-                  : (languageStore.isEn() ? 'Summary of checks according to COSUMAF compliance.' : 'Synthèse des contrôles selon les normes de conformité COSUMAF.') 
+                  : (languageStore.isEn() ? 'Summary of the verification of the documents provided.' : 'Synthèse des analyses des documents fournis.') 
                 }}
               </p>
             </div>
