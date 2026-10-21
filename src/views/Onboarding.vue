@@ -1023,6 +1023,7 @@ const payload = ref({
   dob: '',
   lieu_naiss: '',
   adresse: '',
+  ville: '',
   tel: '',
   email: '',
   piece: 'CNI',
@@ -1105,6 +1106,10 @@ const initSession = async () => {
     if (!payload.value.email) payload.value.email = authStore.user.email || ''
     if (!payload.value.tel) payload.value.tel = authStore.user.phone || ''
     if (authStore.user.country) payload.value.pays_residence = authStore.user.country
+    if (authStore.user.city) {
+      payload.value.ville = authStore.user.city
+      if (!payload.value.adresse) payload.value.adresse = authStore.user.city
+    }
     payload.value.nature_client = 'personne_physique'
     if (authStore.user.categorie_client && (personnePhysiqueCategories.includes(authStore.user.categorie_client) || authStore.user.categorie_client === 'Particulier')) {
       payload.value.categorie_client = authStore.user.categorie_client
