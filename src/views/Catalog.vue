@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { Info, Plus, Search, Filter, Loader2, AlertCircle, X, FileText, Download, TrendingUp, Calendar } from 'lucide-vue-next'
+import { Info, Plus, Search, Filter, Loader2, AlertCircle, X, FileText, Download, TrendingUp, Calendar, LineChart } from 'lucide-vue-next'
 import api from '../api/api'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
@@ -298,10 +298,10 @@ const closeProductDetails = () => {
           <button
             type="button"
             @click="openProductDetails(product)"
-            class="shrink-0 h-9 px-3 bg-warm text-primary border border-primary/10 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 transition-all hover:bg-accent/15"
+            class="shrink-0 h-9 px-3.5 bg-slate-100/90 hover:bg-primary/10 text-slate-800 hover:text-primary border border-slate-200/80 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer"
           >
-            <Info class="w-3.5 h-3.5" />
-            {{ languageStore.t('details') }}
+            <LineChart class="w-3.5 h-3.5 text-primary" />
+            <span>{{ languageStore.t('fund_perf') }}</span>
           </button>
         </div>
 

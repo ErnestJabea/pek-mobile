@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { ArrowUpRight, Zap, Loader2, AlertCircle, CheckCircle2, X, Plus, Info, Sparkles, ArrowRight, Wallet, TrendingUp, TrendingDown, UserCheck, ChevronDown, Gift } from 'lucide-vue-next'
+import { ArrowUpRight, Zap, Loader2, AlertCircle, CheckCircle2, X, Plus, Info, Sparkles, ArrowRight, Wallet, TrendingUp, TrendingDown, UserCheck, ChevronDown, Gift, LineChart } from 'lucide-vue-next'
 import api from '../api/api'
 import { useLanguageStore } from '../stores/language'
 import { useAppContentStore } from '../stores/appContent'
@@ -32,6 +32,12 @@ const onIdRenewed = (updatedUser) => {
   if (updatedUser) {
     authStore.setUser(updatedUser)
   }
+}
+
+const isTrendNegative = (trend) => {
+  if (!trend) return false
+  const s = String(trend).trim()
+  return s.startsWith('-') || parseFloat(s.replace('%', '').replace('+', '')) < 0
 }
 
 const showCategoryModal = ref(false)
@@ -682,7 +688,14 @@ onMounted(() => {
           <div v-for="fund in featuredFunds" :key="fund.id" class="group bg-white border border-slate-100 p-5 rounded-[24px] hover:border-primary/20 hover:shadow-xl hover:shadow-slate-200/50 transition-all">
             <div class="flex justify-between items-center mb-2">
               <h4 class="font-black text-slate-900 text-base">{{ fund.name }}</h4>
-              <span class="text-emerald-500 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg text-xs">{{ fund.trend }}</span>
+              <span
+                v-if="fund.trend"
+                :class="isTrendNegative(fund.trend)
+                  ? 'text-rose-600 font-bold bg-rose-50 border border-rose-200/80 px-2.5 py-1 rounded-lg text-xs'
+                  : 'text-emerald-600 font-bold bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-lg text-xs'"
+              >
+                {{ fund.trend }}
+              </span>
             </div>
             <p class="text-slate-500 text-xs mb-4 leading-relaxed font-medium">{{ fund.description }}</p>
             <div class="flex justify-between items-end">
@@ -690,18 +703,16 @@ onMounted(() => {
                 <span class="text-slate-400 text-[10px] font-bold block uppercase tracking-tight">{{ languageStore.t('nav_value') }}</span>
                 <span class="text-primary font-black text-lg">{{ Number(fund.vl).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} XAF</span>
               </div>
-              <div class="flex gap-2">
+              <div>
                 <button
                   type="button"
                   @click="openProductDetails(fund)"
-                  class="h-10 px-3 bg-slate-50 text-slate-600 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 transition-all hover:bg-slate-100"
+                  class="h-10 px-3.5 bg-slate-100/90 hover:bg-primary/10 text-slate-800 hover:text-primary border border-slate-200/80 rounded-xl text-xs font-bold flex items-center gap-2 active:scale-95 transition-all shadow-xs cursor-pointer"
+                  :title="languageStore.isEn() ? 'View fund performance' : 'Consulter la performance du fonds'"
                 >
-                  <Info class="w-3.5 h-3.5" />
-                  {{ languageStore.t('details') }}
+                  <LineChart class="w-4 h-4 text-primary shrink-0" />
+                  <span>{{ languageStore.t('fund_perf') }}</span>
                 </button>
-                <router-link :to="'/subscribe/' + fund.id" class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all">
-                  <ArrowUpRight class="w-5 h-5" />
-                </router-link>
               </div>
             </div>
           </div>
