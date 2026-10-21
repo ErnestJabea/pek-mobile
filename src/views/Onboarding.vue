@@ -352,7 +352,7 @@ const syncKYCDocuments = (targetField, dataUrl) => {
     docBlobUrls.value[targetField] = dataUrl
   }
 
-  kycVerificationCompleted.value = false
+  kycVerificationCompleted.value = true
 }
 
 const processFileObject = (file, targetField) => {
@@ -562,13 +562,13 @@ const capturePhoto = () => {
   closeCamera()
 }
 
-// KYC Biometric & OCR verification states & Modal
+// KYC Document states (OCR verification deactivated - simplified file upload)
 const verifyingKYC = ref(false)
 const verificationStatusText = ref('')
 const verificationFaceResult = ref(null)
 const verificationOCRResult = ref(null)
 const kycVerificationAttempted = ref(false)
-const kycVerificationCompleted = ref(false)
+const kycVerificationCompleted = ref(true)
 const showConcordanceModal = ref(false)
 const currentActiveDocKey = ref('piece_recto')
 const currentActiveDocTitle = ref("Pièce d'identité (Recto)")
@@ -576,88 +576,13 @@ const verificationProgressPercent = ref(0)
 const verificationFinished = ref(false)
 const concordanceSteps = ref([])
 
-const initConcordanceSteps = () => {
-  const steps = [
-    {
-      key: 'piece_recto',
-      title: languageStore.isEn() ? "ID Document (Front)" : "Pièce d'identité (Recto)",
-      subtitle: languageStore.isEn() ? "Civil identity fields & ID number" : "Mentions d'état civil et N° de pièce",
-      status: 'pending',
-      statusLabel: languageStore.isEn() ? "Waiting" : "En attente"
-    }
-  ]
-
-  const verso = payload.value.piece_verso || payload.value.doc_piece_verso
-  if (verso) {
-    steps.push({
-      key: 'piece_verso',
-      title: languageStore.isEn() ? "ID Document (Reverse & MRZ)" : "Pièce d'identité (Verso & MRZ)",
-      subtitle: languageStore.isEn() ? "Official ICAO 9303 MRZ strip check" : "Bande MRZ officielle ICAO 9303",
-      status: 'pending',
-      statusLabel: languageStore.isEn() ? "Waiting" : "En attente"
-    })
-  }
-
-  const selfie = payload.value.selfie_live || payload.value.doc_photo
-  if (selfie) {
-    steps.push({
-      key: 'doc_photo',
-      title: languageStore.isEn() ? "Recent Photo / Face Match" : "Photo récente / Comparaison faciale",
-      subtitle: languageStore.isEn() ? "Facial biometric matching with ID photo" : "Correspondance faciale avec la pièce",
-      status: 'pending',
-      statusLabel: languageStore.isEn() ? "Waiting" : "En attente"
-    })
-  }
-
-  const domicile = payload.value.doc_justificatif_domicile
-  if (domicile) {
-    steps.push({
-      key: 'doc_justificatif_domicile',
-      title: languageStore.isEn() ? "Proof of Address" : "Justificatif de domicile",
-      subtitle: languageStore.isEn() ? "Residence verification (< 3 months)" : "Conformité du lieu de résidence (< 3 mois)",
-      status: 'pending',
-      statusLabel: languageStore.isEn() ? "Waiting" : "En attente"
-    })
-  }
-
-  const fonds = payload.value.doc_origine_fonds
-  if (fonds) {
-    steps.push({
-      key: 'doc_origine_fonds',
-      title: languageStore.isEn() ? "Origin of Funds" : "Origine des fonds",
-      subtitle: languageStore.isEn() ? "Financial proof verification" : "Justificatif de provenance des fonds",
-      status: 'pending',
-      statusLabel: languageStore.isEn() ? "Waiting" : "En attente"
-    })
-  }
-
-  concordanceSteps.value = steps
-}
-
-const openConcordanceModalAndStart = async () => {
-  initConcordanceSteps()
-  showConcordanceModal.value = true
-  verificationFinished.value = false
-  verificationProgressPercent.value = 5
-  await executeKYCVerification(false)
-}
-
+const initConcordanceSteps = () => {}
+const openConcordanceModalAndStart = async () => {}
 const closeConcordanceModal = () => {
   showConcordanceModal.value = false
 }
-
 const continueToNextStepAfterModal = async () => {
   showConcordanceModal.value = false
-  kycVerificationCompleted.value = true
-  stepLoading.value = true
-  try {
-    const targetStep = identityRequired.value ? 'identity' : 'risk'
-    if (!await syncWithServer(targetStep)) return
-    currentStep.value = targetStep
-    if (targetStep === 'identity') await refreshIdentityStatus()
-  } finally {
-    stepLoading.value = false
-  }
 }
 
 const removeDocument = (targetField) => {
@@ -669,7 +594,7 @@ const removeDocument = (targetField) => {
   if (targetField === 'doc_piece_verso') delete docBlobUrls.value.piece_verso
   if (targetField === 'selfie_live') delete docBlobUrls.value.doc_photo
   if (targetField === 'doc_photo') delete docBlobUrls.value.selfie_live
-  kycVerificationCompleted.value = false
+  kycVerificationCompleted.value = true
   if (targetField === 'piece_recto' || targetField === 'selfie_live' || targetField === 'doc_piece_identite' || targetField === 'doc_photo') {
     verificationFaceResult.value = null
     verificationOCRResult.value = null
@@ -693,190 +618,8 @@ const removeDocument = (targetField) => {
 }
 
 const executeKYCVerification = async (silent = false) => {
-  const resolveDocSrc = async (key, fallbackKey = null) => {
-    let val = payload.value[key] || (fallbackKey ? payload.value[fallbackKey] : null)
-    if (!val) return null
-    if (val.startsWith('data:') || val.startsWith('blob:')) return val
-    if (docBlobUrls.value[key]) return docBlobUrls.value[key]
-    if (fallbackKey && docBlobUrls.value[fallbackKey]) return docBlobUrls.value[fallbackKey]
-    try {
-      const loaded = await loadDocumentBlob(key)
-      if (loaded) return loaded
-      if (fallbackKey) return await loadDocumentBlob(fallbackKey)
-    } catch (e) {
-      // non-bloquant
-    }
-    return val
-  }
-
-  const recto = await resolveDocSrc('piece_recto', 'doc_piece_identite')
-  const selfie = await resolveDocSrc('selfie_live', 'doc_photo')
-  if (!recto) {
-    if (!silent) {
-      triggerError("Pièce requise", "Veuillez fournir votre pièce d'identité.")
-    }
-    return false
-  }
-
-  if (concordanceSteps.value.length === 0) {
-    initConcordanceSteps()
-  }
-
-  verifyingKYC.value = true
-  kycVerificationAttempted.value = true
-  verificationFinished.value = false
-  verificationProgressPercent.value = 8
-  currentActiveDocKey.value = 'piece_recto'
-  currentActiveDocTitle.value = languageStore.isEn() ? "ID Document (Front)" : "Pièce d'identité (Recto)"
-  verificationStatusText.value = "Initialisation de l'analyse des pièces fournies..."
-
-  const rectoStep = concordanceSteps.value.find(s => s.key === 'piece_recto')
-  if (rectoStep) {
-    rectoStep.status = 'running'
-    rectoStep.statusLabel = languageStore.isEn() ? 'Analyzing...' : 'Analyse en cours...'
-  }
-
-  try {
-    const { compareFaces, verifyIDDocumentOCR } = await import('../services/kycVerification')
-    
-    const verso = await resolveDocSrc('piece_verso', 'doc_piece_verso')
-    const domicile = await resolveDocSrc('doc_justificatif_domicile')
-    const fonds = await resolveDocSrc('doc_origine_fonds')
-
-    let faceRes = { success: false, score: null, isFallback: true, idOrientation: 0 }
-
-    // 1. OCR text extraction & analyse approfondie de concordance des pièces
-    const ocrRes = await verifyIDDocumentOCR(
-      recto,
-      verso,
-      {
-        nom: payload.value.nom,
-        prenom: payload.value.prenom,
-        dob: payload.value.dob,
-        num_piece: payload.value.num_piece,
-        expiration_piece: payload.value.expiration_piece,
-        piece: payload.value.piece,
-        adresse: payload.value.adresse,
-        employeur: payload.value.employeur
-      },
-      (statusMsg, meta = {}) => {
-        verificationStatusText.value = statusMsg
-        if (meta.docKey) {
-          currentActiveDocKey.value = meta.docKey
-          if (meta.docTitle) currentActiveDocTitle.value = meta.docTitle
-          const currentStepItem = concordanceSteps.value.find(s => s.key === meta.docKey)
-          if (currentStepItem && currentStepItem.status === 'pending') {
-            currentStepItem.status = 'running'
-            currentStepItem.statusLabel = languageStore.isEn() ? 'Analyzing...' : 'Analyse en cours...'
-          }
-        }
-        const total = concordanceSteps.value.length || 1
-        const idx = Math.max(0, concordanceSteps.value.findIndex(s => s.key === currentActiveDocKey.value))
-        const base = (idx / total) * 100
-        const stepProgress = ((meta.progress || 20) / 100) * (100 / total)
-        verificationProgressPercent.value = Math.min(90, Math.round(base + stepProgress))
-      },
-      faceRes.idOrientation || 0,
-      domicile,
-      fonds
-    )
-
-    // Mise à jour de l'état de la pièce Recto
-    if (rectoStep) {
-      const ok = ocrRes.nomMatch && ocrRes.numPieceMatch
-      rectoStep.status = ok ? 'success' : 'error'
-      rectoStep.statusLabel = ok 
-        ? (languageStore.isEn() ? 'Confirmed' : 'Concordant')
-        : (languageStore.isEn() ? 'Mismatch' : 'Non concordant')
-    }
-
-    // Mise à jour de l'état de la pièce Verso
-    const versoStep = concordanceSteps.value.find(s => s.key === 'piece_verso')
-    if (versoStep) {
-      const ok = ocrRes.mrzDetected || ocrRes.expirationMatch
-      versoStep.status = ok ? 'success' : 'error'
-      versoStep.statusLabel = ocrRes.mrzDetected
-        ? 'MRZ ICAO 9303'
-        : (ok ? (languageStore.isEn() ? 'Confirmed' : 'Concordant') : (languageStore.isEn() ? 'To review' : 'À vérifier'))
-    }
-
-    // Mise à jour de l'état du justificatif de domicile
-    const domStep = concordanceSteps.value.find(s => s.key === 'doc_justificatif_domicile')
-    if (domStep) {
-      const ok = Boolean(ocrRes.domicileMatch)
-      domStep.status = ok ? 'success' : 'error'
-      domStep.statusLabel = ok 
-        ? (languageStore.isEn() ? 'Confirmed' : 'Adresse confirmée')
-        : (languageStore.isEn() ? 'To review' : 'À vérifier')
-    }
-
-    // Mise à jour de l'état de l'origine des fonds
-    const fondsStep = concordanceSteps.value.find(s => s.key === 'doc_origine_fonds')
-    if (fondsStep) {
-      const ok = Boolean(ocrRes.fondsMatch)
-      fondsStep.status = ok ? 'success' : 'error'
-      fondsStep.statusLabel = ok 
-        ? (languageStore.isEn() ? 'Validated' : 'Justificatif validé')
-        : (languageStore.isEn() ? 'To review' : 'À vérifier')
-    }
-
-    // 2. Comparaison faciale si un selfie ou photo est fourni
-    if (selfie) {
-      currentActiveDocKey.value = 'doc_photo'
-      currentActiveDocTitle.value = languageStore.isEn() ? "Recent Photo / Face Match" : "Photo récente / Comparaison faciale"
-      verificationStatusText.value = "Comparaison faciale de la pièce avec votre photo..."
-      const photoStep = concordanceSteps.value.find(s => s.key === 'doc_photo')
-      if (photoStep) {
-        photoStep.status = 'running'
-        photoStep.statusLabel = languageStore.isEn() ? 'Comparing...' : 'Comparaison faciale...'
-      }
-      verificationProgressPercent.value = 92
-      faceRes = await compareFaces(recto, selfie)
-      verificationFaceResult.value = faceRes
-      payload.value.face_match_score = faceRes.score
-      payload.value.face_verified = faceRes.success
-      if (photoStep) {
-        photoStep.status = faceRes.success ? 'success' : 'error'
-        photoStep.statusLabel = faceRes.success
-          ? (languageStore.isEn() ? 'Face Match' : 'Visage certifié')
-          : (languageStore.isEn() ? 'Unconfirmed' : 'Non certifié')
-      }
-    }
-
-    verificationOCRResult.value = ocrRes
-    payload.value.ocr_score = ocrRes.ocrConfidence || 0
-    payload.value.ocr_nom_match = ocrRes.nomMatch
-    payload.value.ocr_prenom_match = ocrRes.prenomMatch
-    payload.value.ocr_dob_match = ocrRes.dobMatch
-    payload.value.ocr_num_piece_match = ocrRes.numPieceMatch
-    payload.value.ocr_expiration_match = ocrRes.expirationMatch
-    payload.value.ocr_doc_type_match = ocrRes.docTypeMatch
-    payload.value.ocr_domicile_match = ocrRes.domicileMatch
-    payload.value.ocr_fonds_match = ocrRes.fondsMatch
-    payload.value.ocr_mrz_detected = ocrRes.mrzDetected
-    payload.value.ocr_snippet = ocrRes.rawSnippet || ''
-    payload.value.verification_timestamp = new Date().toISOString()
-    payload.value.identity_audit_status = (faceRes.success && ocrRes.success) ? 'auto_verified' : 'manual_review_required'
-
-    verificationProgressPercent.value = 100
-    verificationFinished.value = true
-    kycVerificationCompleted.value = true
-    verificationStatusText.value = languageStore.isEn() 
-      ? "Verification analysis completed."
-      : "Analyse de concordance terminée."
-
-    return faceRes.success || faceRes.isFallback === true || ocrRes.success
-  } catch (err) {
-    console.error("KYC Verification failure:", err)
-    if (!silent) {
-      triggerError("Erreur d'analyse", "Une erreur est survenue lors de l'analyse. Une vérification manuelle sera effectuée.")
-    }
-    verificationFinished.value = true
-    verificationStatusText.value = "Analyse interrompue. Une revue manuelle sera opérée par la conformité."
-    return false
-  } finally {
-    verifyingKYC.value = false
-  }
+  kycVerificationCompleted.value = true
+  return true
 }
 
 const personnePhysiqueCategories = [
@@ -1581,12 +1324,6 @@ const nextStep = async () => {
     const recto = payload.value.piece_recto || payload.value.doc_piece_identite
     if (!recto) {
       triggerError("Pièce requise", "Veuillez fournir votre pièce d'identité (Recto) avant de continuer.")
-      return
-    }
-
-    // Déclencher la vérification de concordance des documents via la modale si pas encore validée
-    if (!kycVerificationCompleted.value) {
-      openConcordanceModalAndStart()
       return
     }
 
@@ -2334,101 +2071,6 @@ const submitOnboarding = async () => {
           </div>
         </div>
 
-        <!-- ENCART DE CONCORDANCE ET VÉRIFICATION AUTOMATISÉE DES DOCUMENTS (PWA) -->
-        <div v-if="verificationOCRResult || payload.ocr_nom_match !== null" class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-4 text-left">
-          <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-            <div class="flex items-center gap-3">
-              <!-- <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                :class="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match) ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'">
-                <ShieldCheck v-if="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match)" class="w-5 h-5" />
-                <ShieldAlert v-else class="w-5 h-5" />
-              </div> -->
-              <div>
-                <h5 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  {{ languageStore.isEn() ? 'Documents Verification' : 'Verification documents' }}
-                </h5>
-                <p class="text-[11px] text-slate-500 font-medium">
-                  {{ payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match)
-                    ? (languageStore.isEn() ? 'Documents verified. Data matches the information provided.' : 'Documents analysés. Les informations correspondent aux pièces fournies.')
-                    : (languageStore.isEn() ? 'Discrepancies detected. Manual review will be performed by compliance if needed.' : 'Des non-concordances ont été relevées. Une revue manuelle sera opérée par la conformité si nécessaire.')
-                  }}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              @click="openConcordanceModalAndStart"
-              class="text-[10px] font-bold text-primary hover:underline shrink-0 flex items-center gap-1 pt-1 cursor-pointer"
-            >
-              <RefreshCw class="w-3 h-3" />
-              {{ languageStore.isEn() ? 'Re-analyze' : 'Réanalyser' }}
-            </button>
-          </div>
-
-          <!-- Puces récapitulatives des points de contrôle : Vert si correct, Rouge si non correct -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <!-- Nom / Prénom -->
-            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition-all"
-              :class="payload.ocr_nom_match ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' : 'bg-rose-50 border-rose-300 text-rose-800 shadow-sm'">
-              <CheckCircle2 v-if="payload.ocr_nom_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
-              <span class="truncate">
-                {{ payload.ocr_nom_match 
-                  ? (languageStore.isEn() ? 'Name Match' : 'Nom concordant') 
-                  : (languageStore.isEn() ? 'Name Mismatch' : 'Nom non concordant') 
-                }}
-              </span>
-            </div>
-
-            <!-- N° Pièce -->
-            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition-all"
-              :class="payload.ocr_num_piece_match ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' : 'bg-rose-50 border-rose-300 text-rose-800 shadow-sm'">
-              <CheckCircle2 v-if="payload.ocr_num_piece_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
-              <span class="truncate">
-                {{ payload.ocr_num_piece_match 
-                  ? (languageStore.isEn() ? 'ID Number Match' : 'N° pièce concordant') 
-                  : (languageStore.isEn() ? 'ID Number Mismatch' : 'N° pièce non concordant') 
-                }}
-              </span>
-            </div>
-
-            <!-- Validité / Expiration -->
-            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition-all"
-              :class="payload.ocr_expiration_match ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' : 'bg-rose-50 border-rose-300 text-rose-800 shadow-sm'">
-              <CheckCircle2 v-if="payload.ocr_expiration_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
-              <span class="truncate">
-                {{ payload.ocr_expiration_match 
-                  ? (languageStore.isEn() ? 'Validity Confirmed' : 'Validité confirmée') 
-                  : (languageStore.isEn() ? 'Validity Unconfirmed' : 'Validité non confirmée') 
-                }}
-              </span>
-            </div>
-
-            <!-- Biométrie faciale -->
-            <div class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition-all"
-              :class="payload.face_verified ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm' : 'bg-rose-50 border-rose-300 text-rose-800 shadow-sm'">
-              <CheckCircle2 v-if="payload.face_verified" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
-              <span class="truncate">
-                {{ payload.face_verified 
-                  ? (languageStore.isEn() ? 'Facial Match' : 'Visage certifié') 
-                  : (languageStore.isEn() ? 'Face Unconfirmed' : 'Visage non certifié') 
-                }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Note bienveillante conformité CEMAC -->
-          <p class="text-[10px] text-slate-400 leading-relaxed italic">
-            {{ languageStore.isEn()
-              ? 'Our compliance officers will finalize the validation of your documents during file review.'
-              : 'Conformément aux directives COSUMAF, nos officiers de conformité valideront l’exactitude de vos pièces lors de l’examen final de votre dossier.'
-            }}
-          </p>
-        </div>
-
         <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/40 space-y-5">
           <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-3">{{ languageStore.isEn() ? 'Occupation' : 'Profession' }}</h4>
           
@@ -3026,265 +2668,6 @@ const submitOnboarding = async () => {
               {{ languageStore.isEn() ? 'Capture' : 'Capturer' }}
             </button>
           </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Modal de vérification de concordance des documents -->
-    <Teleport to="body">
-      <div v-if="showConcordanceModal" class="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-        <!-- Backdrop -->
-        <div 
-          @click="verifyingKYC ? null : closeConcordanceModal()" 
-          class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
-        ></div>
-
-        <!-- Modal Card -->
-        <div class="relative bg-white rounded-[32px] p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 space-y-5 text-left z-10 animate-in zoom-in-95 duration-200">
-          
-          <!-- Close button (disabled during verification) -->
-          <button 
-            v-if="!verifyingKYC"
-            type="button" 
-            @click="closeConcordanceModal" 
-            class="absolute right-5 top-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
-            :aria-label="languageStore.isEn() ? 'Close' : 'Fermer'"
-          >
-            <X class="w-4 h-4" />
-          </button>
-
-          <!-- Header -->
-          <div class="flex items-start gap-3.5 pr-8">
-            <!-- <div 
-              class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors"
-              :class="verifyingKYC ? 'bg-blue-50 text-blue-600 animate-pulse' : (payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match) ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')"
-            >
-              <Loader2 v-if="verifyingKYC" class="w-6 h-6 animate-spin text-primary" />
-              <ShieldCheck v-else-if="payload.ocr_mrz_detected || (payload.ocr_nom_match && payload.ocr_num_piece_match)" class="w-6 h-6" />
-              <ShieldAlert v-else class="w-6 h-6" />
-            </div> -->
-            <div>
-              <span class="text-[10px] font-black uppercase tracking-widest text-primary">
-                {{ verifyingKYC ? (languageStore.isEn() ? 'Automated Verification' : 'Vérification automatisée') : (languageStore.isEn() ? 'Analysis Completed' : 'Contrôle documentaire') }}
-              </span>
-              <h3 class="text-base font-black text-slate-900">
-                {{ verifyingKYC 
-                  ? (languageStore.isEn() ? 'Checking your documents...' : 'Vérification de vos pièces en cours...') 
-                  : (languageStore.isEn() ? 'Consistency check completed' : 'Analyse des documents soumis') 
-                }}
-              </h3>
-              <p class="text-xs text-slate-500 font-medium">
-                {{ verifyingKYC 
-                  ? (languageStore.isEn() ? 'AI OCR & biometric analysis of each document provided.' : 'Analyse OCR & biométrique des justificatifs fournis.') 
-                  : (languageStore.isEn() ? 'Summary of the verification of the documents provided.' : 'Synthèse des analyses des documents fournis.') 
-                }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Document en cours d'analyse (Bannière vivante) -->
-          <div v-if="verifyingKYC" class="p-4 rounded-2xl bg-blue-50/70 border border-blue-100 space-y-2.5">
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-bold text-blue-900 flex items-center gap-2">
-                <Sparkles class="w-4 h-4 text-primary animate-pulse" />
-                {{ languageStore.isEn() ? 'Document being verified:' : 'Document en cours d\'analyse :' }}
-              </span>
-              <span class="font-black text-primary px-2.5 py-0.5 rounded-full bg-white text-[10px] shadow-2xs">
-                {{ verificationProgressPercent }}%
-              </span>
-            </div>
-            <p class="text-xs font-black text-slate-900 flex items-center gap-1.5">
-              <span>📄</span> {{ currentActiveDocTitle }}
-            </p>
-            <p class="text-[11px] text-blue-700 font-medium leading-relaxed">
-              {{ verificationStatusText }}
-            </p>
-
-            <!-- Global Progress Bar -->
-            <div class="w-full bg-blue-100/60 h-2 rounded-full overflow-hidden">
-              <div 
-                :style="{ width: verificationProgressPercent + '%' }" 
-                class="bg-primary h-full transition-all duration-300 rounded-full"
-              ></div>
-            </div>
-          </div>
-
-          <!-- Liste des documents avec suivi en direct -->
-          <div class="space-y-2">
-            <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">
-              {{ languageStore.isEn() ? 'Documents & Status' : 'Pièces et état du contrôle' }}
-            </h4>
-            
-            <div class="space-y-2">
-              <div 
-                v-for="step in concordanceSteps" 
-                :key="step.key" 
-                class="p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 text-left"
-                :class="{
-                  'border-blue-400 bg-blue-50/40 shadow-xs ring-1 ring-blue-300': step.status === 'running',
-                  'border-emerald-200 bg-emerald-50/30': step.status === 'success',
-                  'border-rose-200 bg-rose-50/30': step.status === 'error',
-                  'border-slate-100 bg-slate-50/60': step.status === 'pending'
-                }"
-              >
-                <div class="space-y-0.5 min-w-0">
-                  <p class="text-xs font-black text-slate-900 truncate">
-                    {{ step.title }}
-                  </p>
-                  <p class="text-[10px] text-slate-500 font-medium truncate">
-                    {{ step.subtitle }}
-                  </p>
-                </div>
-
-                <!-- Badge statut à droite -->
-                <div class="shrink-0 flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider"
-                  :class="{
-                    'bg-blue-100 text-blue-800 border border-blue-200': step.status === 'running',
-                    'bg-emerald-100 text-emerald-800 border border-emerald-200': step.status === 'success',
-                    'bg-rose-100 text-rose-800 border border-rose-200': step.status === 'error',
-                    'bg-slate-200 text-slate-600': step.status === 'pending'
-                  }"
-                >
-                  <Loader2 v-if="step.status === 'running'" class="w-3 h-3 animate-spin text-blue-600" />
-                  <CheckCircle2 v-else-if="step.status === 'success'" class="w-3 h-3 text-emerald-600" />
-                  <XCircle v-else-if="step.status === 'error'" class="w-3 h-3 text-rose-600" />
-                  <Clock v-else class="w-3 h-3 text-slate-400" />
-                  <span>{{ step.statusLabel }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Résultat final et points de concordance (affiché quand terminé) -->
-          <div v-if="verificationFinished" class="space-y-3 pt-2 border-t border-slate-100 animate-in fade-in duration-300">
-            <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">
-              {{ languageStore.isEn() ? 'Consistency Summary' : 'Points de concordance vérifiés' }}
-            </h4>
-
-            <div class="grid grid-cols-2 gap-2">
-              <!-- Nom & Prénom -->
-              <div 
-                class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
-                :class="payload.ocr_nom_match ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-rose-50 border-rose-300 text-rose-800'"
-              >
-                <CheckCircle2 v-if="payload.ocr_nom_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                <span class="truncate">
-                  {{ payload.ocr_nom_match 
-                    ? (languageStore.isEn() ? 'Name Match' : 'Nom concordant') 
-                    : (languageStore.isEn() ? 'Name Mismatch' : 'Nom non concordant') 
-                  }}
-                </span>
-              </div>
-
-              <!-- Numéro de pièce -->
-              <div 
-                class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
-                :class="payload.ocr_num_piece_match ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-rose-50 border-rose-300 text-rose-800'"
-              >
-                <CheckCircle2 v-if="payload.ocr_num_piece_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                <span class="truncate">
-                  {{ payload.ocr_num_piece_match 
-                    ? (languageStore.isEn() ? 'ID Number Match' : 'N° pièce concordant') 
-                    : (languageStore.isEn() ? 'ID Number Mismatch' : 'N° pièce non concordant') 
-                  }}
-                </span>
-              </div>
-
-              <!-- Validité temporelle -->
-              <div 
-                class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
-                :class="payload.ocr_expiration_match ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-rose-50 border-rose-300 text-rose-800'"
-              >
-                <CheckCircle2 v-if="payload.ocr_expiration_match" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <XCircle v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                <span class="truncate">
-                  {{ payload.ocr_expiration_match 
-                    ? (languageStore.isEn() ? 'Validity Confirmed' : 'Validité confirmée') 
-                    : (languageStore.isEn() ? 'Validity Unconfirmed' : 'Validité non confirmée') 
-                  }}
-                </span>
-              </div>
-
-              <!-- Biométrie faciale ou Bande MRZ -->
-              <div 
-                v-if="payload.piece_verso || payload.doc_piece_verso"
-                class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
-                :class="payload.ocr_mrz_detected ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-amber-50 border-amber-300 text-amber-800'"
-              >
-                <CheckCircle2 v-if="payload.ocr_mrz_detected" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <AlertCircle v-else class="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span class="truncate">
-                  {{ payload.ocr_mrz_detected 
-                    ? 'MRZ ICAO 9303' 
-                    : (languageStore.isEn() ? 'Standard reverse' : 'Verso standard') 
-                  }}
-                </span>
-              </div>
-
-              <div 
-                v-if="payload.selfie_live || payload.doc_photo"
-                class="p-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5"
-                :class="payload.face_verified ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-amber-50 border-amber-300 text-amber-800'"
-              >
-                <CheckCircle2 v-if="payload.face_verified" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <AlertCircle v-else class="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span class="truncate">
-                  {{ payload.face_verified 
-                    ? (languageStore.isEn() ? 'Facial Match' : 'Visage certifié') 
-                    : (languageStore.isEn() ? 'Manual Review' : 'Revue visage') 
-                  }}
-                </span>
-              </div>
-            </div>
-
-            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[10px] text-slate-500 font-medium leading-relaxed">
-              {{ languageStore.isEn() 
-                ? 'Note: All non-concordant or unconfirmed items will be reviewed and validated manually by our compliance team before account activation.' 
-                : 'Note réglementaire : Les éléments signalés comme non concordants feront l’objet d’un examen manuel bienveillant par notre équipe de conformité lors de la validation finale.' 
-              }}
-            </div>
-          </div>
-
-          <!-- Actions de la modale -->
-          <div class="space-y-2 pt-2">
-            <!-- Bouton quand en cours d'analyse -->
-            <button 
-              v-if="verifyingKYC"
-              type="button"
-              disabled
-              class="w-full bg-slate-200 text-slate-500 font-black py-4 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed"
-            >
-              <Loader2 class="w-4 h-4 animate-spin text-slate-500" />
-              <span>{{ languageStore.isEn() ? 'Analyzing documents in progress...' : 'Analyse des documents en cours...' }}</span>
-            </button>
-
-            <!-- Boutons quand analyse terminée -->
-            <template v-else-if="verificationFinished">
-              <button 
-                type="button"
-                @click="continueToNextStepAfterModal"
-                :disabled="stepLoading"
-                class="w-full bg-primary hover:bg-slate-800 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-primary/25 active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                <Loader2 v-if="stepLoading" class="w-4 h-4 animate-spin text-white" />
-                <template v-else>
-                  <span>{{ languageStore.isEn() ? 'Continue to next step' : 'Passer à l\'étape suivante' }}</span>
-                  <ArrowRight class="w-4 h-4" />
-                </template>
-              </button>
-
-              <button 
-                type="button"
-                @click="closeConcordanceModal"
-                class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-3 rounded-2xl text-xs uppercase tracking-wider active:scale-95 transition-all"
-              >
-                {{ languageStore.isEn() ? 'Review or modify documents' : 'Revoir ou modifier mes pièces' }}
-              </button>
-            </template>
-          </div>
-
         </div>
       </div>
     </Teleport>
