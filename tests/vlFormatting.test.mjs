@@ -58,3 +58,24 @@ test('Share calculations retain full mathematical precision without premature ro
   const valuation = Math.round(shares * vlExact)
   assert.equal(valuation, 50000)
 })
+
+test('Subscription amounts are strictly whole integers in XAF without decimals', () => {
+  const vl = 11479.9640927785
+  const selectedShares = 10
+
+  // 10 shares calculation
+  const calculatedInvestment = Math.round(selectedShares * vl)
+  assert.equal(calculatedInvestment, 114800)
+  assert.equal(Number.isInteger(calculatedInvestment), true)
+
+  // Fees calculation at 100 bps (1%)
+  const feeBasisPoints = 100
+  const fees = Math.round((calculatedInvestment * feeBasisPoints) / 10000)
+  assert.equal(fees, 1148)
+  assert.equal(Number.isInteger(fees), true)
+
+  // Final amount to debit
+  const finalAmount = calculatedInvestment + fees
+  assert.equal(finalAmount, 115948)
+  assert.equal(Number.isInteger(finalAmount), true)
+})

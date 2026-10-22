@@ -335,7 +335,8 @@ const redirectToCheckout = (checkoutUrl) => {
 }
 
 const onAmountInput = (e) => {
-  const val = parseFloat(e.target.value) || 0
+  const raw = parseFloat(e.target.value) || 0
+  const val = Math.round(raw)
   inputAmount.value = val
   if (fund.value && fund.value.vl > 0) {
     parts.value = parseFloat((val / fund.value.vl).toFixed(8))
@@ -345,8 +346,9 @@ const onAmountInput = (e) => {
 const onPartsInput = (e) => {
   const val = parseFloat(e.target.value) || 0
   parts.value = val
-  if (fund.value) {
-    inputAmount.value = parseFloat((val * fund.value.vl).toFixed(2))
+  if (fund.value && fund.value.vl > 0) {
+    // Calcul direct d'un montant entier propre (en XAF sans centimes)
+    inputAmount.value = Math.round(val * fund.value.vl)
   }
 }
 
@@ -412,7 +414,7 @@ const fetchData = async () => {
     paymentPhone.value = initialPhone
 
     if (fund.value) {
-      inputAmount.value = parseFloat(Number(fund.value.vl).toFixed(2))
+      inputAmount.value = Math.round(Number(fund.value.vl))
     } else {
       router.push('/catalog')
     }
@@ -434,12 +436,10 @@ watch(paymentPhone, (val) => {
   }
 })
 
-const formatCurrency2Dec = (val) => {
-  return Number(val || 0).toLocaleString('fr-FR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })
+const formatCurrencyWhole = (val) => {
+  return Math.round(Number(val || 0)).toLocaleString('fr-FR')
 }
+const formatCurrency2Dec = formatCurrencyWhole
 
 onMounted(() => {
   fetchData()
@@ -448,18 +448,18 @@ onMounted(() => {
 const totalAmount = computed(() => {
   if (!fund.value) return 0
   if (inputMode.value === 'amount') {
-    return parseFloat(Number(inputAmount.value).toFixed(2))
+    return Math.round(Number(inputAmount.value) || 0)
   }
-  return parseFloat(Number(parts.value * fund.value.vl).toFixed(2))
+  return Math.round(Number(parts.value * fund.value.vl) || 0)
 })
 
 const fees = computed(() => {
   const basisPoints = paymentOptions.value?.fee_basis_points ?? 100
-  return parseFloat(((totalAmount.value * basisPoints) / 10000).toFixed(2))
+  return Math.round((totalAmount.value * basisPoints) / 10000)
 })
 
 const finalAmount = computed(() => {
-  return parseFloat((Number(totalAmount.value) + Number(fees.value)).toFixed(2))
+  return Math.round(Number(totalAmount.value) + Number(fees.value))
 })
 
 const isMinimumMet = computed(() => {
@@ -818,8 +818,9 @@ const handleSubscribe = async () => {
               :value="inputAmount"
               @input="onAmountInput"
               type="number" 
-              step="0.01"
-              min="0"
+              step="1"
+              min="1"
+              inputmode="numeric"
               placeholder="Ex: 50 000"
               class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 pl-8 pr-24 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
             >
@@ -838,7 +839,9 @@ const handleSubscribe = async () => {
               :value="parts"
               @input="onPartsInput"
               type="number" 
-              step="0.5"
+              step="1"
+              min="1"
+              inputmode="numeric"
               placeholder="Ex: 5"
               class="w-full bg-white border-2 border-slate-100 rounded-3xl py-5 pl-8 pr-28 text-3xl font-black text-primary focus:border-primary transition-all outline-none"
             >
