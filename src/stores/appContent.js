@@ -6,7 +6,15 @@ import { translations } from '../locales/translations'
 
 export const useAppContentStore = defineStore('appContent', () => {
   const languageStore = useLanguageStore()
-  const contents = ref(JSON.parse(localStorage.getItem('pek_app_contents') || '{}'))
+  const getInitialContents = () => {
+    try {
+      const raw = localStorage.getItem('pek_app_contents')
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  }
+  const contents = ref(getInitialContents())
   const loading = ref(false)
   const isLoaded = ref(false)
 

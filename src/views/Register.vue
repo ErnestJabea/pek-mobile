@@ -37,7 +37,7 @@ const showMfaPromptModal = ref(false)
 
 const handleMfaFinished = () => {
   showMfaPromptModal.value = false
-  const redirectPath = route.query.redirect || '/'
+  const redirectPath = route.query.redirect || '/home'
   router.push(redirectPath)
 }
 

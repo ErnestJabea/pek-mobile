@@ -39,3 +39,13 @@ test('translations between French and English are distinct for common UI text', 
   assert.equal(translations.fr.profile_id_not_set, 'Non renseignée')
   assert.equal(translations.en.profile_id_not_set, 'Not provided')
 })
+
+test('all keys in French catalog exist in English catalog and vice versa', () => {
+  const frKeys = Object.keys(translations.fr)
+  const enKeys = Object.keys(translations.en)
+  const missingInEn = frKeys.filter(k => !(k in translations.en))
+  const missingInFr = enKeys.filter(k => !(k in translations.fr))
+
+  assert.deepEqual(missingInEn, [], 'No keys should be in FR but missing in EN')
+  assert.deepEqual(missingInFr, [], 'No keys should be in EN but missing in FR')
+})

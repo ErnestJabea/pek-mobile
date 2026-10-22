@@ -30,7 +30,15 @@ const shouldShowHeader = computed(() => {
 })
 
 let pollingInterval = null
-const seenNotificationIds = ref(JSON.parse(localStorage.getItem('seen_notification_ids') || '[]'))
+const getInitialSeenNotifications = () => {
+  try {
+    const raw = localStorage.getItem('seen_notification_ids')
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+const seenNotificationIds = ref(getInitialSeenNotifications())
 const supportsBrowserNotifications = 'Notification' in window
 
 const requestNotificationPermission = async () => {

@@ -43,7 +43,7 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   // Recharger l'application pour charger la nouvelle version uniquement hors des parcours sensibles
   let isRefreshing = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    const isSensitiveFlow = window.location.pathname.includes('/onboarding') || window.location.pathname.includes('/subscription')
+    const isSensitiveFlow = window.location.pathname.includes('/onboarding') || window.location.pathname.includes('/subscribe') || window.location.pathname.includes('/payment')
     if (isSensitiveFlow) {
       // Préserver la saisie utilisateur et éviter tout rechargement lors d'upload ou de prise de photo
       return

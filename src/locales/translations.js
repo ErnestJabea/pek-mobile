@@ -348,6 +348,13 @@ export const translations = {
     invalid_credentials_error: "Adresse e-mail ou mot de passe incorrect.",
     session_expired_error: "Votre session a expiré. Veuillez vous reconnecter.",
     invalid_token_error: "Ce lien de réinitialisation est invalide ou a expiré. Veuillez faire une nouvelle demande.",
+
+    // --- App Content & Home Cards Fallbacks ---
+    home_banner_complete_onboarding: "Complétez votre profil d'investisseur",
+    home_banner_ready_to_invest: "Prêt à investir ?",
+    home_welcome_unverified: "Bienvenue sur votre espace PEK",
+    home_portfolio_card: "Portefeuille",
+    first_sub_banner: "Votre première souscription",
   },
   en: {
     // --- Welcome / Slides ---
@@ -698,5 +705,12 @@ export const translations = {
     invalid_credentials_error: "Invalid email or password.",
     session_expired_error: "Your session has expired. Please sign in again.",
     invalid_token_error: "This reset link is invalid or has expired. Please request a new one.",
+
+    // --- App Content & Home Cards Fallbacks ---
+    home_banner_complete_onboarding: "Complete your investor profile",
+    home_banner_ready_to_invest: "Ready to invest?",
+    home_welcome_unverified: "Welcome to your PEK space",
+    home_portfolio_card: "Portfolio",
+    first_sub_banner: "Your first subscription",
   }
 }

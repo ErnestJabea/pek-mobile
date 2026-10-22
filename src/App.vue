@@ -63,6 +63,7 @@ onMounted(() => {
   qrValue.value = isLocalHost
     ? `http://192.168.30.130:${window.location.port || '5173'}`
     : window.location.href
+  window.addEventListener('resize', checkScreenSize)
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
 })

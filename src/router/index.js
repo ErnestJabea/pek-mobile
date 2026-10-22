@@ -27,6 +27,10 @@ const routes = [
     component: SplashScreen
   },
   {
+    path: '/dashboard',
+    redirect: '/home'
+  },
+  {
     path: '/home',
     name: 'home',
     component: Home,

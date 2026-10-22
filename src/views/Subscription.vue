@@ -206,7 +206,7 @@ const closeMobilePendingModal = () => {
   if (mobilePollTimer) clearTimeout(mobilePollTimer)
   isMobilePendingModalOpen.value = false
   if (mobilePaymentStatus.value === 'success') {
-    router.push('/dashboard')
+    router.push('/home')
   }
 }
 
@@ -245,7 +245,7 @@ const retryMobilePayment = async () => {
 
 const goToPortfolio = () => {
   closeMobilePendingModal()
-  router.push('/dashboard')
+  router.push('/home')
 }
 
 const goToCatalog = () => {
